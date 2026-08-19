@@ -4,11 +4,13 @@ Estructura tomada de [Project Plan](../referencia/project-plan.md) §8.2. Este d
 señala en qué fase está el repo y qué hay que hacer primero dentro de ella.
 
 !!! note "Fase 0 en curso"
-    Spikes de Modbus y UDP ya corridos contra `radar_emulator` — ver `spike-fase0/RESULTADO.md`
-    en la raíz del repo. Tres de los cuatro contratos (RCP↔HAL, RCP↔DSP/DRX, RCP↔MMI) ya están
-    congelados como esquemas Pydantic en `src/core/contracts/`. Falta: RCP↔ORPG, bloqueado por
-    PEND-RCP-04 (sin ORPG real ni stub CM_TCP) — explícitamente pospuesto, se retoma cuando haya
-    un contenedor para eso.
+    Spikes de Modbus, UDP y RDA↔ORPG ya corridos — ver `spike-fase0/RESULTADO.md` y
+    `spike-fase0/RESULTADO-rda-orpg.md` en la raíz del repo. Tres de los cuatro contratos
+    (RCP↔HAL, RCP↔DSP/DRX, RCP↔MMI) ya están congelados como esquemas Pydantic en
+    `src/core/contracts/`. Falta: RCP↔ORPG — el handshake mínimo ya corre contra un stub CM_TCP
+    propio ([PEND-RCP-04](../alcance/pendientes.md#pend-rcp-04-disponibilidad-de-orpg-real-o-stub-cm_tcp-para-fase-0)
+    parcialmente resuelto), pero el contrato sigue pospuesto hasta confirmar con LAMULA ORPG un
+    hallazgo abierto y hasta tener acceso a un ORPG real.
 
 ## Fase 0 — Inception & Architecture (semanas 1–3)
 
@@ -30,12 +32,15 @@ RDA↔ORPG/CM_TCP.
    pérdida de stream, más las ocho degradaciones de §6 disparadas en vivo desde el emulador
    (pérdida, ráfaga, duplicación, congelación, encoder inválido, salto de secuencia, silencio).
    Ver `spike-fase0/RESULTADO.md`.
-3. ⏸️ Spike RDA↔ORPG: handshake mínimo de loopback (Msg 11/12) contra ORPG real o un stub CM_TCP —
-   bloqueado por [PEND-RCP-04](../alcance/pendientes.md#pend-rcp-04-disponibilidad-de-orpg-real-o-stub-cm_tcp-para-fase-0).
+3. ✅ Spike RDA↔ORPG: handshake mínimo de loopback (Msg 11/12), corrido contra un stub CM_TCP
+   propio (no hay ORPG real disponible todavía) — ver `spike-fase0/RESULTADO-rda-orpg.md`. Deja
+   abierto un hallazgo a confirmar con LAMULA ORPG antes de congelar el contrato: ver
+   [PEND-RCP-04](../alcance/pendientes.md#pend-rcp-04-disponibilidad-de-orpg-real-o-stub-cm_tcp-para-fase-0).
 4. Congelar los cuatro contratos como esquemas Pydantic versionados:
    - ✅ RCP↔HAL, RCP↔DSP/DRX, RCP↔MMI — `src/core/contracts/{hal,dsp,mmi}.py`.
-   - ⏸️ RCP↔ORPG — pospuesto junto con el spike del punto 3. Es el ICD 2620002 fijo (AGENTS.md);
-     no se define localmente sin el equipo LAMULA ORPG.
+   - ⏸️ RCP↔ORPG — sigue pospuesto: el stub del punto 3 valida el handshake mínimo, pero no
+     resuelve el hallazgo abierto ni el acceso a un ORPG real. Es el ICD 2620002 fijo
+     (AGENTS.md); no se define localmente sin el equipo LAMULA ORPG.
 
 ## Fase 1 — Foundations & Simulator (semanas 4–10)
 

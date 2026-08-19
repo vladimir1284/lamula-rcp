@@ -50,9 +50,19 @@ arquitectura — resolver en Fase 0 al montar CI.
 ### PEND-RCP-04 · Disponibilidad de ORPG real o stub CM_TCP para Fase 0
 
 El plan (§8.2, Fase 0) pide un "handshake mínimo RDA↔ORPG" como spike de la Fase 0. No está
-confirmado si hay acceso, en esta etapa, a un build real de ORPG o si hace falta construir un
-stub CM_TCP propio antes de poder ejecutar ese spike. Sin esto, el spike de loopback (Msg 11/12)
-no tiene con qué hablar.
+confirmado si hay acceso, en esta etapa, a un build real de ORPG.
+
+**Parcialmente resuelto (2026-08-19):** se construyó el stub CM_TCP (`spike-fase0/
+rda_orpg_handshake_spike.py`, rol `--role orpg`) y se corrió el spike de loopback (Msg 11/12)
+contra él — ver `spike-fase0/RESULTADO-rda-orpg.md`. El formato de bytes (CTM_Header, MSG_Header,
+payload del Loopback Test) se tomó del proyecto legacy `RDA_Backend_Py` (2013, ingesta de
+radares cubanos al ORPG), que cita el ICD 2620002F como fuente — no es una reinterpretación
+propia del ICD.
+
+Sigue sin resolver: acceso a un ORPG real para validar el stub contra la implementación real, y
+un hallazgo del legacy (¿quién valida el eco del loopback, el que recibe 11 o el que recibe 12?)
+que hay que confirmar con el equipo LAMULA ORPG antes de congelar el contrato RCP↔ORPG (detalle
+en `RESULTADO-rda-orpg.md`).
 
 ### PEND-RCP-05 · El DSP externo no tiene aún una interfaz de referencia ejecutable
 
