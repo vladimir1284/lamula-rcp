@@ -146,6 +146,14 @@ Visualization + BITE.
     Con esto, las seis rutinas del plan tienen primer borrador implementado y probado contra el
     simulador.
 
+    ✅ System Status & BITE Manager (`core/bite/manager.py`): sondea un conjunto fijo de señales
+    `*_ok_status`/`*_fault_status`/`*_over_current_status` (más las dos excepciones de
+    protección térmica de antena) y reporta solo transiciones sano↔falla, con historial acotado y
+    filtrado por subsistema — ver `spike-fase2/RESULTADO-bite-manager.md`. A diferencia de las
+    seis rutinas, no depende de ninguna confirmación del product expert (agregación mecánica, no
+    procedimiento operativo nuevo). Todavía sin cablear al gateway/MMI; salud del enlace ORPG
+    (parte del plan §4.4) fuera de alcance porque esa interfaz no existe (PEND-RCP-04).
+
     ⏸️ Sin resolver: secuencia/criterio de éxito de la Rutina 1 no confirmados con el product
     expert (PEND-RCP-06); para las Rutinas 2–6 (PEND-RCP-07): tiempo de caldeo/umbral de
     sobrecorriente reales para la Rutina 2, tiempo de enganche del STALO para la Rutina 3, si
