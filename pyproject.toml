@@ -4,8 +4,11 @@ version = "0.0.0"
 description = "Radar Control Processor & Operator MMI para el radar meteorológico Gematronik"
 requires-python = ">=3.12"
 dependencies = [
+    "fastapi>=0.141.1",
     "pydantic>=2,<3",
     "pymodbus>=3.15.0",
+    "uvicorn>=0.52.4",
+    "websockets>=17.0.1",
 ]
 
 # Empaquetado (wheel/PyInstaller vs. estructura de paquete) es PEND-RCP-03,
@@ -13,3 +16,6 @@ dependencies = [
 # el layout de import para pytest; no elige build-backend.
 [tool.pytest.ini_options]
 pythonpath = ["src"]
+
+[dependency-groups]
+dev = []

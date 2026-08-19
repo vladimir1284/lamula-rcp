@@ -56,8 +56,17 @@ vivo sim→WS→PPI.
     ✅ Adaptador `hal_sim` (`src/adapters/hal_sim/SimulatedHAL`): cliente Modbus TCP (una
     conexión, diez unit IDs) + receptor UDP de encoder, contra un catálogo de 111 señales
     vendorizado de `radar_emulator` — ver `spike-fase1/RESULTADO-hal-sim.md`, probado contra una
-    instancia real de `radar_emulator`, no un stub propio. Falta: esqueleto del gateway,
-    inyección de fallos, stream DSP/DRX contra el stub de `dsp_moment_stream_spike.py`, shell MMI.
+    instancia real de `radar_emulator`, no un stub propio.
+
+    ✅ Esqueleto del gateway (`src/adapters/gateway`, FastAPI): `GET /api/status`,
+    `POST /api/control`, `WS /ws` (`SessionMessage`/`AntennaMessage`/`HeartbeatMessage`/
+    `OperatorEventMessage` de `core/contracts/mmi.py`) sobre `SimulatedHAL` — primer "pipe de
+    datos en vivo sim→WS" probado extremo a extremo, ver `spike-fase1/RESULTADO-gateway.md`.
+    Sin autenticación, sin persistencia de sesión, sin buffer de eventos para reconexión.
+
+    Falta: inyección de fallos, stream DSP/DRX contra el gateway (el stub
+    `dsp_moment_stream_spike.py` sigue sin conectarse), shell MMI (el pipe hoy llega al WS, no
+    hay todavía un PPI real dibujando).
 
 ## Fase 2 — Control, Safety & Scanning (semanas 11–18)
 
