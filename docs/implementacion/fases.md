@@ -103,8 +103,7 @@ Visualization + BITE.
     `ant.el_upper_limit_status`/`el_lower_limit_status` (fin de carrera físico), y de azimut
     contra `ant.i2t_drive_az_status` (protección térmica del motor) — ver
     `spike-fase2/RESULTADO-parameter-guard.md`, probado contra una instancia real de
-    `radar_emulator`. Todavía nada la invoca (la Rutina 5 — movimiento de antena — no está
-    implementada); es una función pura lista para conectarse.
+    `radar_emulator`. Consumida por las Rutinas 5 y 6.
 
     ✅ Rutina 5 — movimiento de antena (`core/control_routines/antenna_movement.py`): comanda
     `ant.speed_reference_driver_{az,el}` (voltios, no grados/s — hallazgo nuevo, ver
@@ -113,11 +112,23 @@ Visualization + BITE.
     corta el drive de azimut por sí mismo ante la falla térmica. Probada contra una instancia
     real de `radar_emulator`, incluidos los casos de interrupción a mitad de camino.
 
+    ✅ Rutina 6 — posicionamiento de antena (`core/control_routines/antenna_positioning.py`),
+    última de las seis: control proporcional apoyado en la Rutina 5 en cada paso, sin ningún
+    valor propio de ganancia/tolerancia/timeout (parámetros obligatorios, sin default — a
+    diferencia del resto, aquí no hay ni siquiera un marcador de posición del simulador que
+    tomar prestado). Probada contra una instancia real de `radar_emulator`, ver
+    `spike-fase2/RESULTADO-antenna-positioning.md`. Limitación conocida sin resolver: sin cálculo
+    de distancia de frenado, puede sobrepasar el objetivo mientras el eje desacelera.
+
+    Con esto, las seis rutinas del plan tienen primer borrador implementado y probado contra el
+    simulador.
+
     ⏸️ Sin resolver: secuencia/criterio de éxito de la Rutina 1 no confirmados con el product
-    expert (PEND-RCP-06); Rutinas 2, 3, 4 y 6; la ganancia real volt→grados/s para la Rutina 5
-    (PEND-RCP-07); la mitad de la guarda de parámetros sobre PRF × pulse-width, bloqueada por
-    falta de Scan Worksheet y de un contrato de forma de onda (PEND-RCP-08); Scan Worksheet;
-    scheduler de volumen; System Visualization + BITE.
+    expert (PEND-RCP-06); Rutinas 2, 3 y 4 sin implementar; la ganancia real volt→grados/s para
+    la Rutina 5 y la tolerancia/timeout/perfil de frenado reales para la Rutina 6 (PEND-RCP-07);
+    la mitad de la guarda de parámetros sobre PRF × pulse-width, bloqueada por falta de Scan
+    Worksheet y de un contrato de forma de onda (PEND-RCP-08); Scan Worksheet; scheduler de
+    volumen; System Visualization + BITE.
 
 ## Fase 3 — Data Views, Calibration, Archive & ORPG Feed (semanas 19–27)
 

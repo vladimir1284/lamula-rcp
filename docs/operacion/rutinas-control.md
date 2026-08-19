@@ -266,7 +266,12 @@ como error silencioso.
 
 ## Rutina 6 — Posicionamiento de antena
 
-**Estado:** diseño propuesto, sin implementar. Es la rutina más distinta de las seis: el radar
+**Estado:** implementada y probada contra el simulador del radar (ver
+`spike-fase2/RESULTADO-antenna-positioning.md`). No probada contra hardware real. A diferencia de
+las otras cinco, la rutina implementada (`core/control_routines/antenna_positioning.py`) **no
+fija ningún valor propio de ganancia, tolerancia ni tiempo máximo** — los exige como parámetros
+obligatorios de quien la llame, precisamente porque no hay ningún valor real ni siquiera
+aproximado (ni del simulador) que usar como default. Es la rutina más distinta de las seis: el radar
 solo acepta una **orden de velocidad**, nunca una orden de "ir a esta posición exacta" — ese
 lazo de control (medir dónde está, calcular hacia dónde y qué tan rápido moverse, y frenar al
 llegar) lo tiene que resolver el software del RCP, apoyándose en la Rutina 5. El simulador del
@@ -288,6 +293,14 @@ pueda deducir de él.
     - ¿El acercamiento final debe frenar de forma gradual (como se describe arriba) o el radar
       real tiene su propio comportamiento de frenado que deberíamos imitar?
 
+!!! warning "Limitación conocida de la implementación (2026-08-19)"
+    El control proporcional simple implementado no calcula distancia de frenado contra la
+    aceleración limitada del eje (Rutina 5): decide "ya estoy en tolerancia" y ahí recién manda a
+    frenar, así que puede terminar más lejos del objetivo que el margen pedido mientras el eje
+    completa la desaceleración. Ver `spike-fase2/RESULTADO-antenna-positioning.md`. No se
+    resolvió con una fórmula de frenado propia porque exigiría el valor real de aceleración del
+    RD100S, que tampoco existe (ver Rutina 5).
+
 ## Resumen de estado
 
 | Rutina | Estado | Complejidad frente al simulador |
@@ -297,13 +310,15 @@ pueda deducir de él.
 | 3. Encendido del receptor | Diseño propuesto | Sin lógica simulada |
 | 4. Encendido de unidad de antena | Diseño propuesto | Sin lógica simulada — posible orden de nivel, no de pulso |
 | 5. Movimiento de antena | Implementada, probada contra simulador | Modelada con inercia, topes y protección térmica |
-| 6. Posicionamiento de antena | Diseño propuesto | No modelada en absoluto — diseño nuevo del RCP |
+| 6. Posicionamiento de antena | Implementada, probada contra simulador | No modelada en absoluto — diseño nuevo del RCP |
 
 ## Trazabilidad técnica
 
 Para quien necesite correlacionar esta página con el código: la Rutina 1 vive en
-`src/core/control_routines/general_power_on.py` y la Rutina 5 en
+`src/core/control_routines/general_power_on.py`, la Rutina 5 en
 `src/core/control_routines/antenna_movement.py` (consume la guarda de límites de antena en
-`src/core/safety_guard/`). Las preguntas abiertas de la Rutina 1 están en `PEND-RCP-06`, y las de
-las Rutinas 2 a 6 (incluidas las de la Rutina 5 ya implementada) en `PEND-RCP-07` — ambas en
+`src/core/safety_guard/`) y la Rutina 6 en
+`src/core/control_routines/antenna_positioning.py` (consume la Rutina 5 en cada paso de control).
+Las preguntas abiertas de la Rutina 1 están en `PEND-RCP-06`, y las de las Rutinas 2 a 6
+(incluidas las de las Rutinas 5 y 6 ya implementadas) en `PEND-RCP-07` — ambas en
 [Pendientes](../alcance/pendientes.md).

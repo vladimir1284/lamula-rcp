@@ -152,12 +152,21 @@ RD100S ni de un procedimiento confirmado por el product expert. Puntos concretos
   voltios directamente y no confirma magnitud de velocidad, solo sentido de giro y arranque.
 - **Posicionamiento de antena:** el radar solo acepta velocidad, nunca una posición objetivo — el
   lazo de control (tolerancia final, timeout, perfil de frenado) es diseño enteramente nuevo del
-  RCP, sin nada equivalente que imitar del simulador ni del plan.
+  RCP, sin nada equivalente que imitar del simulador ni del plan. **Implementada como primer
+  borrador** en `core/control_routines/antenna_positioning.py` (ver
+  `spike-fase2/RESULTADO-antenna-positioning.md`), apoyada en la Rutina 5 en cada paso de control.
+  A diferencia de las demás rutinas, aquí no hay ni siquiera un marcador de posición del
+  simulador que usar — por eso la ganancia, el voltaje máximo, la tolerancia y el timeout son
+  parámetros obligatorios sin default, no constantes inventadas dentro de la rutina. **Limitación
+  conocida sin resolver:** control proporcional simple sin cálculo de distancia de frenado, puede
+  sobrepasar el objetivo mientras el eje desacelera (ver Rutina 5, aceleración sin confirmar).
 
 **Acción pendiente explícita:** revisar `docs/operacion/rutinas-control.md` completa con el
-product expert antes de implementar cualquiera de las cinco rutinas — estas no son casos donde
-"probar contra el simulador y listo" alcance, porque varios de los valores que el simulador usa
-son marcadores de posición inventados por el equipo de `radar_emulator`, no datos del radar real.
+product expert — con esto, las seis rutinas del plan tienen primer borrador implementado y
+probado contra el simulador, pero ninguna confirmada. Esto no es un caso donde "probar contra el
+simulador y listo" alcance: varios de los valores que el simulador usa son marcadores de posición
+inventados por el equipo de `radar_emulator`, no datos del radar real, y los de la Rutina 6 no
+tienen ni siquiera ese respaldo débil.
 
 ### PEND-RCP-08 · Guarda de PRF × pulse-width para protección del klystron/magnetrón (Fase 2)
 
