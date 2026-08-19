@@ -37,8 +37,9 @@ explícito y no asumido.
 
 ### PEND-RCP-02 · Librería de componentes frontend
 
-Plan §5: "PrimeVue o shadcn-vue (Reka UI) — *decisión necesaria*". Sin resolver. No bloquea la
-Fase 0 (contratos + spikes backend), sí bloquea el arranque de la MMI en Fase 1.
+Plan §5: "PrimeVue o shadcn-vue (Reka UI) — *decisión necesaria*".
+
+**Resuelto (2026-08-19):** PrimeVue. Ver [D-08](decisiones.md#d-08-stack-python-312-fastapi-pydantic-v2-asyncio-vue-3-ts-vite-en-frontend).
 
 ### PEND-RCP-03 · Herramienta de empaquetado de dependencias Python para el target offline
 
@@ -46,6 +47,10 @@ El plan (§5, §12) fija Docker Compose como opción primaria y PyInstaller como
 no fija cómo se vendorizan los wheels de Python para el mirror interno / build offline (pip-tools
 + index local, `uv` con lockfile, o imagen Docker que ya trae todo). Decisión de tooling, no de
 arquitectura — resolver en Fase 0 al montar CI.
+
+**Resuelto (2026-08-19):** `uv` con lockfile (`uv.lock`). CI resuelve/instala con `uv`, wheels
+cacheados en capa Docker; el lockfile queda como fuente auditable de versiones exactas,
+independiente de reconstruir la imagen.
 
 ### PEND-RCP-04 · Disponibilidad de ORPG real o stub CM_TCP para Fase 0
 
@@ -81,3 +86,10 @@ El plan asume el contrato RCP↔DSP "acordado con el proyecto DSP" (plan §6, §
 al momento de crear este repo, un simulador o especificación del stream de momentos equivalente
 a lo que `radar_emulator` ya ofrece para HAL. La ingestión DSP/DRX de Fase 1 puede quedar
 bloqueada por esto igual que Fase 0 lo estaría sin `radar_emulator`.
+
+**Parcialmente resuelto (2026-08-19):** se construyó un stub propio
+(`spike-fase0/dsp_moment_stream_spike.py`) que emite/consume un volumen sintético contra el
+esquema ya congelado (`src/core/contracts/dsp.py`) — ver `spike-fase0/RESULTADO-dsp.md`. El
+framing/formato de transporte es invención de este repo, no un acuerdo con el proyecto DSP; sigue
+sin resolver el acceso a una implementación de referencia real del lado DSP para validar contra
+algo no inventado localmente.

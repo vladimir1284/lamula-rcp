@@ -90,8 +90,10 @@ Vite, Pinia + Vue Router, Tailwind, PixiJS (PPI/RHI) + uPlot (ASCOPE).
 
 **Por qué.** Plan §5, tabla completa. Preferencia del equipo ya fijada, no decisión de este repo.
 
-**Pendiente dentro de esta decisión:** PrimeVue vs. shadcn-vue (Reka UI) para componentes —
-marcado explícitamente "decisión necesaria" en el plan (§5). Ver
+**Resuelto (2026-08-19):** componentes = **PrimeVue**. El plan (§5) marcaba esto "decisión
+necesaria" entre PrimeVue y shadcn-vue (Reka UI). Se eligió PrimeVue por los widgets
+batteries-included (DataTable, Dialog, Knob, Gauge) que se necesitan para controles de antena y
+BITE en Fase 2, frente al costo de construirlos a mano sobre un set headless. Ver
 [pendientes.md](pendientes.md#pend-rcp-02-libreria-de-componentes-frontend).
 
 ---
@@ -103,3 +105,7 @@ alternativa. Sin acceso a paquetes en el target de despliegue.
 
 **Por qué.** Plan §5, §12: entorno de desarrollo/CI puede tener acceso a paquetes (o un mirror
 interno), el target de despliegue no.
+
+**Resuelto (2026-08-19):** vendorizado de wheels Python vía `uv` con lockfile (`uv.lock`) —
+resolución/instalación en CI, wheels cacheados en capa Docker. Ver
+[pendientes.md](pendientes.md#pend-rcp-03-herramienta-de-empaquetado-de-dependencias-python-para-el-target-offline).
