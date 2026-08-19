@@ -1,0 +1,14 @@
+[project]
+name = "lamula-rcp"
+version = "0.0.0"
+description = "Radar Control Processor & Operator MMI para el radar meteorológico Gematronik"
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2,<3",
+]
+
+# Empaquetado (wheel/PyInstaller vs. estructura de paquete) es PEND-RCP-03,
+# sin resolver todavia. Este archivo solo fija la dependencia de contratos y
+# el layout de import para pytest; no elige build-backend.
+[tool.pytest.ini_options]
+pythonpath = ["src"]
