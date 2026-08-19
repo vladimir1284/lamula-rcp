@@ -117,3 +117,35 @@ confirme ni refute la secuencia elegida.
 aparece) el procedimiento real de "general radar power-on" antes de tratar esta rutina como algo
 más que un primer borrador — y decidir si vale la pena pedir a `radar_emulator` un bloque de
 lógica para `sys.*` equivalente a `tx.fsm`, igual que se hizo notar para el transmisor.
+
+### PEND-RCP-07 · Secuencia y umbrales de las rutinas de control 2–6 (Fase 2)
+
+Mismo problema de fondo que PEND-RCP-06, extendido a las cinco rutinas que todavía no tienen
+código: `docs/operacion/rutinas-control.md` documenta un diseño propuesto para cada una, deducido
+del comportamiento de `radar_emulator` (hoy la única referencia disponible), no de un manual del
+RD100S ni de un procedimiento confirmado por el product expert. Puntos concretos sin confirmar:
+
+- **Transmisor:** el tiempo de arranque (~1,5 s), el tiempo de caldeo del magnetrón (~3 min) y el
+  umbral de sobrecorriente pico del magnetrón (55 A) son valores de marcador de posición que el
+  propio `radar_emulator` marca como pendientes en su config — no son datos del RD100S real.
+  Tampoco está confirmado si el radomo participa en la cadena de enclavamiento del transmisor, ni
+  si "encendido del transmisor" como rutina debe llegar solo hasta "listo" o también subir alta
+  tensión y radiar.
+- **Receptor:** no hay ninguna pista de tiempos de enganche del oscilador local (STALO) ni de si
+  existe algún enclavamiento previo al encendido — el simulador no modela nada de esto.
+- **Unidad de antena:** el catálogo tiene una sola orden (no un par Encender/Apagar como las
+  demás rutinas de encendido) — puede ser un interruptor de nivel en vez de un pulso momentáneo,
+  rompe el patrón de las otras tres rutinas de encendido y necesita confirmación explícita antes
+  de programarla.
+- **Movimiento de antena:** los límites de elevación (≈−2°/92°) y el umbral térmico de azimut (30
+  A durante 5 s equivalentes) son valores de marcador de posición. Elevación tiene protección
+  térmica de motor modelada en el simulador; azimut no — sin confirmar si es un hueco a cubrir en
+  el RCP.
+- **Posicionamiento de antena:** el radar solo acepta velocidad, nunca una posición objetivo — el
+  lazo de control (tolerancia final, timeout, perfil de frenado) es diseño enteramente nuevo del
+  RCP, sin nada equivalente que imitar del simulador ni del plan.
+
+**Acción pendiente explícita:** revisar `docs/operacion/rutinas-control.md` completa con el
+product expert antes de implementar cualquiera de las cinco rutinas — estas no son casos donde
+"probar contra el simulador y listo" alcance, porque varios de los valores que el simulador usa
+son marcadores de posición inventados por el equipo de `radar_emulator`, no datos del radar real.

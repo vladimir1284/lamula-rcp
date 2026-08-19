@@ -71,22 +71,215 @@ flowchart TD
     H -- Sí --> I[Éxito: encendido general completado]
 ```
 
-## Rutinas 2 a 6 — todavía no implementadas
+Las siguientes cinco rutinas todavía no tienen código — lo que sigue es el **diseño propuesto**
+para cada una, deducido del comportamiento del simulador del radar (`radar_emulator`), que hoy es
+la única referencia disponible del lado del equipo. Se documentan aquí, antes de programarlas,
+precisamente para que el experto las revise primero y no después.
 
-| Rutina | En qué consiste (procedimiento real) | Estado |
+## Rutina 2 — Encendido del transmisor
+
+**Estado:** diseño propuesto, sin implementar. Es la única de las seis rutinas donde el
+simulador del radar sí reproduce una secuencia interna con tiempos y enclavamientos — las demás
+son más simples porque el simulador no les modela ese comportamiento (ver aviso al final de esta
+sección).
+
+### Enclavamientos de seguridad que deben estar bien antes de continuar
+
+Antes de subir alta tensión, deben estar en buen estado, todos a la vez:
+
+1. Interlock físico del transmisor.
+2. Presión de guía de onda correcta.
+3. Radomo cerrado **y** sistema en espera correcto (el radomo abierto corta este enclavamiento).
+4. Soplador de la cabina funcionando.
+5. Soplador del magnetrón funcionando.
+6. Secuencia de fases correcta.
+7. Ciclo de trabajo (duty cycle) dentro de límite.
+
+### Secuencia propuesta
+
+1. **Encender transmisor:** se envía una orden breve "Encender Tx" (pulso, como en la Rutina 1).
+   Arrancan sopladores y fuentes de alimentación del transmisor.
+2. **Calentamiento inicial (~1,5 segundos):** tiempo corto de arranque antes de pasar a
+   calentamiento del magnetrón.
+3. **Calentamiento del magnetrón (~3 minutos):** el transmisor queda encendido pero no listo para
+   alta tensión hasta que termine este tiempo de caldeo.
+4. **Listo:** terminado el caldeo, el transmisor queda en estado "listo", esperando la orden de
+   alta tensión.
+5. **Encender alta tensión:** si en ese momento **todos** los enclavamientos de la lista de
+   arriba siguen en buen estado, se envía la orden "Encender HV" y el transmisor queda con alta
+   tensión aplicada.
+6. **Habilitar salida:** con una orden adicional el transmisor pasa a "radiando".
+7. **Apagado:** la orden "Apagar Tx" funciona desde cualquier punto de la secuencia y corta todo
+   de inmediato — es la orden de mayor prioridad, por seguridad.
+8. **Caída de un enclavamiento en caliente:** si algún enclavamiento de la lista deja de estar
+   bien mientras el transmisor tiene alta tensión o está radiando, la alta tensión se retira
+   automáticamente (vuelve a "listo"), pero el transmisor **no se apaga por completo** — sigue
+   caliente, listo para otro intento sin repetir el calentamiento.
+
+### Falla que el sistema vigila por sí mismo
+
+Si la corriente pico del magnetrón supera un umbral, el sistema marca una falla de sobrecorriente
+que se queda activa (enclavada) hasta que se envíe explícitamente la orden de "reset de fallas" —
+no se limpia sola aunque la corriente baje.
+
+!!! question "Para el experto: revisar antes de implementar esta rutina"
+    - Los tiempos de arriba (1,5 s de arranque, **3 minutos de caldeo del magnetrón**) son valores
+      de marcador de posición puestos por el equipo de simulación — el propio simulador los
+      marca como pendientes de confirmar. ¿Cuál es el tiempo real de caldeo del magnetrón del
+      RD100S?
+    - El umbral de sobrecorriente pico del magnetrón que dispara la falla también es un valor de
+      marcador de posición. ¿Cuál es el umbral real?
+    - ¿El radomo realmente forma parte de la cadena de enclavamiento del transmisor en el RD100S,
+      o eso es una particularidad del simulador que no aplica al radar real?
+    - ¿"Encendido del transmisor" (la rutina de esta sección) debe llegar hasta "listo" nada más,
+      o debe incluir también subir alta tensión y empezar a radiar? El plan no lo distingue —
+      podría ser que subir HV y radiar sean parte de arrancar un escaneo, no de esta rutina.
+
+### Diagrama de estados
+
+```mermaid
+stateDiagram-v2
+    [*] --> Apagado
+    Apagado --> Arrancando: Encender Tx (pulso)
+    Arrancando --> Calentando: ~1.5 s
+    Calentando --> Listo: ~3 min (caldeo magnetrón)
+    Listo --> AltaTension: Encender HV (si enclavamientos OK)
+    AltaTension --> Radiando: Habilitar salida
+    AltaTension --> Listo: cae algún enclavamiento
+    Radiando --> Listo: cae algún enclavamiento
+    Arrancando --> Apagado: Apagar Tx
+    Calentando --> Apagado: Apagar Tx
+    Listo --> Apagado: Apagar Tx
+    AltaTension --> Apagado: Apagar Tx
+    Radiando --> Apagado: Apagar Tx
+```
+
+## Rutina 3 — Encendido del receptor analógico
+
+**Estado:** diseño propuesto, sin implementar. El simulador no modela ninguna secuencia interna
+para el receptor — es una rutina simple, parecida en forma a la Rutina 1.
+
+### Qué revisaría antes de encender
+
+- Las tres fuentes de alimentación del receptor (+15 V, −15 V, +12 V) en buen estado.
+
+### Qué haría al encender
+
+Enviar una orden breve "Encender RFE" (pulso, mismo patrón que Rutina 1 y Rutina 2).
+
+### Cómo se determinaría el éxito
+
+Confirmar que el front-end de recepción (RFE) queda encendido y que el oscilador local (STALO)
+está enganchado (locked) — sin oscilador enganchado, el receptor no puede procesar señal aunque
+esté "encendido".
+
+!!! question "Para el experto: revisar antes de implementar esta rutina"
+    - ¿Hay algún tiempo de espera entre encender el RFE y que el oscilador local se enganche, o
+      es prácticamente inmediato? El simulador no modela esto, así que no hay ninguna pista de
+      cuánto tardaría en el radar real.
+    - ¿Hay alguna condición de enclavamiento (como en el transmisor) que deba revisarse antes de
+      encender el receptor, o basta con las tres fuentes de alimentación?
+
+## Rutina 4 — Encendido de la unidad de antena
+
+**Estado:** diseño propuesto, sin implementar.
+
+### Qué revisaría antes de encender
+
+- Radomo cerrado.
+
+### Qué haría al encender
+
+Enviar la orden de encendido de la unidad de antena.
+
+### Cómo se determinaría el éxito
+
+Confirmar que la unidad de antena queda encendida, y que los variadores de azimut y elevación
+reportan buen estado.
+
+!!! question "Para el experto: revisar antes de implementar esta rutina — señal atípica"
+    A diferencia de las otras cinco rutinas, el catálogo de señales tiene **una sola orden** para
+    esta ("encender/apagar unidad de antena"), no un par separado de "Encender" / "Apagar" como
+    en encendido general, transmisor y receptor. Eso puede significar que es un interruptor de
+    nivel (se mantiene apretado/sostenido) en vez de un pulso momentáneo como las demás — **rompe
+    el patrón de las otras rutinas y necesita confirmación explícita** de cómo se opera
+    realmente antes de programarla.
+
+## Rutina 5 — Movimiento de antena
+
+**Estado:** diseño propuesto, sin implementar. Es la primera rutina que controla algo con
+inercia real (la antena no cambia de velocidad instantáneamente).
+
+### Qué debe estar listo antes de mover
+
+- La unidad de antena encendida (Rutina 4 completada).
+- El variador del eje que se va a mover (azimut o elevación) habilitado.
+
+### Qué haría al mover
+
+Enviar una velocidad deseada al eje correspondiente. La antena acelera de forma gradual (no
+instantánea) hasta esa velocidad y la mantiene.
+
+### Protecciones mientras se mueve
+
+- **Elevación** tiene topes físicos de fin de carrera (aproximadamente −2° y 92°, valores de
+  marcador de posición pendientes de confirmar): si el eje llega a un tope, el movimiento en esa
+  dirección se detiene solo, aunque se siga pidiendo esa velocidad.
+- **Azimut** no tiene tope (gira continuo en círculo), pero sí protección térmica: si el motor
+  exige demasiada corriente durante demasiado tiempo seguido, el sistema lo detiene para no
+  dañarlo, y esa protección solo se rearma al volver a encender la unidad de antena.
+
+### Cómo se determinaría el éxito o la interrupción
+
+Confirmar que el eje efectivamente alcanza (aproximadamente) la velocidad pedida, y detectar si
+se activó algún tope o la protección térmica para reportarlo como movimiento interrumpido, no
+como error silencioso.
+
+!!! question "Para el experto: revisar antes de implementar esta rutina"
+    - Los límites de elevación y el umbral de protección térmica de azimut son valores de
+      marcador de posición del simulador. ¿Cuáles son los límites y umbrales reales del RD100S?
+    - Elevación tiene protección térmica del motor modelada en el simulador; **azimut no.**
+      ¿Es correcto que azimut no la necesite, o es un hueco del simulador que igual deberíamos
+      cubrir en el RCP por seguridad?
+
+## Rutina 6 — Posicionamiento de antena
+
+**Estado:** diseño propuesto, sin implementar. Es la rutina más distinta de las seis: el radar
+solo acepta una **orden de velocidad**, nunca una orden de "ir a esta posición exacta" — ese
+lazo de control (medir dónde está, calcular hacia dónde y qué tan rápido moverse, y frenar al
+llegar) lo tiene que resolver el software del RCP, apoyándose en la Rutina 5. El simulador del
+radar no da ninguna pista de cómo debería comportarse este lazo — es diseño nuevo, no algo que se
+pueda deducir de él.
+
+### Qué haría, en términos generales
+
+1. Leer la posición actual de azimut/elevación.
+2. Calcular cuánto falta para llegar a la posición pedida.
+3. Pedir una velocidad (vía la Rutina 5) proporcional a esa distancia: rápido si falta mucho,
+   despacio si falta poco.
+4. Cuando la posición esté dentro de un margen aceptable del objetivo, detener el movimiento.
+
+!!! question "Para el experto: esta rutina necesita definirse desde cero"
+    - ¿Qué tan preciso debe ser el posicionamiento final (margen de tolerancia en grados)?
+    - ¿Hay un tiempo máximo esperado para posicionar, después del cual debería reportarse como
+      fallo en vez de seguir esperando?
+    - ¿El acercamiento final debe frenar de forma gradual (como se describe arriba) o el radar
+      real tiene su propio comportamiento de frenado que deberíamos imitar?
+
+## Resumen de estado
+
+| Rutina | Estado | Complejidad frente al simulador |
 |---|---|---|
-| Encendido del transmisor | Enciende sopladores, fuentes de alimentación y alta tensión del transmisor, respetando los enclavamientos de seguridad (interlocks) y el tiempo de calentamiento. | No implementada |
-| Encendido del receptor analógico | Enciende el front-end de recepción (RFE) y confirma que el oscilador local esté enganchado (locked). | No implementada |
-| Encendido de la unidad de antena | Habilita la unidad motriz de la antena. | No implementada |
-| Movimiento de antena | Mueve la antena en azimut/elevación a una velocidad dada. | No implementada |
-| Posicionamiento de antena | Lleva la antena a una posición exacta de azimut/elevación. | No implementada |
-
-La rutina de encendido del transmisor es la siguiente candidata a implementar: a diferencia de la
-de arriba, el simulador del radar sí modela una secuencia interna con tiempos (calentamiento,
-etc.), así que su revisión con el experto será más relevante todavía.
+| 1. Encendido general | Implementada, probada contra simulador | Sin lógica simulada — sirvió para sentar el patrón |
+| 2. Encendido del transmisor | Diseño propuesto | Secuencia con tiempos y enclavamientos ya modelada en el simulador |
+| 3. Encendido del receptor | Diseño propuesto | Sin lógica simulada |
+| 4. Encendido de unidad de antena | Diseño propuesto | Sin lógica simulada — posible orden de nivel, no de pulso |
+| 5. Movimiento de antena | Diseño propuesto | Modelada con inercia, topes y protección térmica |
+| 6. Posicionamiento de antena | Diseño propuesto | No modelada en absoluto — diseño nuevo del RCP |
 
 ## Trazabilidad técnica
 
-Para quien necesite correlacionar esta página con el código: la rutina de la sección 1 vive en
-`src/core/control_routines/general_power_on.py`, y la pregunta abierta de arriba está registrada
-como `PEND-RCP-06` en [Pendientes](../alcance/pendientes.md#pend-rcp-06-secuencia-y-confirmacion-de-la-rutina-general-radar-power-on-fase-2).
+Para quien necesite correlacionar esta página con el código: la Rutina 1 vive en
+`src/core/control_routines/general_power_on.py`. Las preguntas abiertas de esa rutina están en
+`PEND-RCP-06`, y las de las Rutinas 2 a 6 en `PEND-RCP-07` — ambas en
+[Pendientes](../alcance/pendientes.md).
