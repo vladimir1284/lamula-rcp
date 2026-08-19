@@ -64,9 +64,14 @@ vivo sim→WS→PPI.
     datos en vivo sim→WS" probado extremo a extremo, ver `spike-fase1/RESULTADO-gateway.md`.
     Sin autenticación, sin persistencia de sesión, sin buffer de eventos para reconexión.
 
-    Falta: inyección de fallos, stream DSP/DRX contra el gateway (el stub
-    `dsp_moment_stream_spike.py` sigue sin conectarse), shell MMI (el pipe hoy llega al WS, no
-    hay todavía un PPI real dibujando).
+    ✅ Stream DSP conectado al gateway (`src/adapters/dsp/MomentStreamReceiver`): recibe el
+    stub `dsp_moment_stream_spike.py --role dsp` y expone estado resumido
+    (`DspStreamStatus`) en `GET /api/status` — ver `spike-fase1/RESULTADO-dsp-gateway.md`.
+    Decisión: no se streamean momentos completos por WS todavía (eso es la vista PPI de
+    Fase 2/3); `core/contracts/mmi.py` se extendió solo con ese campo de estado.
+
+    Falta: inyección de fallos, shell MMI (el pipe hoy llega al WS, no hay todavía un PPI real
+    dibujando).
 
 ## Fase 2 — Control, Safety & Scanning (semanas 11–18)
 

@@ -20,6 +20,7 @@ from typing import Annotated, Literal, Union
 
 from pydantic import BaseModel, Field
 
+from .dsp import RadialStatus
 from .hal import AntennaPosition
 
 
@@ -47,10 +48,24 @@ class SetControlModeRequest(BaseModel):
     actor: str
 
 
+class DspStreamStatus(BaseModel):
+    """Estado resumido del stream DSP/DRX -- decision 2026-08-19: solo contadores/estado,
+    no los momentos completos. Streaming de momentos a la MMI queda para cuando se diseñe
+    la vista PPI (Fase 2/3, ver docstring del modulo); exponerlo antes seria inventar una
+    forma de PPI sin acuerdo, justo lo que este contrato existe para evitar."""
+
+    connected: bool
+    radials_received: int
+    last_volume_number: int | None = None
+    last_elevation_number: int | None = None
+    last_radial_status: RadialStatus | None = None
+
+
 class SystemStatusSnapshot(BaseModel):
     control: ControlAuthorityState
     hal_connected: bool
     antenna: AntennaPosition | None = None
+    dsp: DspStreamStatus | None = None
 
 
 # --- WebSocket ----------------------------------------------------------

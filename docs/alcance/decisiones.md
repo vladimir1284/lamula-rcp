@@ -109,3 +109,22 @@ interno), el target de despliegue no.
 **Resuelto (2026-08-19):** vendorizado de wheels Python vía `uv` con lockfile (`uv.lock`) —
 resolución/instalación en CI, wheels cacheados en capa Docker. Ver
 [pendientes.md](pendientes.md#pend-rcp-03-herramienta-de-empaquetado-de-dependencias-python-para-el-target-offline).
+
+---
+
+## D-10 · `core/contracts/mmi.py` se extiende con `DspStreamStatus`, no con momentos por WS
+
+**Decisión (2026-08-19).** Al conectar el stub de stream DSP
+(`spike-fase0/dsp_moment_stream_spike.py`) al gateway (Fase 1), el contrato RCP↔MMI ya congelado
+se amplía con un campo `dsp: DspStreamStatus | None` en `SystemStatusSnapshot` (contadores +
+último volumen/elevación/status), **no** con un tipo de mensaje WS que lleve momentos completos.
+
+**Por qué.** `mmi.py` documenta explícitamente que las vistas PPI/RHI/ASCOPE (que sí necesitarían
+momentos en vivo) son de Fase 2/3 — resolver la forma de ese streaming ahora sería inventarla sin
+acuerdo del equipo, justo lo que el contrato existe para evitar. Un campo de estado resumido no
+choca con eso: no es la vista PPI, es visibilidad de "¿está llegando el stream, hasta dónde
+llegó?" para el operador/diagnóstico.
+
+**Nota:** es una ampliación de un contrato marcado como congelado (AGENTS.md), no una
+reinterpretación de algo ya decidido — se registra aquí para que quede trazable. Ver
+[pendientes.md](pendientes.md#pend-rcp-05-el-dsp-externo-no-tiene-aun-una-interfaz-de-referencia-ejecutable).

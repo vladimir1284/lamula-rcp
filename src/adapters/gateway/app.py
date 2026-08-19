@@ -2,14 +2,17 @@
 congelado en `src/core/contracts/mmi.py` -- primer "pipe de datos en vivo
 sim->WS->PPI" de docs/implementacion/fases.md.
 
-Este modulo es un adaptador: importa `src/core/` (estado de sesion) y
-`src/adapters/hal_sim` (fuente de la posicion de antena), nunca al reves
-(AGENTS.md). No incluye autenticacion, persistencia de sesion, ni el
-stream de DSP/momentos -- eso sigue en el stub de
-spike-fase0/dsp_moment_stream_spike.py, no conectado todavia. El log de
-eventos (`OperatorEventMessage`) solo llega a los WS conectados en el
-momento del evento; no hay buffer de reconexion -- marcar PEND si Fase 2
-lo necesita.
+Este modulo es un adaptador: importa `src/core/` (estado de sesion),
+`src/adapters/hal_sim` (posicion de antena) y `src/adapters/dsp` (estado
+resumido del stream de momentos), nunca al reves (AGENTS.md). No incluye
+autenticacion ni persistencia de sesion. El log de eventos
+(`OperatorEventMessage`) solo llega a los WS conectados en el momento del
+evento; no hay buffer de reconexion -- marcar PEND si Fase 2 lo necesita.
+
+Decision 2026-08-19: el stream DSP se integra solo como estado resumido
+(`DspStreamStatus` en `/api/status`), no como mensajes WS de momentos --
+eso queda para cuando se diseñe la vista PPI (Fase 2/3), ver
+`core/contracts/mmi.py`.
 """
 
 from __future__ import annotations
@@ -20,10 +23,12 @@ from datetime import datetime, timezone
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 
+from adapters.dsp import MomentStreamReceiver
 from adapters.hal_sim import SimulatedHAL
 from core.contracts.mmi import (
     AntennaMessage,
     ControlAuthorityState,
+    DspStreamStatus,
     HeartbeatMessage,
     OperatorEventMessage,
     SessionMessage,
@@ -41,22 +46,35 @@ WS_ANTENNA_PERIOD_S = 0.1
 WS_HEARTBEAT_PERIOD_S = 1.0
 
 
-def create_app(hal: SimulatedHAL) -> FastAPI:
+def create_app(hal: SimulatedHAL, dsp: MomentStreamReceiver, dsp_bind_host: str, dsp_port: int) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         if not hal.is_connected():
             await hal.connect()
+        await dsp.start(dsp_bind_host, dsp_port)
         try:
             yield
         finally:
             await hal.disconnect()
+            await dsp.stop()
 
     app = FastAPI(title="lamula-rcp gateway", lifespan=lifespan)
     app.state.hal = hal
+    app.state.dsp = dsp
     app.state.control = ControlAuthority()
     app.state.started_at = datetime.now(timezone.utc)
     app.state.event_seq = 0
     app.state.websockets: set[WebSocket] = set()
+
+    def _dsp_status() -> DspStreamStatus:
+        latest = dsp.latest
+        return DspStreamStatus(
+            connected=dsp.connected,
+            radials_received=dsp.radials_received,
+            last_volume_number=latest.volume_number if latest else None,
+            last_elevation_number=latest.elevation_number if latest else None,
+            last_radial_status=latest.radial_status if latest else None,
+        )
 
     @app.get("/api/status", response_model=SystemStatusSnapshot)
     async def get_status() -> SystemStatusSnapshot:
@@ -69,6 +87,7 @@ def create_app(hal: SimulatedHAL) -> FastAPI:
             control=app.state.control.state,
             hal_connected=hal.is_connected(),
             antenna=antenna,
+            dsp=_dsp_status(),
         )
 
     @app.post("/api/control", response_model=ControlAuthorityState)

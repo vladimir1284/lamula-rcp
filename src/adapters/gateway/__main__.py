@@ -11,6 +11,7 @@ import argparse
 
 import uvicorn
 
+from adapters.dsp import MomentStreamReceiver
 from adapters.hal_sim import SimulatedHAL
 
 from .app import create_app
@@ -22,6 +23,8 @@ def main() -> None:
     ap.add_argument("--modbus-port", type=int, default=15020)
     ap.add_argument("--udp-bind-host", default="0.0.0.0")
     ap.add_argument("--udp-port", type=int, default=15100)
+    ap.add_argument("--dsp-bind-host", default="0.0.0.0")
+    ap.add_argument("--dsp-port", type=int, default=15551)
     ap.add_argument("--http-host", default="0.0.0.0")
     ap.add_argument("--http-port", type=int, default=8000)
     args = ap.parse_args()
@@ -32,7 +35,8 @@ def main() -> None:
         udp_bind_host=args.udp_bind_host,
         udp_port=args.udp_port,
     )
-    app = create_app(hal)
+    dsp = MomentStreamReceiver()
+    app = create_app(hal, dsp, args.dsp_bind_host, args.dsp_port)
     uvicorn.run(app, host=args.http_host, port=args.http_port)
 
 
