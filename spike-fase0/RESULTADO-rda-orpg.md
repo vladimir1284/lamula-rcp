@@ -19,7 +19,7 @@ pendiente pedía construir.
 Verificado en ambos sentidos, log de las dos corridas guardado en
 `/tmp/claude-1000/.../tasks/*.output` de la sesión que hizo el spike (no versionado).
 
-## Hallazgo — a confirmar con LAMULA ORPG antes de congelar el contrato
+## Hallazgo — confirmado por el usuario (producción real), no por el equipo LAMULA ORPG
 
 El legacy `RDA_Backend_Py/RDA_TCPServer.py` (`process_Data`), al recibir un mensaje entrante de
 **tipo 12**, responde reenviando su **propio** tipo 12 (`self.sendMessage(12)`), y valida el
@@ -28,15 +28,20 @@ decir: en el código de 2013, quien valida el eco es quien recibe un **11** entr
 al revés de lo que la lectura directa del ICD (RDA emite 11, RPG hace eco con 12, RDA valida)
 sugiere, y al revés de lo que este spike implementó.
 
-No se resolvió esa discrepancia localmente — el spike sigue la lectura directa del ICD, no la
-lógica del legacy. Antes de congelar el contrato RCP↔ORPG (fases.md, Fase 0 punto 4) hay que
-confirmar con el equipo LAMULA ORPG cuál de las dos direcciones es la real, porque:
+**Confirmado 2026-08-19 por el usuario (vladimir):** no es un bug de 2013 — ese mismo
+`RDA_Backend_Py` corrió en producción real haciendo ingesta de productos al ORPG. La dirección
+del legacy es la que hay que seguir, no la lectura literal de las tablas del ICD. Esta
+confirmación viene de experiencia operativa directa del usuario, no de una consulta formal al
+equipo LAMULA ORPG — sigue siendo la fuente más fuerte disponible hoy, pero conviene que quede
+explícito en cualquier revisión externa del contrato que el origen es "funcionó en producción",
+no un sign-off documentado del equipo ORPG.
 
-- puede ser un bug del legacy de 2013 nunca corregido porque el ORPG real con el que hablaba
-  toleraba ambas direcciones, o
-- puede ser que el legacy esté codificando un detalle real del ICD que la lectura de las tablas
-  no deja ver (p. ej. quién inicia el loopback puede depender de si el canal es principal o
-  redundante — `RDA_Redundant_Channel` en `MSG_Header`, no ejercitado por este spike).
+El spike (`rda_orpg_handshake_spike.py`) todavía implementa la lectura literal del ICD, **no**
+la dirección confirmada del legacy — queda pendiente alinearlo antes de congelar el contrato
+RCP↔ORPG.
+
+Sin resolver todavía: el rol del `RDA_Redundant_Channel` en `MSG_Header` (canal principal vs.
+redundante) no se ejercitó, y podría cambiar quién inicia el loopback en cada caso.
 
 ## Pendiente relacionado, no resuelto por este spike
 

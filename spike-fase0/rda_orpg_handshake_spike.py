@@ -16,13 +16,24 @@ AGENTS.md exige no reinterpretar. No es codigo de produccion; no reemplaza
 congelar el contrato RCP<->ORPG como esquema (docs/implementacion/fases.md,
 Fase 0 punto 4, sigue pospuesto).
 
-Hallazgo a discutir con LAMULA ORPG antes de dar esto por definitivo: el
-legacy RDA_Backend_Py, al recibir un mensaje entrante tipo 12, responde
+El legacy RDA_Backend_Py, al recibir un mensaje entrante tipo 12, responde
 reenviando su propio tipo 12 (RDA_TCPServer.process_Data) en vez de validar
 el eco del Loopback Test que el ICD describe (RDA emite 11, RPG debe
 devolver 12 con el mismo payload, RDA valida). Este spike implementa la
 interpretacion del ICD (la logica-espejo del legacy no se copia), no la
-resuelve -- es la ambiguedad a confirmar con el equipo, no localmente.
+del legacy.
+
+CONFIRMADO 2026-08-19 por el usuario: la direccion del legacy es la correcta
+-- ese mismo RDA_Backend_Py corrio en produccion real haciendo ingesta de
+productos al ORPG, no es un bug de 2013. Confirmacion por experiencia
+operativa directa, no por sign-off documentado de LAMULA ORPG.
+
+TODO -- validar contra ORPG real antes de congelar el contrato RCP<->ORPG:
+este script sigue implementando la interpretacion literal del ICD (arriba),
+NO la direccion confirmada del legacy. Falta (1) alinear este spike a la
+direccion del legacy y (2) correrlo contra un ORPG real, no solo contra el
+stub --role orpg de este mismo archivo. Ver spike-fase0/RESULTADO-rda-orpg.md
+y PEND-RCP-04 en docs/alcance/pendientes.md.
 """
 
 import argparse

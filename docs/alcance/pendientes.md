@@ -59,10 +59,21 @@ payload del Loopback Test) se tomó del proyecto legacy `RDA_Backend_Py` (2013, 
 radares cubanos al ORPG), que cita el ICD 2620002F como fuente — no es una reinterpretación
 propia del ICD.
 
+**Hallazgo del legacy confirmado (2026-08-19):** quién valida el eco del loopback (el que recibe
+11, no el que recibe 12) fue confirmado por el usuario — ese mismo `RDA_Backend_Py` corrió en
+producción real haciendo ingesta de productos al ORPG, no es un bug de 2013. Confirmación por
+experiencia operativa directa, no por sign-off del equipo LAMULA ORPG. Ver `RESULTADO-rda-orpg.md`.
+El spike actual todavía implementa la lectura literal del ICD, no esta dirección confirmada —
+alinear antes de congelar el contrato.
+
 Sigue sin resolver: acceso a un ORPG real para validar el stub contra la implementación real, y
-un hallazgo del legacy (¿quién valida el eco del loopback, el que recibe 11 o el que recibe 12?)
-que hay que confirmar con el equipo LAMULA ORPG antes de congelar el contrato RCP↔ORPG (detalle
-en `RESULTADO-rda-orpg.md`).
+el rol de `RDA_Redundant_Channel` (canal principal vs. redundante) en quién inicia el loopback.
+
+**Acción pendiente explícita:** cuando haya acceso a un ORPG real, correr
+`rda_orpg_handshake_spike.py --role rda` contra él (no contra el stub `--role orpg` local) y
+confirmar que la dirección del eco coincide con lo que el usuario reportó de producción. Hasta
+entonces, la confirmación vale como "funcionó en producción con este legacy", no como "validado
+contra este ORPG real".
 
 ### PEND-RCP-05 · El DSP externo no tiene aún una interfaz de referencia ejecutable
 
