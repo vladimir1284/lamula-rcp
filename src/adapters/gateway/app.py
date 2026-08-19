@@ -22,6 +22,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
 
 from adapters.dsp import MomentStreamReceiver
 from adapters.hal_sim import SimulatedHAL
@@ -59,6 +60,15 @@ def create_app(hal: SimulatedHAL, dsp: MomentStreamReceiver, dsp_bind_host: str,
             await dsp.stop()
 
     app = FastAPI(title="lamula-rcp gateway", lifespan=lifespan)
+    # PEND: red air-gapped de un solo operador (AGENTS.md) -- "*" es aceptable
+    # para el dev server de Vite hoy; revisar si Fase 4 (empaquetado) exige
+    # restringir origenes.
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
     app.state.hal = hal
     app.state.dsp = dsp
     app.state.control = ControlAuthority()

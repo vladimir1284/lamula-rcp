@@ -74,8 +74,13 @@ vivo sim→WS→PPI.
     `radar_emulator` (`encoder_invalid`, `freeze`, `silence`, vía su canal WS de control) — ver
     `spike-fase1/RESULTADO-fault-injection.md`.
 
-    Falta: shell MMI (el pipe hoy llega al WS, no hay todavía un PPI real dibujando) — es lo
-    único que queda de los puntos de Fase 1 listados arriba.
+    ✅ Shell MMI (`mmi/`, Vue3+TS+Vite+Pinia+Vue Router, shadcn-vue/Reka UI+Tailwind v4 — PEND-RCP-02
+    revertido de PrimeVue a shadcn-vue el mismo día por licenciamiento, ver D-08): vista Control
+    Center que conecta al gateway (REST `/api/status`, WS `/ws`), muestra autoridad de control con
+    botón tomar/ceder, posición de antena en vivo y log de mensajes. Probado en navegador contra el
+    gateway + `radar_emulator` reales — ver `spike-fase1/RESULTADO-mmi-shell.md`.
+
+    Con esto quedan cubiertos todos los puntos de Fase 1 listados arriba.
 
 ## Fase 2 — Control, Safety & Scanning (semanas 11–18)
 

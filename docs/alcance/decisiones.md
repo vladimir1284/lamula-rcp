@@ -90,10 +90,23 @@ Vite, Pinia + Vue Router, Tailwind, PixiJS (PPI/RHI) + uPlot (ASCOPE).
 
 **Por qué.** Plan §5, tabla completa. Preferencia del equipo ya fijada, no decisión de este repo.
 
-**Resuelto (2026-08-19):** componentes = **PrimeVue**. El plan (§5) marcaba esto "decisión
-necesaria" entre PrimeVue y shadcn-vue (Reka UI). Se eligió PrimeVue por los widgets
+**Resuelto (2026-08-19), primer intento:** componentes = PrimeVue. El plan (§5) marcaba esto
+"decisión necesaria" entre PrimeVue y shadcn-vue (Reka UI). Se eligió PrimeVue por los widgets
 batteries-included (DataTable, Dialog, Knob, Gauge) que se necesitan para controles de antena y
-BITE en Fase 2, frente al costo de construirlos a mano sobre un set headless. Ver
+BITE en Fase 2, frente al costo de construirlos a mano sobre un set headless.
+
+**Revertido el mismo día, al scaffoldear la MMI:** `primevue@5.0.1` (la última versión al momento
+de instalar) mostró en dev un banner "Invalid PrimeUI License" — PrimeVue se relicenció bajo
+"PrimeUI" a partir de v5: ya no es MIT libre sin condiciones, requiere license key incluso en el
+tier gratuito ("Community"), con límites de tamaño de organización (< $1M USD de ingresos
+anuales, < 5 developers, < 10 empleados, < $3M de capital externo) y renovación anual de
+elegibilidad. Esto no se supo hasta después de tomar la decisión — la elección original no pesó
+licenciamiento porque hasta v4 PrimeVue era MIT sin condiciones.
+
+**Resuelto definitivamente:** componentes = **shadcn-vue (Reka UI)**. Sin licencia de terceros
+que gestionar (Reka UI es MIT); el costo es construir a mano los widgets no estándar (knob,
+gauge) que Fase 2 va a necesitar para controles de antena/BITE — se acepta ese costo a cambio de
+no depender de una license key en un sistema air-gapped de shelf-life largo. Ver
 [pendientes.md](pendientes.md#pend-rcp-02-libreria-de-componentes-frontend).
 
 ---

@@ -39,7 +39,10 @@ explícito y no asumido.
 
 Plan §5: "PrimeVue o shadcn-vue (Reka UI) — *decisión necesaria*".
 
-**Resuelto (2026-08-19):** PrimeVue. Ver [D-08](decisiones.md#d-08-stack-python-312-fastapi-pydantic-v2-asyncio-vue-3-ts-vite-en-frontend).
+**Resuelto (2026-08-19):** shadcn-vue (Reka UI). Primer intento fue PrimeVue, revertido el mismo
+día al descubrir que `primevue@5.0.1` exige license key (relicenciado como "PrimeUI", ya no MIT
+sin condiciones). Ver
+[D-08](decisiones.md#d-08-stack-python-312-fastapi-pydantic-v2-asyncio-vue-3-ts-vite-en-frontend).
 
 ### PEND-RCP-03 · Herramienta de empaquetado de dependencias Python para el target offline
 
