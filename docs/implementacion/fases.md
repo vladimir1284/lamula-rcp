@@ -175,6 +175,17 @@ Visualization + BITE.
     de forma de onda). Deliberadamente **no** es VCP: ese concepto es de `RCP↔ORPG` y está
     asignado a Fase 3 (PEND-RCP-09, nuevo). Sin Scan Controller que lo consuma todavía.
 
+    ✅ Vista "System Visualization" en la MMI (`mmi/src/views/SystemVisualizationView.vue`, ruta
+    `/system-visualization`): resumen de salud por subsistema (Sistema/Transmisor/Receptor/
+    Antena, mismo criterio de prefijo de `signal_id` que `core/bite/manager.py`), agrupando
+    `active_bite_faults` ya existente en `useGateway.ts` -- **sin cambios de contrato ni de
+    gateway**, todo el dato ya estaba expuesto por `GET /api/status` y `BiteEventMessage`. Sin
+    metadato de severidad en el catálogo (mismo motivo que en `core/bite/manager.py`), así que el
+    agrupamiento es solo por subsistema, no por criticidad. Probada en navegador (Playwright)
+    contra el gateway + `radar_emulator` reales: 15 fallas repartidas 3/7/3/2 al cargar, sube a
+    8 en Transmisor y vuelve a 7 al forzar/liberar `tx.mps_fault_status` en vivo, sin romper
+    Control Center ni System Status.
+
     ⏸️ Sin resolver: secuencia/criterio de éxito de la Rutina 1 no confirmados con el product
     expert (PEND-RCP-06); para las Rutinas 2–6 (PEND-RCP-07): tiempo de caldeo/umbral de
     sobrecorriente reales para la Rutina 2, tiempo de enganche del STALO para la Rutina 3, si
@@ -182,7 +193,7 @@ Visualization + BITE.
     Rutina 5, y la tolerancia/timeout/perfil de frenado reales para la Rutina 6; la mitad de la
     guarda de parámetros sobre PRF × pulse-width, bloqueada por falta de Scan Worksheet y de un
     contrato de forma de onda (PEND-RCP-08); reconciliación con VCP real (PEND-RCP-09); Scan
-    Controller que consuma el Worksheet; scheduler de volumen; System Visualization (vista MMI).
+    Controller que consuma el Worksheet; scheduler de volumen.
 
 ## Fase 3 — Data Views, Calibration, Archive & ORPG Feed (semanas 19–27)
 
