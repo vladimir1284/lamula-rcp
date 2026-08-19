@@ -7,6 +7,7 @@ import { useWebSocket } from '@vueuse/core'
 import { ref, shallowRef } from 'vue'
 import type {
   AntennaMessage,
+  BiteFaultSummary,
   ControlAuthorityState,
   DspStreamStatus,
   SetControlModeRequest,
@@ -24,6 +25,9 @@ export function useGateway() {
   const control = shallowRef<ControlAuthorityState | null>(null)
   const antenna = shallowRef<AntennaMessage['position'] | null>(null)
   const dsp = shallowRef<DspStreamStatus | null>(null)
+  // clave: signal_id -- mismo dato que app.state.bite_since_wall del lado del gateway,
+  // reconstruido aca a partir del snapshot inicial + BiteEventMessage en vivo.
+  const biteFaults = ref<Map<string, BiteFaultSummary>>(new Map())
 
   const { status, send } = useWebSocket(GATEWAY_WS, {
     autoReconnect: { retries: -1, delay: 1000 },
@@ -39,6 +43,15 @@ export function useGateway() {
         // origino este evento -- aca solo reflejamos que hubo un cambio
         // hecho por otro cliente; el estado real llega por /api/status.
       }
+      if (msg.type === 'bite_event') {
+        const next = new Map(biteFaults.value)
+        if (msg.transition === 'fault') {
+          next.set(msg.signal_id, { signal_id: msg.signal_id, detail: msg.detail, since_wall: msg.at_wall })
+        } else {
+          next.delete(msg.signal_id)
+        }
+        biteFaults.value = next
+      }
     },
   })
 
@@ -49,6 +62,7 @@ export function useGateway() {
     control.value = snapshot.control
     antenna.value = snapshot.antenna
     dsp.value = snapshot.dsp
+    biteFaults.value = new Map(snapshot.active_bite_faults.map((f) => [f.signal_id, f]))
     return snapshot
   }
 
@@ -64,5 +78,5 @@ export function useGateway() {
     return state
   }
 
-  return { status, messages, control, antenna, dsp, fetchStatus, setControlMode, send }
+  return { status, messages, control, antenna, dsp, biteFaults, fetchStatus, setControlMode, send }
 }

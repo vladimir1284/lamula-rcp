@@ -1,5 +1,9 @@
 <script setup lang="ts"></script>
 
 <template>
+  <nav class="flex gap-4 border-b p-3 text-sm">
+    <RouterLink to="/" class="hover:underline">Control Center</RouterLink>
+    <RouterLink to="/system-status" class="hover:underline">System Status &amp; BITE</RouterLink>
+  </nav>
   <RouterView />
 </template>

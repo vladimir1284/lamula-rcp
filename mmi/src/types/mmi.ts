@@ -42,11 +42,20 @@ export interface DspStreamStatus {
   last_radial_status: RadialStatus | null
 }
 
+export type BiteTransition = 'fault' | 'cleared'
+
+export interface BiteFaultSummary {
+  signal_id: string
+  detail: string
+  since_wall: string
+}
+
 export interface SystemStatusSnapshot {
   control: ControlAuthorityState
   hal_connected: boolean
   antenna: AntennaPosition | null
   dsp: DspStreamStatus | null
+  active_bite_faults: BiteFaultSummary[]
 }
 
 export interface SetControlModeRequest {
@@ -80,4 +89,17 @@ export interface HeartbeatMessage {
   at_wall: string
 }
 
-export type WsMessage = SessionMessage | AntennaMessage | OperatorEventMessage | HeartbeatMessage
+export interface BiteEventMessage {
+  type: 'bite_event'
+  signal_id: string
+  transition: BiteTransition
+  detail: string
+  at_wall: string
+}
+
+export type WsMessage =
+  | SessionMessage
+  | AntennaMessage
+  | OperatorEventMessage
+  | HeartbeatMessage
+  | BiteEventMessage

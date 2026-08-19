@@ -159,7 +159,15 @@ Visualization + BITE.
     condición de carrera de sondear el mismo estado mutable desde el loop de cada conexión) y
     hace broadcast de `BiteEventMessage`; `GET /api/status.active_bite_faults` expone el
     snapshot. Probado extremo a extremo (REST + WS) contra `radar_emulator` real, ver
-    `spike-fase2/RESULTADO-bite-gateway.md`. Falta la vista en la MMI (`mmi/`) que lo consuma.
+    `spike-fase2/RESULTADO-bite-gateway.md`.
+
+    ✅ Vista "System Status & BITE" en la MMI (`mmi/src/views/SystemStatusView.vue`, ruta
+    `/system-status`, nav agregada en `App.vue`): lista de fallas activas desde
+    `GET /api/status.active_bite_faults` en el montaje, actualizada en vivo con
+    `BiteEventMessage` por WS (`useGateway.ts` mantiene un `Map` por `signal_id`). Probada en
+    navegador (Playwright) contra el gateway + `radar_emulator` reales: 15 fallas activas al
+    cargar (mismas señales no cableadas de siempre), una nueva aparece/desaparece al
+    forzar/liberar `tx.mps_fault_status` en vivo, sin romper Control Center.
 
     ✅ Contrato de datos del Scan Worksheet manual (`core/contracts/scan.py`): `PpiCut`/`RhiCut`
     (unión discriminada, mismo patrón que `WsMessage` en `mmi.py`), con `prf_hz`/`pulse_width_us`
