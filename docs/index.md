@@ -9,7 +9,7 @@ completa de RDA WSR-88D (ICD 2620002). ORPG genera todos los productos; el RCP n
 ninguno.
 
 El plan de proyecto completo (objetivos, arquitectura, stack, fases, riesgos, equipo) vive en
-`Lamula RCP — Project Plan.md`, fuera de este repo. Esta documentación traduce ese plan a
+[Project Plan](referencia/project-plan.md). Esta documentación traduce ese plan a
 decisiones y pendientes accionables para el agente de desarrollo, siguiendo la misma convención
 que `radar_emulator` (mismo equipo, proyecto hermano: la planta emulada del radar contra la que
 este RCP se valida antes de comisionar sobre hardware real).

@@ -1,6 +1,6 @@
 # Fases
 
-Estructura tomada de `Lamula RCP — Project Plan.md` §8.2. Este documento no reescribe el plan;
+Estructura tomada de [Project Plan](../referencia/project-plan.md) §8.2. Este documento no reescribe el plan;
 señala en qué fase está el repo y qué hay que hacer primero dentro de ella.
 
 !!! note "Este repo arranca en Fase 0, sin ejecutar todavía"

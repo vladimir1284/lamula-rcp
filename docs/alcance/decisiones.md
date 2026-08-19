@@ -2,7 +2,7 @@
 
 Registro de las decisiones ya tomadas. El agente de desarrollo **no debe revertir ninguna sin
 discutirlo**. A diferencia de `radar_emulator`, aquí casi todas provienen directamente del
-documento de plan de proyecto (`Lamula RCP — Project Plan.md`), no de una sesión de diseño de
+documento de plan de proyecto ([Project Plan](../referencia/project-plan.md)), no de una sesión de diseño de
 este repo — se citan con la sección de origen.
 
 ---

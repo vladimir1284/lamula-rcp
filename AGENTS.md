@@ -43,7 +43,7 @@ correctamente los diez unit IDs de la semilla RD100S y que el receptor UDP decod
 ## Cuando encuentres una contradicción
 
 Este repo es nuevo: casi todo en `docs/alcance/` es traducción del documento de plan de proyecto
-(`Lamula RCP — Project Plan.md`, fuera de este repo) a la convención de documentación de
+(`docs/referencia/project-plan.md`) a la convención de documentación de
 `radar_emulator`. Si algo no cuadra entre el plan y esta traducción, **pregunta antes de
 elegir** — el documento de plan manda.
 

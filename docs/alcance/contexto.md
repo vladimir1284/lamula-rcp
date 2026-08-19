@@ -9,7 +9,7 @@ WSR-88D (ICD 2620002). ORPG genera todos los productos meteorológicos; el RCP n
 
 Es el sucesor en casa de Ravis 1.3 + RCP + Rainbow, sin dependencia de Gematronik. El plan
 completo — objetivos, alcance, arquitectura, stack, fases, riesgos — vive en
-`Lamula RCP — Project Plan.md`, fuera de este repo. Este documento no lo repite: lo traduce a la
+[Project Plan](../referencia/project-plan.md). Este documento no lo repite: lo traduce a la
 convención de documentación que ya usa `radar_emulator` (mismo equipo), y añade el vínculo entre
 ambos proyectos.
 

@@ -50,3 +50,5 @@ nav:
       - Pendientes: alcance/pendientes.md
   - Implementación:
       - Fases: implementacion/fases.md
+  - Referencia:
+      - Project Plan: referencia/project-plan.md

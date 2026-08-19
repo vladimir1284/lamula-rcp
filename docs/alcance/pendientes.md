@@ -30,7 +30,7 @@ Ver `radar_emulator/docs/alcance/pendientes.md` para el detalle completo de cada
 
 `AGENTS.md` de este repo introduce la regla "dos relojes, no uno" (Level-II/ORPG en hora de
 pared real, telemetría interna en reloj monótono) como **inferencia**, no como algo explícito en
-`Lamula RCP — Project Plan.md`. El plan no dice literalmente qué reloj usa el feed a ORPG.
+[Project Plan](../referencia/project-plan.md). El plan no dice literalmente qué reloj usa el feed a ORPG.
 Confirmar con el equipo antes de congelar el contrato RCP↔ORPG en Fase 0: NEXRAD Level-II exige
 timestamp absoluto de la observación, así que probablemente no hay alternativa, pero debe quedar
 explícito y no asumido.
