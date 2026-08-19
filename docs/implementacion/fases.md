@@ -25,8 +25,11 @@ RDA↔ORPG/CM_TCP.
 2. Spike UDP: receptor de `RD100S-ENC-UDP v1` — parseo de los 36 octetos, manejo de envolvente de
    `seq`, detección de reinicio del emisor (`seq` y `t_us` retrocediendo juntos), timeout de
    pérdida de stream.
-3. Spike RDA↔ORPG: handshake mínimo de loopback (Msg 11/12) contra ORPG real o un stub CM_TCP —
-   bloqueado por [PEND-RCP-04](../alcance/pendientes.md#pend-rcp-04-disponibilidad-de-orpg-real-o-stub-cm_tcp-para-fase-0).
+3. ✅ Spike RDA↔ORPG: handshake mínimo de loopback (Msg 11/12), corrido contra un stub CM_TCP
+   propio (no hay ORPG real disponible todavía) — ver
+   `spike-fase0/RESULTADO-rda-orpg.md`. Deja abierto un hallazgo a confirmar con LAMULA ORPG
+   antes de congelar el contrato: ver
+   [PEND-RCP-04](../alcance/pendientes.md#pend-rcp-04-disponibilidad-de-orpg-real-o-stub-cm_tcp-para-fase-0).
 4. Congelar los cuatro contratos como esquemas Pydantic versionados.
 
 ## Fase 1 — Foundations & Simulator (semanas 4–10)
