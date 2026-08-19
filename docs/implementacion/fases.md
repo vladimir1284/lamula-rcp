@@ -129,17 +129,31 @@ Visualization + BITE.
     `tx.fsm` no exige los seis interlocks (solo los exige al subir HV, fuera del alcance de esta
     rutina); se chequean igual como precondición propia del RCP.
 
-    Con esto, cuatro de las seis rutinas del plan tienen primer borrador implementado y probado
-    contra el simulador (faltan Receptor y Unidad de antena — Rutinas 3 y 4, ambas sin lógica
-    simulada, más simples que el transmisor).
+    ✅ Rutina 3 — encendido del receptor (`core/control_routines/receiver_power_on.py`): tres
+    fuentes de alimentación como precondición, pulso a `rx.turn_on_rfe_conmand` (confirmado como
+    flanco en `radar_emulator/docs/interfaces/modbus.md`), confirmación vía
+    `rfe_on_status`/`stalo_locked_status`. El subsistema `rx` no tiene ningún bloque de lógica en
+    la semilla — el camino de éxito solo se probó forzando también esas señales, ver
+    `spike-fase2/RESULTADO-receiver-power-on.md`.
+
+    ✅ Rutina 4 — encendido de la unidad de antena
+    (`core/control_routines/antenna_unit_power_on.py`), última de las seis: radomo cerrado como
+    precondición, `ant.turn_on_off_au_conmand` tratado como nivel (no pulso — mismo criterio que
+    `enable_drive_az/el_conmand` en la Rutina 5, sin confirmar). Mismo problema que la Rutina 3:
+    ningún bloque calcula `au_on_status` ni los `drive_{az,el}_ok_status`, ver
+    `spike-fase2/RESULTADO-antenna-unit-power-on.md`.
+
+    Con esto, las seis rutinas del plan tienen primer borrador implementado y probado contra el
+    simulador.
 
     ⏸️ Sin resolver: secuencia/criterio de éxito de la Rutina 1 no confirmados con el product
-    expert (PEND-RCP-06); Rutinas 3 y 4 sin implementar; tiempo de caldeo/umbral de sobrecorriente
-    reales para la Rutina 2, la ganancia real volt→grados/s para la Rutina 5 y la
-    tolerancia/timeout/perfil de frenado reales para la Rutina 6 (PEND-RCP-07); la mitad de la
-    guarda de parámetros sobre PRF × pulse-width, bloqueada por falta de Scan
-    Worksheet y de un contrato de forma de onda (PEND-RCP-08); Scan Worksheet; scheduler de
-    volumen; System Visualization + BITE.
+    expert (PEND-RCP-06); para las Rutinas 2–6 (PEND-RCP-07): tiempo de caldeo/umbral de
+    sobrecorriente reales para la Rutina 2, tiempo de enganche del STALO para la Rutina 3, si
+    la unidad de antena es pulso o nivel para la Rutina 4, la ganancia real volt→grados/s para la
+    Rutina 5, y la tolerancia/timeout/perfil de frenado reales para la Rutina 6; la mitad de la
+    guarda de parámetros sobre PRF × pulse-width, bloqueada por falta de Scan Worksheet y de un
+    contrato de forma de onda (PEND-RCP-08); Scan Worksheet; scheduler de volumen; System
+    Visualization + BITE.
 
 ## Fase 3 — Data Views, Calibration, Archive & ORPG Feed (semanas 19–27)
 

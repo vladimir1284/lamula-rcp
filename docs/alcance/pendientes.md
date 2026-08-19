@@ -140,10 +140,20 @@ RD100S ni de un procedimiento confirmado por el product expert. Puntos concretos
   sistema en espera.
 - **Receptor:** no hay ninguna pista de tiempos de enganche del oscilador local (STALO) ni de si
   existe algún enclavamiento previo al encendido — el simulador no modela nada de esto.
+  **Implementada como primer borrador** en `core/control_routines/receiver_power_on.py` (ver
+  `spike-fase2/RESULTADO-receiver-power-on.md`). A diferencia de las demás, ninguna señal `rx.*`
+  la calcula nada en el simulador — el camino de éxito solo se pudo probar forzando también
+  `rfe_on_status`/`stalo_locked_status`, no solo la precondición. `confirm_timeout_s` es
+  obligatorio, sin default, por la misma falta total de referencia.
 - **Unidad de antena:** el catálogo tiene una sola orden (no un par Encender/Apagar como las
   demás rutinas de encendido) — puede ser un interruptor de nivel en vez de un pulso momentáneo,
   rompe el patrón de las otras tres rutinas de encendido y necesita confirmación explícita antes
-  de programarla.
+  de programarla. **Implementada como primer borrador** en
+  `core/control_routines/antenna_unit_power_on.py` (ver
+  `spike-fase2/RESULTADO-antenna-unit-power-on.md`), tratando el comando como nivel (mismo
+  criterio que `enable_drive_az/el_conmand` en la Rutina 5: comando único, no listado en
+  "Comandos por flanco" de `radar_emulator`) — sin confirmar. Mismo problema que el receptor:
+  ningún bloque del simulador calcula `au_on_status` ni los `drive_{az,el}_ok_status`.
 - **Movimiento de antena:** los límites de elevación (interruptor en ≈−1,5°/91,5°, tope físico
   duro del simulador en −2°/92°) y el umbral térmico de azimut (30 A durante 5 s equivalentes) son
   valores de marcador de posición. Azimut tiene protección térmica de motor modelada en el

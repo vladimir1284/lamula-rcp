@@ -177,8 +177,17 @@ stateDiagram-v2
 
 ## Rutina 3 — Encendido del receptor analógico
 
-**Estado:** diseño propuesto, sin implementar. El simulador no modela ninguna secuencia interna
-para el receptor — es una rutina simple, parecida en forma a la Rutina 1.
+**Estado:** implementada y probada contra el simulador — `core/control_routines/receiver_power_on.py`,
+ver `spike-fase2/RESULTADO-receiver-power-on.md`. No probada contra hardware real. El simulador no
+modela ninguna secuencia interna para el receptor — es una rutina simple, parecida en forma a la
+Rutina 1. `Turn On RFE`/`Turn Off RFE` está confirmado como par de flanco (pulso) en
+`radar_emulator/docs/interfaces/modbus.md`, sin la ambigüedad de la Rutina 4.
+
+!!! note "Hallazgo de implementación: el subsistema no tiene ningún bloque de lógica en la semilla"
+    A diferencia de las rutinas anteriores, ninguna señal `rx.*` la calcula nada en
+    `radar_emulator` — ni las tres fuentes de alimentación, ni `rfe_on_status`, ni
+    `stalo_locked_status`. Probar el camino de éxito de esta rutina requirió forzarlas también
+    por el canal WS de control, no solo la precondición.
 
 ### Qué revisaría antes de encender
 
@@ -203,7 +212,22 @@ esté "encendido".
 
 ## Rutina 4 — Encendido de la unidad de antena
 
-**Estado:** diseño propuesto, sin implementar.
+**Estado:** implementada y probada contra el simulador — `core/control_routines/antenna_unit_power_on.py`,
+ver `spike-fase2/RESULTADO-antenna-unit-power-on.md`. No probada contra hardware real. Con esto,
+las seis rutinas del plan tienen primer borrador implementado.
+
+!!! note "Decisión de implementación: nivel, no pulso"
+    La señal atípica de más abajo (una sola orden, no un par) se resolvió tratándola como
+    interruptor de **nivel** (se escribe y se deja en `True`, sin bajarla) — mismo criterio ya
+    usado para `ant.enable_drive_az/el_conmand` en la Rutina 5: un comando único, sin
+    contraparte de apagado, no listado en "Comandos por flanco" de `radar_emulator`. Sigue sin
+    confirmar con el product expert; si el radar real la maneja como pulso, esta implementación
+    queda mal.
+
+!!! note "Hallazgo: mismo problema que el receptor — sin lógica en la semilla"
+    Ni `ant.au_on_status` ni los dos `drive_{az,el}_ok_status` los calcula nada en
+    `radar_emulator` — mismo motivo que la Rutina 3 para forzar también las señales de éxito al
+    probar contra el simulador, no solo la precondición.
 
 ### Qué revisaría antes de encender
 
@@ -328,16 +352,22 @@ pueda deducir de él.
 |---|---|---|
 | 1. Encendido general | Implementada, probada contra simulador | Sin lógica simulada — sirvió para sentar el patrón |
 | 2. Encendido del transmisor | Implementada hasta "listo", probada contra simulador | Secuencia con tiempos y enclavamientos ya modelada en el simulador |
-| 3. Encendido del receptor | Diseño propuesto | Sin lógica simulada |
-| 4. Encendido de unidad de antena | Diseño propuesto | Sin lógica simulada — posible orden de nivel, no de pulso |
+| 3. Encendido del receptor | Implementada, probada contra simulador | Sin lógica simulada — camino de éxito solo probado forzando señales |
+| 4. Encendido de unidad de antena | Implementada, probada contra simulador | Sin lógica simulada — orden tratada como nivel, no pulso (decisión sin confirmar) |
 | 5. Movimiento de antena | Implementada, probada contra simulador | Modelada con inercia, topes y protección térmica |
 | 6. Posicionamiento de antena | Implementada, probada contra simulador | No modelada en absoluto — diseño nuevo del RCP |
+
+Con esto, las seis rutinas del plan tienen primer borrador implementado y probado contra el
+simulador — ninguna confirmada con el product expert (PEND-RCP-06 para la Rutina 1, PEND-RCP-07
+para las Rutinas 2 a 6).
 
 ## Trazabilidad técnica
 
 Para quien necesite correlacionar esta página con el código: la Rutina 1 vive en
 `src/core/control_routines/general_power_on.py`, la Rutina 2 (hasta "listo", sin HV/radiar) en
-`src/core/control_routines/transmitter_power_on.py`, la Rutina 5 en
+`src/core/control_routines/transmitter_power_on.py`, la Rutina 3 en
+`src/core/control_routines/receiver_power_on.py`, la Rutina 4 en
+`src/core/control_routines/antenna_unit_power_on.py`, la Rutina 5 en
 `src/core/control_routines/antenna_movement.py` (consume la guarda de límites de antena en
 `src/core/safety_guard/`) y la Rutina 6 en
 `src/core/control_routines/antenna_positioning.py` (consume la Rutina 5 en cada paso de control).
