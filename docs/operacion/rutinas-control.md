@@ -222,12 +222,13 @@ instantánea) hasta esa velocidad y la mantiene.
 
 ### Protecciones mientras se mueve
 
-- **Elevación** tiene topes físicos de fin de carrera (aproximadamente −2° y 92°, valores de
-  marcador de posición pendientes de confirmar): si el eje llega a un tope, el movimiento en esa
-  dirección se detiene solo, aunque se siga pidiendo esa velocidad.
+- **Elevación** tiene topes físicos de fin de carrera (aproximadamente −1,5° y 91,5° en el
+  simulador — valores de marcador de posición pendientes de confirmar): si el eje llega a un
+  tope, el movimiento en esa dirección se detiene solo, aunque se siga pidiendo esa velocidad.
 - **Azimut** no tiene tope (gira continuo en círculo), pero sí protección térmica: si el motor
-  exige demasiada corriente durante demasiado tiempo seguido, el sistema lo detiene para no
-  dañarlo, y esa protección solo se rearma al volver a encender la unidad de antena.
+  exige demasiada corriente (más de 30 A, valor de marcador de posición) durante demasiado tiempo
+  seguido (5 s equivalentes), el sistema lo detiene para no dañarlo, y esa protección solo se
+  rearma al volver a encender la unidad de antena.
 
 ### Cómo se determinaría el éxito o la interrupción
 
@@ -238,9 +239,17 @@ como error silencioso.
 !!! question "Para el experto: revisar antes de implementar esta rutina"
     - Los límites de elevación y el umbral de protección térmica de azimut son valores de
       marcador de posición del simulador. ¿Cuáles son los límites y umbrales reales del RD100S?
-    - Elevación tiene protección térmica del motor modelada en el simulador; **azimut no.**
-      ¿Es correcto que azimut no la necesite, o es un hueco del simulador que igual deberíamos
-      cubrir en el RCP por seguridad?
+    - **Azimut** tiene protección térmica del motor modelada en el simulador; **elevación no**
+      (solo fin de carrera físico, sin protección térmica de motor). ¿Es correcto que elevación no
+      la necesite, o es un hueco del simulador que igual deberíamos cubrir en el RCP por
+      seguridad?
+
+!!! note "Corrección (2026-08-19)"
+    Esta sección decía antes lo contrario: que elevación tenía protección térmica y azimut no. Al
+    verificar contra `radar_emulator/config/rd100s.seed.json` para implementar la guarda de
+    seguridad de parámetros (ver más abajo) se confirmó que es al revés — el único bloque `i2t`
+    de la semilla calcula `ant.i2t_drive_az_status` (azimut); la señal `ant.i2t_drive_el_status`
+    existe en el catálogo pero no tiene ningún bloque que la calcule (sin cablear).
 
 ## Rutina 6 — Posicionamiento de antena
 

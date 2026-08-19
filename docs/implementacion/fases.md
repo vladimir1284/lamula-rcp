@@ -98,9 +98,18 @@ Visualization + BITE.
     sincronización contra un FSM simulado. Precondiciones + pulso + confirmación probados contra
     una instancia real, ver `spike-fase2/RESULTADO-general-power-on.md`.
 
-    ⏸️ Sin resolver: secuencia/criterio de éxito de esa rutina no confirmados con el product
-    expert (PEND-RCP-06); las otras cinco rutinas de control; guarda de seguridad de parámetros;
-    Scan Worksheet; scheduler de volumen; System Visualization + BITE.
+    ✅ Guarda de seguridad de parámetros, parte de límites de antena
+    (`core/safety_guard/antenna_limits.py`): rechaza un movimiento de elevación propuesto contra
+    `ant.el_upper_limit_status`/`el_lower_limit_status` (fin de carrera físico), y de azimut
+    contra `ant.i2t_drive_az_status` (protección térmica del motor) — ver
+    `spike-fase2/RESULTADO-parameter-guard.md`, probado contra una instancia real de
+    `radar_emulator`. Todavía nada la invoca (la Rutina 5 — movimiento de antena — no está
+    implementada); es una función pura lista para conectarse.
+
+    ⏸️ Sin resolver: secuencia/criterio de éxito de la Rutina 1 no confirmados con el product
+    expert (PEND-RCP-06); las otras cinco rutinas de control; la mitad de la guarda de parámetros
+    sobre PRF × pulse-width, bloqueada por falta de Scan Worksheet y de un contrato de forma de
+    onda (PEND-RCP-08); Scan Worksheet; scheduler de volumen; System Visualization + BITE.
 
 ## Fase 3 — Data Views, Calibration, Archive & ORPG Feed (semanas 19–27)
 

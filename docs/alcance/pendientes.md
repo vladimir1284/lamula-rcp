@@ -149,3 +149,30 @@ RD100S ni de un procedimiento confirmado por el product expert. Puntos concretos
 product expert antes de implementar cualquiera de las cinco rutinas — estas no son casos donde
 "probar contra el simulador y listo" alcance, porque varios de los valores que el simulador usa
 son marcadores de posición inventados por el equipo de `radar_emulator`, no datos del radar real.
+
+### PEND-RCP-08 · Guarda de PRF × pulse-width para protección del klystron/magnetrón (Fase 2)
+
+El plan (§4.3/§4.4) pide que la guarda de seguridad de parámetros rechace "combinaciones de
+pulse-width × PRF que dañarían el klystron/magnetrón", además de los límites de antena.
+
+**Bloqueado, no solo sin confirmar:** a diferencia de los límites de antena (`PEND-RCP-07`, que sí
+tienen señales reales que consultar aunque sus valores numéricos sean marcadores de posición), la
+parte de PRF × pulse-width no tiene **ningún** dato que vigilar todavía:
+
+- No hay ninguna señal de PRF ni de pulse-width en el catálogo HAL vendorizado
+  (`rd100s_signal_catalog.json`) — `tx.duty_cycle_ok_status` es un estado que el propio
+  `radar_emulator` calcula del lado servidor, no un parámetro que el RCP fije.
+- `core/contracts/dsp.py` (RCP↔DSP/DRX) tampoco tiene un campo de PRF/pulse-width — ese contrato
+  es sobre momentos ya calculados, no sobre parámetros de forma de onda de transmisión.
+- El plan ubica el Scan Worksheet manual (donde el operador definiría estos parámetros) más
+  adelante en la misma Fase 2, sin implementar todavía; tampoco existe contrato alguno con un
+  generador de forma de onda o DRX que reciba esos parámetros.
+
+Ver `spike-fase2/RESULTADO-parameter-guard.md` para el spike que implementó y validó solo la
+parte de límites de antena de esta guarda (`core/safety_guard/antenna_limits.py`), dejando esta
+mitad fuera explícitamente.
+
+**Acción pendiente explícita:** no implementar esta parte de la guarda hasta que exista (a) el
+Scan Worksheet o el punto de entrada que fije PRF/pulse-width, y (b) la tabla de límites de
+ciclo de trabajo del klystron/magnetrón del RD100S real, propiedad del product expert según el
+propio plan ("Product-expert-owned duty-cycle/limit rules", §11 Risk Register).
