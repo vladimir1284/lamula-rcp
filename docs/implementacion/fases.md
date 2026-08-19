@@ -161,14 +161,20 @@ Visualization + BITE.
     snapshot. Probado extremo a extremo (REST + WS) contra `radar_emulator` real, ver
     `spike-fase2/RESULTADO-bite-gateway.md`. Falta la vista en la MMI (`mmi/`) que lo consuma.
 
+    ✅ Contrato de datos del Scan Worksheet manual (`core/contracts/scan.py`): `PpiCut`/`RhiCut`
+    (unión discriminada, mismo patrón que `WsMessage` en `mmi.py`), con `prf_hz`/`pulse_width_us`
+    como datos puros — todavía sin ejecutor (ni guarda que los valide, PEND-RCP-08, ni adaptador
+    de forma de onda). Deliberadamente **no** es VCP: ese concepto es de `RCP↔ORPG` y está
+    asignado a Fase 3 (PEND-RCP-09, nuevo). Sin Scan Controller que lo consuma todavía.
+
     ⏸️ Sin resolver: secuencia/criterio de éxito de la Rutina 1 no confirmados con el product
     expert (PEND-RCP-06); para las Rutinas 2–6 (PEND-RCP-07): tiempo de caldeo/umbral de
     sobrecorriente reales para la Rutina 2, tiempo de enganche del STALO para la Rutina 3, si
     la unidad de antena es pulso o nivel para la Rutina 4, la ganancia real volt→grados/s para la
     Rutina 5, y la tolerancia/timeout/perfil de frenado reales para la Rutina 6; la mitad de la
     guarda de parámetros sobre PRF × pulse-width, bloqueada por falta de Scan Worksheet y de un
-    contrato de forma de onda (PEND-RCP-08); Scan Worksheet; scheduler de volumen; System
-    Visualization + BITE.
+    contrato de forma de onda (PEND-RCP-08); reconciliación con VCP real (PEND-RCP-09); Scan
+    Controller que consuma el Worksheet; scheduler de volumen; System Visualization (vista MMI).
 
 ## Fase 3 — Data Views, Calibration, Archive & ORPG Feed (semanas 19–27)
 

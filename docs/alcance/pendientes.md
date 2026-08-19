@@ -200,8 +200,10 @@ parte de PRF × pulse-width no tiene **ningún** dato que vigilar todavía:
 - `core/contracts/dsp.py` (RCP↔DSP/DRX) tampoco tiene un campo de PRF/pulse-width — ese contrato
   es sobre momentos ya calculados, no sobre parámetros de forma de onda de transmisión.
 - El plan ubica el Scan Worksheet manual (donde el operador definiría estos parámetros) más
-  adelante en la misma Fase 2, sin implementar todavía; tampoco existe contrato alguno con un
-  generador de forma de onda o DRX que reciba esos parámetros.
+  adelante en la misma Fase 2. **Su contrato de datos ya existe**
+  (`core/contracts/scan.py`, `PpiCut`/`RhiCut` con `prf_hz`/`pulse_width_us`) pero es solo forma —
+  todavía no existe contrato alguno con un generador de forma de onda o DRX que reciba esos
+  parámetros, ni un Scan Controller que los use.
 
 Ver `spike-fase2/RESULTADO-parameter-guard.md` para el spike que implementó y validó solo la
 parte de límites de antena de esta guarda (`core/safety_guard/antenna_limits.py`), dejando esta
@@ -211,3 +213,23 @@ mitad fuera explícitamente.
 Scan Worksheet o el punto de entrada que fije PRF/pulse-width, y (b) la tabla de límites de
 ciclo de trabajo del klystron/magnetrón del RD100S real, propiedad del product expert según el
 propio plan ("Product-expert-owned duty-cycle/limit rules", §11 Risk Register).
+
+### PEND-RCP-09 · Reconciliar el Scan Worksheet manual con VCP real (Fase 3)
+
+`core/contracts/scan.py` define el Scan Worksheet manual de Fase 2 (`PpiCut`/`RhiCut`, plan §8.2:
+"interactive scans (Scan Worksheet equivalent)") deliberadamente **sin** ningún concepto de VCP.
+
+VCP es del lado `RCP↔ORPG` (ICD 2620002: Msg 6 "VCP change", Msg 5 definición de VCP) y está
+asignado a Fase 3 ("emulación RDA completa"), no a Fase 2 — ver
+`spike-fase0/RESULTADO-rda-orpg.md`: `RDA_TCPServer.py` (legacy `RDA_Backend_Py` del usuario, no
+vendorizado en este repo) ya contesta `process_VCP` completo, pero ese alcance se dejó
+explícitamente para Fase 3, no para el spike de Fase 0. Al no estar vendorizado el legacy, no hay
+todavía una estructura VCP byte-exacta disponible para diseñar contra ella.
+
+**Acción pendiente explícita:** cuando se cablee `RCP↔ORPG` en Fase 3, reconciliar
+`ScanWorksheet` con VCP real — puede que el scheduler de volumen automático (Fase 2, sin
+implementar todavía) termine consumiendo VCPs de ORPG en vez de, o además de, este Worksheet
+manual. No se anticipa esa forma en este contrato. Tampoco se definió aquí ninguna relación entre
+PRF/pulse-width/ancho de haz y velocidad de rotación de la antena durante un corte — es teoría de
+escaneo de radar real que el product expert debe confirmar, no algo que se pueda inventar sin
+respaldo (mismo criterio que PEND-RCP-07 para la Rutina 6).
