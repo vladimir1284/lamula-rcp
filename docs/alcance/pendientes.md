@@ -137,10 +137,19 @@ RD100S ni de un procedimiento confirmado por el product expert. Puntos concretos
   demás rutinas de encendido) — puede ser un interruptor de nivel en vez de un pulso momentáneo,
   rompe el patrón de las otras tres rutinas de encendido y necesita confirmación explícita antes
   de programarla.
-- **Movimiento de antena:** los límites de elevación (≈−2°/92°) y el umbral térmico de azimut (30
-  A durante 5 s equivalentes) son valores de marcador de posición. Elevación tiene protección
-  térmica de motor modelada en el simulador; azimut no — sin confirmar si es un hueco a cubrir en
-  el RCP.
+- **Movimiento de antena:** los límites de elevación (interruptor en ≈−1,5°/91,5°, tope físico
+  duro del simulador en −2°/92°) y el umbral térmico de azimut (30 A durante 5 s equivalentes) son
+  valores de marcador de posición. Azimut tiene protección térmica de motor modelada en el
+  simulador; elevación no (solo fin de carrera) — sin confirmar si es un hueco a cubrir en el RCP.
+  **Implementada como primer borrador** en `core/control_routines/antenna_movement.py` (ver
+  `spike-fase2/RESULTADO-antenna-movement.md`): consume la guarda de límites de antena
+  (`core/safety_guard/`) antes de empezar a mover y también mientras se mueve, porque el bloque de
+  azimut del simulador calcula la falla térmica pero no corta el drive él mismo — a diferencia de
+  elevación. **Hallazgo nuevo:** la señal real de referencia de velocidad
+  (`ant.speed_reference_driver_az`/`_el`) está en voltios (±10 V), no en grados/s como sugiere la
+  descripción de la rutina más abajo — no existe una ganancia real del RD100S para traducir una
+  velocidad deseada en grados/s a esa referencia de voltaje; la rutina implementada recibe
+  voltios directamente y no confirma magnitud de velocidad, solo sentido de giro y arranque.
 - **Posicionamiento de antena:** el radar solo acepta velocidad, nunca una posición objetivo — el
   lazo de control (tolerancia final, timeout, perfil de frenado) es diseño enteramente nuevo del
   RCP, sin nada equivalente que imitar del simulador ni del plan.

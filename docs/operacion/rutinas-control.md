@@ -207,8 +207,21 @@ reportan buen estado.
 
 ## Rutina 5 — Movimiento de antena
 
-**Estado:** diseño propuesto, sin implementar. Es la primera rutina que controla algo con
-inercia real (la antena no cambia de velocidad instantáneamente).
+**Estado:** implementada y probada contra el simulador del radar (ver
+`spike-fase2/RESULTADO-antenna-movement.md`). No probada contra hardware real. Es la primera
+rutina que controla algo con inercia real (la antena no cambia de velocidad instantáneamente).
+
+!!! warning "Corrección sobre lo descrito más abajo (2026-08-19)"
+    Esta sección seguía describiendo la rutina como "enviar una velocidad deseada en grados/s".
+    Al implementarla se confirmó que la señal real del hardware (la referencia que recibe el
+    variador) está en **voltios** (±10 V), no en grados/s — es una entrada analógica a un
+    variador, igual que en el radar real. No existe hoy una ganancia real del RD100S para
+    traducir grados/s a voltios (el simulador usa una ganancia propia marcada como pendiente de
+    confirmar). La rutina implementada (`core/control_routines/antenna_movement.py`) recibe la
+    referencia directamente en voltios y **no confirma la magnitud** de la velocidad alcanzada —
+    solo el sentido de giro y que el eje efectivamente arranca o se detiene. Traducir una
+    velocidad deseada en grados/s a esta referencia de voltios queda pendiente de esa ganancia
+    real (PEND-RCP-07).
 
 ### Qué debe estar listo antes de mover
 
@@ -283,12 +296,14 @@ pueda deducir de él.
 | 2. Encendido del transmisor | Diseño propuesto | Secuencia con tiempos y enclavamientos ya modelada en el simulador |
 | 3. Encendido del receptor | Diseño propuesto | Sin lógica simulada |
 | 4. Encendido de unidad de antena | Diseño propuesto | Sin lógica simulada — posible orden de nivel, no de pulso |
-| 5. Movimiento de antena | Diseño propuesto | Modelada con inercia, topes y protección térmica |
+| 5. Movimiento de antena | Implementada, probada contra simulador | Modelada con inercia, topes y protección térmica |
 | 6. Posicionamiento de antena | Diseño propuesto | No modelada en absoluto — diseño nuevo del RCP |
 
 ## Trazabilidad técnica
 
 Para quien necesite correlacionar esta página con el código: la Rutina 1 vive en
-`src/core/control_routines/general_power_on.py`. Las preguntas abiertas de esa rutina están en
-`PEND-RCP-06`, y las de las Rutinas 2 a 6 en `PEND-RCP-07` — ambas en
+`src/core/control_routines/general_power_on.py` y la Rutina 5 en
+`src/core/control_routines/antenna_movement.py` (consume la guarda de límites de antena en
+`src/core/safety_guard/`). Las preguntas abiertas de la Rutina 1 están en `PEND-RCP-06`, y las de
+las Rutinas 2 a 6 (incluidas las de la Rutina 5 ya implementada) en `PEND-RCP-07` — ambas en
 [Pendientes](../alcance/pendientes.md).

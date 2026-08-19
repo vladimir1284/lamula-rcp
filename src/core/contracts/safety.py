@@ -19,6 +19,7 @@ from enum import StrEnum
 from pydantic import BaseModel
 
 from .common import MonotonicMicros
+from .hal import SignalId
 
 
 class AntennaAxis(StrEnum):
@@ -50,5 +51,10 @@ class AntennaLimitCheck(BaseModel):
     axis: AntennaAxis
     direction: AntennaMoveDirection
     allowed: bool
+    signal_id: SignalId
+    """Senal del HAL efectivamente consultada para esta decision -- para que
+    un llamador (p.ej. `core/control_routines/antenna_movement.py`) pueda
+    construir un `RoutineStepResult` trazable sin volver a decidir cual
+    senal le corresponde a este eje/sentido."""
     reason: str
     at_us: MonotonicMicros

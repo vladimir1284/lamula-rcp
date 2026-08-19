@@ -106,10 +106,18 @@ Visualization + BITE.
     `radar_emulator`. Todavía nada la invoca (la Rutina 5 — movimiento de antena — no está
     implementada); es una función pura lista para conectarse.
 
+    ✅ Rutina 5 — movimiento de antena (`core/control_routines/antenna_movement.py`): comanda
+    `ant.speed_reference_driver_{az,el}` (voltios, no grados/s — hallazgo nuevo, ver
+    `spike-fase2/RESULTADO-antenna-movement.md`) tras chequear `ant.au_on_status` y la guarda de
+    límites de antena, y sigue consultando la guarda mientras se mueve porque el simulador no
+    corta el drive de azimut por sí mismo ante la falla térmica. Probada contra una instancia
+    real de `radar_emulator`, incluidos los casos de interrupción a mitad de camino.
+
     ⏸️ Sin resolver: secuencia/criterio de éxito de la Rutina 1 no confirmados con el product
-    expert (PEND-RCP-06); las otras cinco rutinas de control; la mitad de la guarda de parámetros
-    sobre PRF × pulse-width, bloqueada por falta de Scan Worksheet y de un contrato de forma de
-    onda (PEND-RCP-08); Scan Worksheet; scheduler de volumen; System Visualization + BITE.
+    expert (PEND-RCP-06); Rutinas 2, 3, 4 y 6; la ganancia real volt→grados/s para la Rutina 5
+    (PEND-RCP-07); la mitad de la guarda de parámetros sobre PRF × pulse-width, bloqueada por
+    falta de Scan Worksheet y de un contrato de forma de onda (PEND-RCP-08); Scan Worksheet;
+    scheduler de volumen; System Visualization + BITE.
 
 ## Fase 3 — Data Views, Calibration, Archive & ORPG Feed (semanas 19–27)
 

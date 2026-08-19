@@ -31,6 +31,12 @@ class RoutineName(StrEnum):
 class RoutineOutcome(StrEnum):
     SUCCESS = "success"
     FAILED = "failed"
+    # A diferencia de FAILED (nunca escribe nada si las precondiciones no se
+    # cumplen), INTERRUPTED es una rutina que si llego a comandar algo pero
+    # tuvo que detenerse a mitad de camino -- p.ej. la guarda de seguridad de
+    # parametros (core/safety_guard/) rechazo continuar durante un
+    # movimiento de antena.
+    INTERRUPTED = "interrupted"
 
 
 class RoutineStepResult(BaseModel):
