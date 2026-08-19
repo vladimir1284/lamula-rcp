@@ -48,6 +48,8 @@ nav:
       - Contexto: alcance/contexto.md
       - Decisiones de diseño: alcance/decisiones.md
       - Pendientes: alcance/pendientes.md
+  - Operación:
+      - Rutinas de control: operacion/rutinas-control.md
   - Implementación:
       - Fases: implementacion/fases.md
   - Referencia:

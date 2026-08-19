@@ -18,4 +18,6 @@ dependencies = [
 pythonpath = ["src"]
 
 [dependency-groups]
-dev = []
+dev = [
+    "mkdocs-material>=9,<10",
+]

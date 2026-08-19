@@ -96,3 +96,24 @@ esquema ya congelado (`src/core/contracts/dsp.py`) — ver `spike-fase0/RESULTAD
 framing/formato de transporte es invención de este repo, no un acuerdo con el proyecto DSP; sigue
 sin resolver el acceso a una implementación de referencia real del lado DSP para validar contra
 algo no inventado localmente.
+
+### PEND-RCP-06 · Secuencia y confirmación de la rutina "general radar power-on" (Fase 2)
+
+El plan (§4.3) nombra las seis rutinas de control pero no fija su procedimiento interno — a
+diferencia del ICD RCP↔ORPG, esto es responsabilidad de diseño de este repo, no de un documento
+externo. `core/control_routines/general_power_on.py` infiere, solo a partir de los nombres del
+catálogo vendorizado, que las precondiciones son `sys.line_parameters_ok_status`,
+`sys.environment_ok_status`, `sys.standby_system_ok_status` (en ese orden, sin orden fijado por
+nada más que la posición en el catálogo). No está confirmado con el product expert.
+
+Además, el catálogo RD100S no tiene ninguna señal de confirmación tipo "radar encendido": la
+rutina infiere éxito de que las tres precondiciones sigan en OK después del pulso a
+`sys.turn_on_radar_conmand`, no de una lectura directa. `radar_emulator` tampoco modela lógica
+para ese DO (a diferencia de `tx.fsm`), así que el spike de esta rutina no puede validar más que
+"el pulso se envió y las precondiciones no cambiaron" — no hay forma de que el simulador actual
+confirme ni refute la secuencia elegida.
+
+**Acción pendiente explícita:** confirmar con el product expert (o el manual del RD100S si
+aparece) el procedimiento real de "general radar power-on" antes de tratar esta rutina como algo
+más que un primer borrador — y decidir si vale la pena pedir a `radar_emulator` un bloque de
+lógica para `sys.*` equivalente a `tx.fsm`, igual que se hizo notar para el transmisor.

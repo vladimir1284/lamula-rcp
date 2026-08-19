@@ -90,6 +90,18 @@ Visualization + BITE.
 
 **Salida:** M2 — control activo sobre simulador.
 
+!!! note "Fase 2 en curso"
+    ✅ Primera rutina de control (`core/control_routines/general_power_on.py`): "general radar
+    power-on" contra `SimulatedHAL`, elegida como punto de entrada porque
+    `sys.turn_on_radar_conmand` no tiene ningún bloque de lógica del lado de `radar_emulator` (a
+    diferencia de `tx.fsm`) — sienta el patrón de `core/control_routines/` sin arrastrar
+    sincronización contra un FSM simulado. Precondiciones + pulso + confirmación probados contra
+    una instancia real, ver `spike-fase2/RESULTADO-general-power-on.md`.
+
+    ⏸️ Sin resolver: secuencia/criterio de éxito de esa rutina no confirmados con el product
+    expert (PEND-RCP-06); las otras cinco rutinas de control; guarda de seguridad de parámetros;
+    Scan Worksheet; scheduler de volumen; System Visualization + BITE.
+
 ## Fase 3 — Data Views, Calibration, Archive & ORPG Feed (semanas 19–27)
 
 PPI/RHI/ASCOPE completos + gestión de color de 256 niveles + multi-tipo + freeze/zoom; control
