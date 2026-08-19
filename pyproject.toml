@@ -5,6 +5,7 @@ description = "Radar Control Processor & Operator MMI para el radar meteorológi
 requires-python = ">=3.12"
 dependencies = [
     "pydantic>=2,<3",
+    "pymodbus>=3.15.0",
 ]
 
 # Empaquetado (wheel/PyInstaller vs. estructura de paquete) es PEND-RCP-03,

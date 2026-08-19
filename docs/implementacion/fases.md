@@ -52,6 +52,13 @@ vivo sim→WS→PPI.
 
 **Salida:** M1 — vertical slice.
 
+!!! note "Fase 1 en curso"
+    ✅ Adaptador `hal_sim` (`src/adapters/hal_sim/SimulatedHAL`): cliente Modbus TCP (una
+    conexión, diez unit IDs) + receptor UDP de encoder, contra un catálogo de 111 señales
+    vendorizado de `radar_emulator` — ver `spike-fase1/RESULTADO-hal-sim.md`, probado contra una
+    instancia real de `radar_emulator`, no un stub propio. Falta: esqueleto del gateway,
+    inyección de fallos, stream DSP/DRX contra el stub de `dsp_moment_stream_spike.py`, shell MMI.
+
 ## Fase 2 — Control, Safety & Scanning (semanas 11–18)
 
 Las seis rutinas de control sobre el simulador; guarda de seguridad de parámetros; movimiento y

@@ -1,0 +1,1868 @@
+[
+  {
+    "id": "tx.tx_on_status",
+    "subsystem": "tx",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 1,
+      "space": "coil",
+      "address": 0,
+      "conventional": "000001",
+      "access": "r"
+    }
+  },
+  {
+    "id": "tx.ready_status",
+    "subsystem": "tx",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 1,
+      "space": "coil",
+      "address": 1,
+      "conventional": "000002",
+      "access": "r"
+    }
+  },
+  {
+    "id": "tx.radiating_status",
+    "subsystem": "tx",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 1,
+      "space": "coil",
+      "address": 2,
+      "conventional": "000003",
+      "access": "r"
+    }
+  },
+  {
+    "id": "tx.magnetron_peak_over_current_status",
+    "subsystem": "tx",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 1,
+      "space": "coil",
+      "address": 3,
+      "conventional": "000004",
+      "access": "r"
+    }
+  },
+  {
+    "id": "tx.duty_cycle_ok_status",
+    "subsystem": "tx",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 1,
+      "space": "coil",
+      "address": 4,
+      "conventional": "000005",
+      "access": "r"
+    }
+  },
+  {
+    "id": "tx.cb_blower_ok_status",
+    "subsystem": "tx",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 1,
+      "space": "coil",
+      "address": 5,
+      "conventional": "000006",
+      "access": "r"
+    }
+  },
+  {
+    "id": "tx.magnetron_blower_ok_status",
+    "subsystem": "tx",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 1,
+      "space": "coil",
+      "address": 6,
+      "conventional": "000007",
+      "access": "r"
+    }
+  },
+  {
+    "id": "tx.interlock_ok_status",
+    "subsystem": "tx",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 1,
+      "space": "coil",
+      "address": 7,
+      "conventional": "000008",
+      "access": "r"
+    }
+  },
+  {
+    "id": "tx.wg_pressure_ok_status",
+    "subsystem": "tx",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 1,
+      "space": "coil",
+      "address": 8,
+      "conventional": "000009",
+      "access": "r"
+    }
+  },
+  {
+    "id": "tx.pha_seq_ok_status",
+    "subsystem": "tx",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 1,
+      "space": "coil",
+      "address": 9,
+      "conventional": "000010",
+      "access": "r"
+    }
+  },
+  {
+    "id": "tx.mps_on_status",
+    "subsystem": "tx",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 1,
+      "space": "coil",
+      "address": 10,
+      "conventional": "000011",
+      "access": "r"
+    }
+  },
+  {
+    "id": "tx.fps_on_status",
+    "subsystem": "tx",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 1,
+      "space": "coil",
+      "address": 11,
+      "conventional": "000012",
+      "access": "r"
+    }
+  },
+  {
+    "id": "tx.p24_v_ps1_status",
+    "subsystem": "tx",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 1,
+      "space": "coil",
+      "address": 12,
+      "conventional": "000013",
+      "access": "r"
+    }
+  },
+  {
+    "id": "tx.p24_v_ps2_status",
+    "subsystem": "tx",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 1,
+      "space": "coil",
+      "address": 13,
+      "conventional": "000014",
+      "access": "r"
+    }
+  },
+  {
+    "id": "tx.p15_v_ps_status",
+    "subsystem": "tx",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 1,
+      "space": "coil",
+      "address": 14,
+      "conventional": "000015",
+      "access": "r"
+    }
+  },
+  {
+    "id": "tx.n_15_v_ps_status",
+    "subsystem": "tx",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 1,
+      "space": "coil",
+      "address": 15,
+      "conventional": "000016",
+      "access": "r"
+    }
+  },
+  {
+    "id": "tx.mps_fault_status",
+    "subsystem": "tx",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 2,
+      "space": "coil",
+      "address": 0,
+      "conventional": "000001",
+      "access": "r"
+    }
+  },
+  {
+    "id": "tx.fps_ok_status",
+    "subsystem": "tx",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 2,
+      "space": "coil",
+      "address": 1,
+      "conventional": "000002",
+      "access": "r"
+    }
+  },
+  {
+    "id": "tx.blowers_on_status",
+    "subsystem": "tx",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 2,
+      "space": "coil",
+      "address": 2,
+      "conventional": "000003",
+      "access": "r"
+    }
+  },
+  {
+    "id": "tx.spare_01",
+    "subsystem": "tx",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 2,
+      "space": "coil",
+      "address": 3,
+      "conventional": "000004",
+      "access": "r"
+    }
+  },
+  {
+    "id": "tx.turn_on_tx_command",
+    "subsystem": "tx",
+    "kind": "DO",
+    "type": "bool",
+    "direction": "from_controller",
+    "modbus": {
+      "unit_id": 3,
+      "space": "coil",
+      "address": 16,
+      "conventional": "000017",
+      "access": "rw"
+    }
+  },
+  {
+    "id": "tx.turn_off_tx_command",
+    "subsystem": "tx",
+    "kind": "DO",
+    "type": "bool",
+    "direction": "from_controller",
+    "modbus": {
+      "unit_id": 3,
+      "space": "coil",
+      "address": 17,
+      "conventional": "000018",
+      "access": "rw"
+    }
+  },
+  {
+    "id": "tx.turn_on_blowers_command",
+    "subsystem": "tx",
+    "kind": "DO",
+    "type": "bool",
+    "direction": "from_controller",
+    "modbus": {
+      "unit_id": 3,
+      "space": "coil",
+      "address": 18,
+      "conventional": "000019",
+      "access": "rw"
+    }
+  },
+  {
+    "id": "tx.turn_on_fps_command",
+    "subsystem": "tx",
+    "kind": "DO",
+    "type": "bool",
+    "direction": "from_controller",
+    "modbus": {
+      "unit_id": 3,
+      "space": "coil",
+      "address": 19,
+      "conventional": "000020",
+      "access": "rw"
+    }
+  },
+  {
+    "id": "tx.turn_on_mps_command",
+    "subsystem": "tx",
+    "kind": "DO",
+    "type": "bool",
+    "direction": "from_controller",
+    "modbus": {
+      "unit_id": 3,
+      "space": "coil",
+      "address": 20,
+      "conventional": "000021",
+      "access": "rw"
+    }
+  },
+  {
+    "id": "tx.turn_on_hv_command",
+    "subsystem": "tx",
+    "kind": "DO",
+    "type": "bool",
+    "direction": "from_controller",
+    "modbus": {
+      "unit_id": 3,
+      "space": "coil",
+      "address": 21,
+      "conventional": "000022",
+      "access": "rw"
+    }
+  },
+  {
+    "id": "tx.enable_mps_output_command",
+    "subsystem": "tx",
+    "kind": "DO",
+    "type": "bool",
+    "direction": "from_controller",
+    "modbus": {
+      "unit_id": 3,
+      "space": "coil",
+      "address": 22,
+      "conventional": "000023",
+      "access": "rw"
+    }
+  },
+  {
+    "id": "tx.reset_faults_command",
+    "subsystem": "tx",
+    "kind": "DO",
+    "type": "bool",
+    "direction": "from_controller",
+    "modbus": {
+      "unit_id": 3,
+      "space": "coil",
+      "address": 23,
+      "conventional": "000024",
+      "access": "rw"
+    }
+  },
+  {
+    "id": "tx.mps_output_voltage_sample",
+    "subsystem": "tx",
+    "kind": "AI",
+    "type": "float",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 4,
+      "space": "holding",
+      "address": 0,
+      "conventional": "400001",
+      "access": "r"
+    },
+    "units": "kV",
+    "range": [
+      0.0,
+      30.0
+    ],
+    "raw": {
+      "encoding": "int16",
+      "raw_range": [
+        0,
+        65535
+      ],
+      "note": "PENDIENTE: confirmar codificacion y rango crudo del modulo real"
+    }
+  },
+  {
+    "id": "tx.fps_output_voltage_sample",
+    "subsystem": "tx",
+    "kind": "AI",
+    "type": "float",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 4,
+      "space": "holding",
+      "address": 1,
+      "conventional": "400002",
+      "access": "r"
+    },
+    "units": "V",
+    "range": [
+      0.0,
+      15.0
+    ],
+    "raw": {
+      "encoding": "int16",
+      "raw_range": [
+        0,
+        65535
+      ],
+      "note": "PENDIENTE: confirmar codificacion y rango crudo del modulo real"
+    }
+  },
+  {
+    "id": "tx.tx_peak_power_sample",
+    "subsystem": "tx",
+    "kind": "AI",
+    "type": "float",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 4,
+      "space": "holding",
+      "address": 2,
+      "conventional": "400003",
+      "access": "r"
+    },
+    "units": "kW",
+    "range": [
+      0.0,
+      350.0
+    ],
+    "raw": {
+      "encoding": "int16",
+      "raw_range": [
+        0,
+        65535
+      ],
+      "note": "PENDIENTE: confirmar codificacion y rango crudo del modulo real"
+    }
+  },
+  {
+    "id": "tx.magnetron_peak_current_sample",
+    "subsystem": "tx",
+    "kind": "AI",
+    "type": "float",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 4,
+      "space": "holding",
+      "address": 3,
+      "conventional": "400004",
+      "access": "r"
+    },
+    "units": "A",
+    "range": [
+      0.0,
+      60.0
+    ],
+    "raw": {
+      "encoding": "int16",
+      "raw_range": [
+        0,
+        65535
+      ],
+      "note": "PENDIENTE: confirmar codificacion y rango crudo del modulo real"
+    }
+  },
+  {
+    "id": "tx.p_24_v_ps1_sample",
+    "subsystem": "tx",
+    "kind": "AI",
+    "type": "float",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 4,
+      "space": "holding",
+      "address": 4,
+      "conventional": "400005",
+      "access": "r"
+    },
+    "units": "V",
+    "range": [
+      0.0,
+      30.0
+    ],
+    "raw": {
+      "encoding": "int16",
+      "raw_range": [
+        0,
+        65535
+      ],
+      "note": "PENDIENTE: confirmar codificacion y rango crudo del modulo real"
+    }
+  },
+  {
+    "id": "tx.p_24_v_ps2_sample",
+    "subsystem": "tx",
+    "kind": "AI",
+    "type": "float",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 4,
+      "space": "holding",
+      "address": 5,
+      "conventional": "400006",
+      "access": "r"
+    },
+    "units": "V",
+    "range": [
+      0.0,
+      30.0
+    ],
+    "raw": {
+      "encoding": "int16",
+      "raw_range": [
+        0,
+        65535
+      ],
+      "note": "PENDIENTE: confirmar codificacion y rango crudo del modulo real"
+    }
+  },
+  {
+    "id": "tx.p_15_v_ps_sample",
+    "subsystem": "tx",
+    "kind": "AI",
+    "type": "float",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 4,
+      "space": "holding",
+      "address": 6,
+      "conventional": "400007",
+      "access": "r"
+    },
+    "units": "V",
+    "range": [
+      0.0,
+      20.0
+    ],
+    "raw": {
+      "encoding": "int16",
+      "raw_range": [
+        0,
+        65535
+      ],
+      "note": "PENDIENTE: confirmar codificacion y rango crudo del modulo real"
+    }
+  },
+  {
+    "id": "tx.n_15_v_ps_sample",
+    "subsystem": "tx",
+    "kind": "AI",
+    "type": "float",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 4,
+      "space": "holding",
+      "address": 7,
+      "conventional": "400008",
+      "access": "r"
+    },
+    "units": "V",
+    "range": [
+      -20.0,
+      0.0
+    ],
+    "raw": {
+      "encoding": "int16",
+      "raw_range": [
+        -32768,
+        32767
+      ],
+      "note": "PENDIENTE: confirmar codificacion y rango crudo del modulo real"
+    }
+  },
+  {
+    "id": "tx.voltage_reference_mps",
+    "subsystem": "tx",
+    "kind": "AO",
+    "type": "float",
+    "direction": "from_controller",
+    "modbus": {
+      "unit_id": 2,
+      "space": "holding",
+      "address": 0,
+      "conventional": "400001",
+      "access": "rw"
+    },
+    "units": "V",
+    "range": [
+      0.0,
+      10.0
+    ],
+    "raw": {
+      "encoding": "int16",
+      "raw_range": [
+        0,
+        65535
+      ],
+      "note": "PENDIENTE: confirmar codificacion y rango crudo del modulo real"
+    }
+  },
+  {
+    "id": "tx.voltage_reference_filament_ps",
+    "subsystem": "tx",
+    "kind": "AO",
+    "type": "float",
+    "direction": "from_controller",
+    "modbus": {
+      "unit_id": 2,
+      "space": "holding",
+      "address": 1,
+      "conventional": "400002",
+      "access": "rw"
+    },
+    "units": "V",
+    "range": [
+      0.0,
+      10.0
+    ],
+    "raw": {
+      "encoding": "int16",
+      "raw_range": [
+        0,
+        65535
+      ],
+      "note": "PENDIENTE: confirmar codificacion y rango crudo del modulo real"
+    }
+  },
+  {
+    "id": "tx.spare_02",
+    "subsystem": "tx",
+    "kind": "AO",
+    "type": "float",
+    "direction": "from_controller",
+    "modbus": {
+      "unit_id": 2,
+      "space": "holding",
+      "address": 2,
+      "conventional": "400003",
+      "access": "rw"
+    },
+    "units": "",
+    "range": [
+      0.0,
+      10.0
+    ],
+    "raw": {
+      "encoding": "int16",
+      "raw_range": [
+        0,
+        65535
+      ],
+      "note": "PENDIENTE: confirmar codificacion y rango crudo del modulo real"
+    }
+  },
+  {
+    "id": "tx.spare_03",
+    "subsystem": "tx",
+    "kind": "AO",
+    "type": "float",
+    "direction": "from_controller",
+    "modbus": {
+      "unit_id": 2,
+      "space": "holding",
+      "address": 3,
+      "conventional": "400004",
+      "access": "rw"
+    },
+    "units": "",
+    "range": [
+      0.0,
+      10.0
+    ],
+    "raw": {
+      "encoding": "int16",
+      "raw_range": [
+        0,
+        65535
+      ],
+      "note": "PENDIENTE: confirmar codificacion y rango crudo del modulo real"
+    }
+  },
+  {
+    "id": "ant.i2t_drive_az_status",
+    "subsystem": "ant",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 11,
+      "space": "coil",
+      "address": 0,
+      "conventional": "000001",
+      "access": "r"
+    }
+  },
+  {
+    "id": "ant.drive_az_ok_status",
+    "subsystem": "ant",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 11,
+      "space": "coil",
+      "address": 1,
+      "conventional": "000002",
+      "access": "r"
+    }
+  },
+  {
+    "id": "ant.i2t_drive_el_status",
+    "subsystem": "ant",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 11,
+      "space": "coil",
+      "address": 2,
+      "conventional": "000003",
+      "access": "r"
+    }
+  },
+  {
+    "id": "ant.drive_el_ok_status",
+    "subsystem": "ant",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 11,
+      "space": "coil",
+      "address": 3,
+      "conventional": "000004",
+      "access": "r"
+    }
+  },
+  {
+    "id": "ant.antenna_remote_status",
+    "subsystem": "ant",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 11,
+      "space": "coil",
+      "address": 4,
+      "conventional": "000005",
+      "access": "r"
+    }
+  },
+  {
+    "id": "ant.radome_closed_status",
+    "subsystem": "ant",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 11,
+      "space": "coil",
+      "address": 5,
+      "conventional": "000006",
+      "access": "r"
+    }
+  },
+  {
+    "id": "ant.el_upper_limit_status",
+    "subsystem": "ant",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 11,
+      "space": "coil",
+      "address": 6,
+      "conventional": "000007",
+      "access": "r"
+    }
+  },
+  {
+    "id": "ant.el_lower_limit_status",
+    "subsystem": "ant",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 11,
+      "space": "coil",
+      "address": 7,
+      "conventional": "000008",
+      "access": "r"
+    }
+  },
+  {
+    "id": "ant.az_aut_status",
+    "subsystem": "ant",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 11,
+      "space": "coil",
+      "address": 8,
+      "conventional": "000009",
+      "access": "r"
+    }
+  },
+  {
+    "id": "ant.el_aut_status",
+    "subsystem": "ant",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 11,
+      "space": "coil",
+      "address": 9,
+      "conventional": "000010",
+      "access": "r"
+    }
+  },
+  {
+    "id": "ant.au_on_status",
+    "subsystem": "ant",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 11,
+      "space": "coil",
+      "address": 10,
+      "conventional": "000011",
+      "access": "r"
+    }
+  },
+  {
+    "id": "ant.spare_01",
+    "subsystem": "ant",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 11,
+      "space": "coil",
+      "address": 11,
+      "conventional": "000012",
+      "access": "r"
+    }
+  },
+  {
+    "id": "ant.spare_02",
+    "subsystem": "ant",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 11,
+      "space": "coil",
+      "address": 12,
+      "conventional": "000013",
+      "access": "r"
+    }
+  },
+  {
+    "id": "ant.spare_03",
+    "subsystem": "ant",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 11,
+      "space": "coil",
+      "address": 13,
+      "conventional": "000014",
+      "access": "r"
+    }
+  },
+  {
+    "id": "ant.spare_04",
+    "subsystem": "ant",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 11,
+      "space": "coil",
+      "address": 14,
+      "conventional": "000015",
+      "access": "r"
+    }
+  },
+  {
+    "id": "ant.spare_05",
+    "subsystem": "ant",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 11,
+      "space": "coil",
+      "address": 15,
+      "conventional": "000016",
+      "access": "r"
+    }
+  },
+  {
+    "id": "ant.spare_06",
+    "subsystem": "ant",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 12,
+      "space": "coil",
+      "address": 0,
+      "conventional": "000001",
+      "access": "r"
+    }
+  },
+  {
+    "id": "ant.spare_07",
+    "subsystem": "ant",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 12,
+      "space": "coil",
+      "address": 1,
+      "conventional": "000002",
+      "access": "r"
+    }
+  },
+  {
+    "id": "ant.spare_08",
+    "subsystem": "ant",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 12,
+      "space": "coil",
+      "address": 2,
+      "conventional": "000003",
+      "access": "r"
+    }
+  },
+  {
+    "id": "ant.spare_09",
+    "subsystem": "ant",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 12,
+      "space": "coil",
+      "address": 3,
+      "conventional": "000004",
+      "access": "r"
+    }
+  },
+  {
+    "id": "ant.turn_on_off_au_conmand",
+    "subsystem": "ant",
+    "kind": "DO",
+    "type": "bool",
+    "direction": "from_controller",
+    "modbus": {
+      "unit_id": 13,
+      "space": "coil",
+      "address": 16,
+      "conventional": "000017",
+      "access": "rw"
+    }
+  },
+  {
+    "id": "ant.enable_drive_az_conmand",
+    "subsystem": "ant",
+    "kind": "DO",
+    "type": "bool",
+    "direction": "from_controller",
+    "modbus": {
+      "unit_id": 13,
+      "space": "coil",
+      "address": 17,
+      "conventional": "000018",
+      "access": "rw"
+    }
+  },
+  {
+    "id": "ant.enable_drive_el_conmand",
+    "subsystem": "ant",
+    "kind": "DO",
+    "type": "bool",
+    "direction": "from_controller",
+    "modbus": {
+      "unit_id": 13,
+      "space": "coil",
+      "address": 18,
+      "conventional": "000019",
+      "access": "rw"
+    }
+  },
+  {
+    "id": "ant.spare_10",
+    "subsystem": "ant",
+    "kind": "DO",
+    "type": "bool",
+    "direction": "from_controller",
+    "modbus": {
+      "unit_id": 13,
+      "space": "coil",
+      "address": 19,
+      "conventional": "000020",
+      "access": "rw"
+    }
+  },
+  {
+    "id": "ant.spare_11",
+    "subsystem": "ant",
+    "kind": "DO",
+    "type": "bool",
+    "direction": "from_controller",
+    "modbus": {
+      "unit_id": 13,
+      "space": "coil",
+      "address": 20,
+      "conventional": "000021",
+      "access": "rw"
+    }
+  },
+  {
+    "id": "ant.spare_12",
+    "subsystem": "ant",
+    "kind": "DO",
+    "type": "bool",
+    "direction": "from_controller",
+    "modbus": {
+      "unit_id": 13,
+      "space": "coil",
+      "address": 21,
+      "conventional": "000022",
+      "access": "rw"
+    }
+  },
+  {
+    "id": "ant.spare_13",
+    "subsystem": "ant",
+    "kind": "DO",
+    "type": "bool",
+    "direction": "from_controller",
+    "modbus": {
+      "unit_id": 13,
+      "space": "coil",
+      "address": 22,
+      "conventional": "000023",
+      "access": "rw"
+    }
+  },
+  {
+    "id": "ant.spare_14",
+    "subsystem": "ant",
+    "kind": "DO",
+    "type": "bool",
+    "direction": "from_controller",
+    "modbus": {
+      "unit_id": 13,
+      "space": "coil",
+      "address": 23,
+      "conventional": "000024",
+      "access": "rw"
+    }
+  },
+  {
+    "id": "ant.az_motor_current_sample",
+    "subsystem": "ant",
+    "kind": "AI",
+    "type": "float",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 14,
+      "space": "holding",
+      "address": 0,
+      "conventional": "400001",
+      "access": "r"
+    },
+    "units": "A",
+    "range": [
+      0.0,
+      50.0
+    ],
+    "raw": {
+      "encoding": "int16",
+      "raw_range": [
+        0,
+        65535
+      ],
+      "note": "PENDIENTE: confirmar codificacion y rango crudo del modulo real"
+    }
+  },
+  {
+    "id": "ant.el_motor_current_sample",
+    "subsystem": "ant",
+    "kind": "AI",
+    "type": "float",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 14,
+      "space": "holding",
+      "address": 1,
+      "conventional": "400002",
+      "access": "r"
+    },
+    "units": "A",
+    "range": [
+      0.0,
+      50.0
+    ],
+    "raw": {
+      "encoding": "int16",
+      "raw_range": [
+        0,
+        65535
+      ],
+      "note": "PENDIENTE: confirmar codificacion y rango crudo del modulo real"
+    }
+  },
+  {
+    "id": "ant.az_motor_speed_sample",
+    "subsystem": "ant",
+    "kind": "AI",
+    "type": "float",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 14,
+      "space": "holding",
+      "address": 2,
+      "conventional": "400003",
+      "access": "r"
+    },
+    "units": "rpm",
+    "range": [
+      -10.0,
+      10.0
+    ],
+    "raw": {
+      "encoding": "int16",
+      "raw_range": [
+        -32768,
+        32767
+      ],
+      "note": "PENDIENTE: confirmar codificacion y rango crudo del modulo real"
+    }
+  },
+  {
+    "id": "ant.el_motor_speed_sample",
+    "subsystem": "ant",
+    "kind": "AI",
+    "type": "float",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 14,
+      "space": "holding",
+      "address": 3,
+      "conventional": "400004",
+      "access": "r"
+    },
+    "units": "deg/s",
+    "range": [
+      -30.0,
+      30.0
+    ],
+    "raw": {
+      "encoding": "int16",
+      "raw_range": [
+        -32768,
+        32767
+      ],
+      "note": "PENDIENTE: confirmar codificacion y rango crudo del modulo real"
+    }
+  },
+  {
+    "id": "ant.spare_15",
+    "subsystem": "ant",
+    "kind": "AI",
+    "type": "float",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 14,
+      "space": "holding",
+      "address": 4,
+      "conventional": "400005",
+      "access": "r"
+    },
+    "units": "",
+    "range": [
+      0.0,
+      10.0
+    ],
+    "raw": {
+      "encoding": "int16",
+      "raw_range": [
+        0,
+        65535
+      ],
+      "note": "PENDIENTE: confirmar codificacion y rango crudo del modulo real"
+    }
+  },
+  {
+    "id": "ant.spare_16",
+    "subsystem": "ant",
+    "kind": "AI",
+    "type": "float",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 14,
+      "space": "holding",
+      "address": 5,
+      "conventional": "400006",
+      "access": "r"
+    },
+    "units": "",
+    "range": [
+      0.0,
+      10.0
+    ],
+    "raw": {
+      "encoding": "int16",
+      "raw_range": [
+        0,
+        65535
+      ],
+      "note": "PENDIENTE: confirmar codificacion y rango crudo del modulo real"
+    }
+  },
+  {
+    "id": "ant.spare_17",
+    "subsystem": "ant",
+    "kind": "AI",
+    "type": "float",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 14,
+      "space": "holding",
+      "address": 6,
+      "conventional": "400007",
+      "access": "r"
+    },
+    "units": "",
+    "range": [
+      0.0,
+      10.0
+    ],
+    "raw": {
+      "encoding": "int16",
+      "raw_range": [
+        0,
+        65535
+      ],
+      "note": "PENDIENTE: confirmar codificacion y rango crudo del modulo real"
+    }
+  },
+  {
+    "id": "ant.spare_18",
+    "subsystem": "ant",
+    "kind": "AI",
+    "type": "float",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 14,
+      "space": "holding",
+      "address": 7,
+      "conventional": "400008",
+      "access": "r"
+    },
+    "units": "",
+    "range": [
+      0.0,
+      10.0
+    ],
+    "raw": {
+      "encoding": "int16",
+      "raw_range": [
+        0,
+        65535
+      ],
+      "note": "PENDIENTE: confirmar codificacion y rango crudo del modulo real"
+    }
+  },
+  {
+    "id": "ant.speed_reference_driver_az",
+    "subsystem": "ant",
+    "kind": "AO",
+    "type": "float",
+    "direction": "from_controller",
+    "modbus": {
+      "unit_id": 12,
+      "space": "holding",
+      "address": 0,
+      "conventional": "400001",
+      "access": "rw"
+    },
+    "units": "V",
+    "range": [
+      -10.0,
+      10.0
+    ],
+    "raw": {
+      "encoding": "int16",
+      "raw_range": [
+        -32768,
+        32767
+      ],
+      "note": "PENDIENTE: confirmar codificacion y rango crudo del modulo real"
+    }
+  },
+  {
+    "id": "ant.speed_reference_driver_el",
+    "subsystem": "ant",
+    "kind": "AO",
+    "type": "float",
+    "direction": "from_controller",
+    "modbus": {
+      "unit_id": 12,
+      "space": "holding",
+      "address": 1,
+      "conventional": "400002",
+      "access": "rw"
+    },
+    "units": "V",
+    "range": [
+      -10.0,
+      10.0
+    ],
+    "raw": {
+      "encoding": "int16",
+      "raw_range": [
+        -32768,
+        32767
+      ],
+      "note": "PENDIENTE: confirmar codificacion y rango crudo del modulo real"
+    }
+  },
+  {
+    "id": "ant.spare_19",
+    "subsystem": "ant",
+    "kind": "AO",
+    "type": "float",
+    "direction": "from_controller",
+    "modbus": {
+      "unit_id": 12,
+      "space": "holding",
+      "address": 2,
+      "conventional": "400003",
+      "access": "rw"
+    },
+    "units": "",
+    "range": [
+      0.0,
+      10.0
+    ],
+    "raw": {
+      "encoding": "int16",
+      "raw_range": [
+        0,
+        65535
+      ],
+      "note": "PENDIENTE: confirmar codificacion y rango crudo del modulo real"
+    }
+  },
+  {
+    "id": "ant.spare_20",
+    "subsystem": "ant",
+    "kind": "AO",
+    "type": "float",
+    "direction": "from_controller",
+    "modbus": {
+      "unit_id": 12,
+      "space": "holding",
+      "address": 3,
+      "conventional": "400004",
+      "access": "rw"
+    },
+    "units": "",
+    "range": [
+      0.0,
+      10.0
+    ],
+    "raw": {
+      "encoding": "int16",
+      "raw_range": [
+        0,
+        65535
+      ],
+      "note": "PENDIENTE: confirmar codificacion y rango crudo del modulo real"
+    }
+  },
+  {
+    "id": "rx.rfe_on_status",
+    "subsystem": "rx",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 21,
+      "space": "coil",
+      "address": 0,
+      "conventional": "000001",
+      "access": "r"
+    }
+  },
+  {
+    "id": "rx.stalo_locked_status",
+    "subsystem": "rx",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 21,
+      "space": "coil",
+      "address": 1,
+      "conventional": "000002",
+      "access": "r"
+    }
+  },
+  {
+    "id": "rx.p_15_v_ps_ok_status",
+    "subsystem": "rx",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 21,
+      "space": "coil",
+      "address": 2,
+      "conventional": "000003",
+      "access": "r"
+    }
+  },
+  {
+    "id": "rx.n_15_v_ps_ok_status",
+    "subsystem": "rx",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 21,
+      "space": "coil",
+      "address": 3,
+      "conventional": "000004",
+      "access": "r"
+    }
+  },
+  {
+    "id": "rx.p_12_v_ps_ok_status",
+    "subsystem": "rx",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 21,
+      "space": "coil",
+      "address": 4,
+      "conventional": "000005",
+      "access": "r"
+    }
+  },
+  {
+    "id": "rx.rfe_fault_status",
+    "subsystem": "rx",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 21,
+      "space": "coil",
+      "address": 5,
+      "conventional": "000006",
+      "access": "r"
+    }
+  },
+  {
+    "id": "rx.spare_01",
+    "subsystem": "rx",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 21,
+      "space": "coil",
+      "address": 6,
+      "conventional": "000007",
+      "access": "r"
+    }
+  },
+  {
+    "id": "rx.turn_on_rfe_conmand",
+    "subsystem": "rx",
+    "kind": "DO",
+    "type": "bool",
+    "direction": "from_controller",
+    "modbus": {
+      "unit_id": 21,
+      "space": "coil",
+      "address": 16,
+      "conventional": "000017",
+      "access": "rw"
+    }
+  },
+  {
+    "id": "rx.turn_off_rfe_conmand",
+    "subsystem": "rx",
+    "kind": "DO",
+    "type": "bool",
+    "direction": "from_controller",
+    "modbus": {
+      "unit_id": 21,
+      "space": "coil",
+      "address": 17,
+      "conventional": "000018",
+      "access": "rw"
+    }
+  },
+  {
+    "id": "rx.spare_02",
+    "subsystem": "rx",
+    "kind": "DO",
+    "type": "bool",
+    "direction": "from_controller",
+    "modbus": {
+      "unit_id": 21,
+      "space": "coil",
+      "address": 18,
+      "conventional": "000019",
+      "access": "rw"
+    }
+  },
+  {
+    "id": "rx.spare_03",
+    "subsystem": "rx",
+    "kind": "DO",
+    "type": "bool",
+    "direction": "from_controller",
+    "modbus": {
+      "unit_id": 21,
+      "space": "coil",
+      "address": 19,
+      "conventional": "000020",
+      "access": "rw"
+    }
+  },
+  {
+    "id": "rx.spare_04",
+    "subsystem": "rx",
+    "kind": "DO",
+    "type": "bool",
+    "direction": "from_controller",
+    "modbus": {
+      "unit_id": 21,
+      "space": "coil",
+      "address": 20,
+      "conventional": "000021",
+      "access": "rw"
+    }
+  },
+  {
+    "id": "rx.spare_05",
+    "subsystem": "rx",
+    "kind": "DO",
+    "type": "bool",
+    "direction": "from_controller",
+    "modbus": {
+      "unit_id": 21,
+      "space": "coil",
+      "address": 21,
+      "conventional": "000022",
+      "access": "rw"
+    }
+  },
+  {
+    "id": "rx.spare_06",
+    "subsystem": "rx",
+    "kind": "DO",
+    "type": "bool",
+    "direction": "from_controller",
+    "modbus": {
+      "unit_id": 21,
+      "space": "coil",
+      "address": 22,
+      "conventional": "000023",
+      "access": "rw"
+    }
+  },
+  {
+    "id": "rx.spare_07",
+    "subsystem": "rx",
+    "kind": "DO",
+    "type": "bool",
+    "direction": "from_controller",
+    "modbus": {
+      "unit_id": 21,
+      "space": "coil",
+      "address": 23,
+      "conventional": "000024",
+      "access": "rw"
+    }
+  },
+  {
+    "id": "sys.standby_system_ok_status",
+    "subsystem": "sys",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 31,
+      "space": "coil",
+      "address": 0,
+      "conventional": "000001",
+      "access": "r"
+    }
+  },
+  {
+    "id": "sys.line_parameters_ok_status",
+    "subsystem": "sys",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 31,
+      "space": "coil",
+      "address": 1,
+      "conventional": "000002",
+      "access": "r"
+    }
+  },
+  {
+    "id": "sys.environment_ok_status",
+    "subsystem": "sys",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 31,
+      "space": "coil",
+      "address": 2,
+      "conventional": "000003",
+      "access": "r"
+    }
+  },
+  {
+    "id": "sys.spare_01",
+    "subsystem": "sys",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 31,
+      "space": "coil",
+      "address": 3,
+      "conventional": "000004",
+      "access": "r"
+    }
+  },
+  {
+    "id": "sys.spare_02",
+    "subsystem": "sys",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 31,
+      "space": "coil",
+      "address": 4,
+      "conventional": "000005",
+      "access": "r"
+    }
+  },
+  {
+    "id": "sys.spare_03",
+    "subsystem": "sys",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 31,
+      "space": "coil",
+      "address": 5,
+      "conventional": "000006",
+      "access": "r"
+    }
+  },
+  {
+    "id": "sys.spare_04",
+    "subsystem": "sys",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 31,
+      "space": "coil",
+      "address": 6,
+      "conventional": "000007",
+      "access": "r"
+    }
+  },
+  {
+    "id": "sys.spare_05",
+    "subsystem": "sys",
+    "kind": "DI",
+    "type": "bool",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 31,
+      "space": "coil",
+      "address": 7,
+      "conventional": "000008",
+      "access": "r"
+    }
+  },
+  {
+    "id": "sys.turn_on_radar_conmand",
+    "subsystem": "sys",
+    "kind": "DO",
+    "type": "bool",
+    "direction": "from_controller",
+    "modbus": {
+      "unit_id": 31,
+      "space": "coil",
+      "address": 16,
+      "conventional": "000017",
+      "access": "rw"
+    }
+  },
+  {
+    "id": "sys.turn_off_radar_conmand",
+    "subsystem": "sys",
+    "kind": "DO",
+    "type": "bool",
+    "direction": "from_controller",
+    "modbus": {
+      "unit_id": 31,
+      "space": "coil",
+      "address": 17,
+      "conventional": "000018",
+      "access": "rw"
+    }
+  },
+  {
+    "id": "sys.spare_06",
+    "subsystem": "sys",
+    "kind": "DO",
+    "type": "bool",
+    "direction": "from_controller",
+    "modbus": {
+      "unit_id": 31,
+      "space": "coil",
+      "address": 18,
+      "conventional": "000019",
+      "access": "rw"
+    }
+  },
+  {
+    "id": "sys.spare_07",
+    "subsystem": "sys",
+    "kind": "DO",
+    "type": "bool",
+    "direction": "from_controller",
+    "modbus": {
+      "unit_id": 31,
+      "space": "coil",
+      "address": 19,
+      "conventional": "000020",
+      "access": "rw"
+    }
+  },
+  {
+    "id": "sys.spare_08",
+    "subsystem": "sys",
+    "kind": "DO",
+    "type": "bool",
+    "direction": "from_controller",
+    "modbus": {
+      "unit_id": 31,
+      "space": "coil",
+      "address": 20,
+      "conventional": "000021",
+      "access": "rw"
+    }
+  },
+  {
+    "id": "sys.spare_09",
+    "subsystem": "sys",
+    "kind": "DO",
+    "type": "bool",
+    "direction": "from_controller",
+    "modbus": {
+      "unit_id": 31,
+      "space": "coil",
+      "address": 21,
+      "conventional": "000022",
+      "access": "rw"
+    }
+  },
+  {
+    "id": "sys.spare_10",
+    "subsystem": "sys",
+    "kind": "DO",
+    "type": "bool",
+    "direction": "from_controller",
+    "modbus": {
+      "unit_id": 31,
+      "space": "coil",
+      "address": 22,
+      "conventional": "000023",
+      "access": "rw"
+    }
+  },
+  {
+    "id": "sys.spare_11",
+    "subsystem": "sys",
+    "kind": "DO",
+    "type": "bool",
+    "direction": "from_controller",
+    "modbus": {
+      "unit_id": 31,
+      "space": "coil",
+      "address": 23,
+      "conventional": "000024",
+      "access": "rw"
+    }
+  }
+]
