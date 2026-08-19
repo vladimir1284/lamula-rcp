@@ -70,8 +70,12 @@ vivo sim→WS→PPI.
     Decisión: no se streamean momentos completos por WS todavía (eso es la vista PPI de
     Fase 2/3); `core/contracts/mmi.py` se extendió solo con ese campo de estado.
 
-    Falta: inyección de fallos, shell MMI (el pipe hoy llega al WS, no hay todavía un PPI real
-    dibujando).
+    ✅ Inyección de fallos: `SimulatedHAL` verificado contra las degradaciones reales de
+    `radar_emulator` (`encoder_invalid`, `freeze`, `silence`, vía su canal WS de control) — ver
+    `spike-fase1/RESULTADO-fault-injection.md`.
+
+    Falta: shell MMI (el pipe hoy llega al WS, no hay todavía un PPI real dibujando) — es lo
+    único que queda de los puntos de Fase 1 listados arriba.
 
 ## Fase 2 — Control, Safety & Scanning (semanas 11–18)
 
