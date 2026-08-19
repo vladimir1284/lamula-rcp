@@ -78,22 +78,43 @@ precisamente para que el experto las revise primero y no después.
 
 ## Rutina 2 — Encendido del transmisor
 
-**Estado:** diseño propuesto, sin implementar. Es la única de las seis rutinas donde el
-simulador del radar sí reproduce una secuencia interna con tiempos y enclavamientos — las demás
-son más simples porque el simulador no les modela ese comportamiento (ver aviso al final de esta
-sección).
+**Estado:** implementada hasta "listo" (ver más abajo), probada contra el simulador del radar —
+`core/control_routines/transmitter_power_on.py`, ver
+`spike-fase2/RESULTADO-transmitter-power-on.md`. No probada contra hardware real. Es la única de
+las seis rutinas donde el simulador del radar sí reproduce una secuencia interna con tiempos y
+enclavamientos — las demás son más simples porque el simulador no les modela ese comportamiento
+(ver aviso al final de esta sección).
+
+!!! warning "Alcance implementado: hasta 'listo', no más allá (2026-08-19)"
+    La rutina implementada llega hasta `tx.ready_status` (pasos 1–4 de abajo) y se detiene ahí —
+    **no** sube alta tensión ni habilita salida (pasos 5–6). El plan nombra seis rutinas, ninguna
+    llamada "subir HV" o "empezar a radiar"; eso tiene más sentido como parte de arrancar un
+    escaneo (Scan Controller, sin construir todavía) que como parte de un encendido que se hace
+    una vez. Responde la pregunta que quedaba abierta más abajo con la interpretación más
+    conservadora — sin confirmar con el experto.
 
 ### Enclavamientos de seguridad que deben estar bien antes de continuar
 
-Antes de subir alta tensión, deben estar en buen estado, todos a la vez:
+Antes de subir alta tensión, deben estar en buen estado, todos a la vez. Son **seis** señales
+reales, no siete — "radomo cerrado" y "sistema en espera" son, en el simulador, la misma señal
+agregada (`tx.interlock_ok_status = ant.radome_closed_status and sys.standby_system_ok_status`),
+no dos independientes:
 
-1. Interlock físico del transmisor.
+1. Interlock físico del transmisor (radomo cerrado **y** sistema en espera correcto — una sola
+   señal agregada, no dos).
 2. Presión de guía de onda correcta.
-3. Radomo cerrado **y** sistema en espera correcto (el radomo abierto corta este enclavamiento).
-4. Soplador de la cabina funcionando.
-5. Soplador del magnetrón funcionando.
-6. Secuencia de fases correcta.
-7. Ciclo de trabajo (duty cycle) dentro de límite.
+3. Soplador de la cabina funcionando.
+4. Soplador del magnetrón funcionando.
+5. Secuencia de fases correcta.
+6. Ciclo de trabajo (duty cycle) dentro de límite.
+
+!!! note "Hallazgo de implementación: estas señales no las exige el simulador para encender, solo para subir HV"
+    La transición real de "apagado" a "arrancando" en el simulador (`tx.fsm`) no exige ninguno de
+    estos seis — solo la orden de encender. El simulador solo los exige mas adelante, al pedir
+    alta tensión. La rutina implementada los chequea igual, **por decisión propia del RCP, más
+    estricta que el simulador** (mismo criterio que la Rutina 1): no calentar el magnetrón sin
+    sopladores/presión/fase correctos, aunque el simulador no lo exija todavía en ese punto. Sin
+    confirmar con el product expert.
 
 ### Secuencia propuesta
 
@@ -122,7 +143,7 @@ Si la corriente pico del magnetrón supera un umbral, el sistema marca una falla
 que se queda activa (enclavada) hasta que se envíe explícitamente la orden de "reset de fallas" —
 no se limpia sola aunque la corriente baje.
 
-!!! question "Para el experto: revisar antes de implementar esta rutina"
+!!! question "Para el experto: revisar antes de confiar en esta rutina"
     - Los tiempos de arriba (1,5 s de arranque, **3 minutos de caldeo del magnetrón**) son valores
       de marcador de posición puestos por el equipo de simulación — el propio simulador los
       marca como pendientes de confirmar. ¿Cuál es el tiempo real de caldeo del magnetrón del
@@ -306,7 +327,7 @@ pueda deducir de él.
 | Rutina | Estado | Complejidad frente al simulador |
 |---|---|---|
 | 1. Encendido general | Implementada, probada contra simulador | Sin lógica simulada — sirvió para sentar el patrón |
-| 2. Encendido del transmisor | Diseño propuesto | Secuencia con tiempos y enclavamientos ya modelada en el simulador |
+| 2. Encendido del transmisor | Implementada hasta "listo", probada contra simulador | Secuencia con tiempos y enclavamientos ya modelada en el simulador |
 | 3. Encendido del receptor | Diseño propuesto | Sin lógica simulada |
 | 4. Encendido de unidad de antena | Diseño propuesto | Sin lógica simulada — posible orden de nivel, no de pulso |
 | 5. Movimiento de antena | Implementada, probada contra simulador | Modelada con inercia, topes y protección térmica |
@@ -315,7 +336,8 @@ pueda deducir de él.
 ## Trazabilidad técnica
 
 Para quien necesite correlacionar esta página con el código: la Rutina 1 vive en
-`src/core/control_routines/general_power_on.py`, la Rutina 5 en
+`src/core/control_routines/general_power_on.py`, la Rutina 2 (hasta "listo", sin HV/radiar) en
+`src/core/control_routines/transmitter_power_on.py`, la Rutina 5 en
 `src/core/control_routines/antenna_movement.py` (consume la guarda de límites de antena en
 `src/core/safety_guard/`) y la Rutina 6 en
 `src/core/control_routines/antenna_positioning.py` (consume la Rutina 5 en cada paso de control).

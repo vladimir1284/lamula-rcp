@@ -128,9 +128,16 @@ RD100S ni de un procedimiento confirmado por el product expert. Puntos concretos
 - **Transmisor:** el tiempo de arranque (~1,5 s), el tiempo de caldeo del magnetrón (~3 min) y el
   umbral de sobrecorriente pico del magnetrón (55 A) son valores de marcador de posición que el
   propio `radar_emulator` marca como pendientes en su config — no son datos del RD100S real.
-  Tampoco está confirmado si el radomo participa en la cadena de enclavamiento del transmisor, ni
-  si "encendido del transmisor" como rutina debe llegar solo hasta "listo" o también subir alta
-  tensión y radiar.
+  Tampoco está confirmado si el radomo participa en la cadena de enclavamiento del transmisor.
+  **Implementada como primer borrador**, hasta `tx.ready_status` únicamente, en
+  `core/control_routines/transmitter_power_on.py` (ver
+  `spike-fase2/RESULTADO-transmitter-power-on.md`, incluye corrida real esperando el caldeo
+  completo de ~180 s). Elige no subir alta tensión ni radiar como parte de esta rutina — respuesta
+  conservadora a la pregunta abierta, sin confirmar con el experto. **Hallazgo:** la transición
+  real de encendido del `tx.fsm` no exige ningún interlock (solo los exige al subir HV); la
+  rutina los chequea de todos modos como precondición propia del RCP, más estricta que el
+  simulador. Son seis señales agregadas, no siete — `tx.interlock_ok_status` ya combina radomo +
+  sistema en espera.
 - **Receptor:** no hay ninguna pista de tiempos de enganche del oscilador local (STALO) ni de si
   existe algún enclavamiento previo al encendido — el simulador no modela nada de esto.
 - **Unidad de antena:** el catálogo tiene una sola orden (no un par Encender/Apagar como las

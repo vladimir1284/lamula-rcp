@@ -120,13 +120,24 @@ Visualization + BITE.
     `spike-fase2/RESULTADO-antenna-positioning.md`. Limitación conocida sin resolver: sin cálculo
     de distancia de frenado, puede sobrepasar el objetivo mientras el eje desacelera.
 
-    Con esto, las seis rutinas del plan tienen primer borrador implementado y probado contra el
-    simulador.
+    ✅ Rutina 2 — encendido del transmisor (`core/control_routines/transmitter_power_on.py`),
+    hasta `tx.ready_status` únicamente (no sube HV ni radía — decisión de alcance explícita, ver
+    docstring). Única rutina con secuencia y temporizador reales del lado del simulador
+    (`tx.fsm`); probada contra una instancia real de `radar_emulator`, incluida una corrida
+    completa esperando el caldeo real de ~180 s, ver
+    `spike-fase2/RESULTADO-transmitter-power-on.md`. Hallazgo: la transición de encendido del
+    `tx.fsm` no exige los seis interlocks (solo los exige al subir HV, fuera del alcance de esta
+    rutina); se chequean igual como precondición propia del RCP.
+
+    Con esto, cuatro de las seis rutinas del plan tienen primer borrador implementado y probado
+    contra el simulador (faltan Receptor y Unidad de antena — Rutinas 3 y 4, ambas sin lógica
+    simulada, más simples que el transmisor).
 
     ⏸️ Sin resolver: secuencia/criterio de éxito de la Rutina 1 no confirmados con el product
-    expert (PEND-RCP-06); Rutinas 2, 3 y 4 sin implementar; la ganancia real volt→grados/s para
-    la Rutina 5 y la tolerancia/timeout/perfil de frenado reales para la Rutina 6 (PEND-RCP-07);
-    la mitad de la guarda de parámetros sobre PRF × pulse-width, bloqueada por falta de Scan
+    expert (PEND-RCP-06); Rutinas 3 y 4 sin implementar; tiempo de caldeo/umbral de sobrecorriente
+    reales para la Rutina 2, la ganancia real volt→grados/s para la Rutina 5 y la
+    tolerancia/timeout/perfil de frenado reales para la Rutina 6 (PEND-RCP-07); la mitad de la
+    guarda de parámetros sobre PRF × pulse-width, bloqueada por falta de Scan
     Worksheet y de un contrato de forma de onda (PEND-RCP-08); Scan Worksheet; scheduler de
     volumen; System Visualization + BITE.
 
