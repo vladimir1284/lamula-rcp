@@ -20,8 +20,9 @@ from typing import Annotated, Literal, Union
 
 from pydantic import BaseModel, Field
 
+from .bite import BiteTransition
 from .dsp import RadialStatus
-from .hal import AntennaPosition
+from .hal import AntennaPosition, SignalId
 
 
 class OperatorMode(StrEnum):
@@ -61,11 +62,24 @@ class DspStreamStatus(BaseModel):
     last_radial_status: RadialStatus | None = None
 
 
+class BiteFaultSummary(BaseModel):
+    """Una falla activa del System Status & BITE Manager (`core/bite/`), ya
+    con hora de pared -- el gateway se la asigna al momento de detectarla
+    (AGENTS.md "dos relojes": el reloj monotono de `BiteEvent.at_us` no se
+    convierte a hora de pared, se le asigna una nueva al cruzar la
+    frontera hacia la MMI, igual que `ControlAuthorityState.since_wall`)."""
+
+    signal_id: SignalId
+    detail: str
+    since_wall: datetime
+
+
 class SystemStatusSnapshot(BaseModel):
     control: ControlAuthorityState
     hal_connected: bool
     antenna: AntennaPosition | None = None
     dsp: DspStreamStatus | None = None
+    active_bite_faults: list[BiteFaultSummary] = Field(default_factory=list)
 
 
 # --- WebSocket ----------------------------------------------------------
@@ -100,7 +114,20 @@ class HeartbeatMessage(BaseModel):
     at_wall: datetime
 
 
+class BiteEventMessage(BaseModel):
+    """Una transicion (`core/bite/manager.py`) recien detectada -- para el
+    BITE Message Window (plan §4.4). El historial/filtrado en si vive del
+    lado de la MMI a partir de estos mensajes mas el snapshot inicial de
+    `GET /api/status`; el gateway no reenvia el historial completo por WS."""
+
+    type: Literal["bite_event"] = "bite_event"
+    signal_id: SignalId
+    transition: BiteTransition
+    detail: str
+    at_wall: datetime
+
+
 WsMessage = Annotated[
-    Union[SessionMessage, AntennaMessage, OperatorEventMessage, HeartbeatMessage],
+    Union[SessionMessage, AntennaMessage, OperatorEventMessage, HeartbeatMessage, BiteEventMessage],
     Field(discriminator="type"),
 ]

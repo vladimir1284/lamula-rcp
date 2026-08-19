@@ -151,8 +151,15 @@ Visualization + BITE.
     protección térmica de antena) y reporta solo transiciones sano↔falla, con historial acotado y
     filtrado por subsistema — ver `spike-fase2/RESULTADO-bite-manager.md`. A diferencia de las
     seis rutinas, no depende de ninguna confirmación del product expert (agregación mecánica, no
-    procedimiento operativo nuevo). Todavía sin cablear al gateway/MMI; salud del enlace ORPG
-    (parte del plan §4.4) fuera de alcance porque esa interfaz no existe (PEND-RCP-04).
+    procedimiento operativo nuevo). Salud del enlace ORPG (parte del plan §4.4) fuera de alcance
+    porque esa interfaz no existe (PEND-RCP-04).
+
+    ✅ BITE cableado al gateway (`adapters/gateway/app.py`): tarea de fondo que sondea
+    `BiteManager` cada 0.5 s (independiente de cuántos clientes WS estén conectados, evita la
+    condición de carrera de sondear el mismo estado mutable desde el loop de cada conexión) y
+    hace broadcast de `BiteEventMessage`; `GET /api/status.active_bite_faults` expone el
+    snapshot. Probado extremo a extremo (REST + WS) contra `radar_emulator` real, ver
+    `spike-fase2/RESULTADO-bite-gateway.md`. Falta la vista en la MMI (`mmi/`) que lo consuma.
 
     ⏸️ Sin resolver: secuencia/criterio de éxito de la Rutina 1 no confirmados con el product
     expert (PEND-RCP-06); para las Rutinas 2–6 (PEND-RCP-07): tiempo de caldeo/umbral de

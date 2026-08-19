@@ -26,8 +26,12 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from adapters.dsp import MomentStreamReceiver
 from adapters.hal_sim import SimulatedHAL
+from core.bite import BiteManager
+from core.contracts.bite import BiteTransition
 from core.contracts.mmi import (
     AntennaMessage,
+    BiteEventMessage,
+    BiteFaultSummary,
     ControlAuthorityState,
     DspStreamStatus,
     HeartbeatMessage,
@@ -45,17 +49,42 @@ RCP_VERSION = "0.0.0"  # PEND: version real (pyproject/build info), no hay pipel
 # necesita esa cadencia para el PPI. Ver radar_emulator/docs/interfaces/udp-encoder.md.
 WS_ANTENNA_PERIOD_S = 0.1
 WS_HEARTBEAT_PERIOD_S = 1.0
+# core/bite/manager.py hace hasta 20 lecturas Modbus por poll (una por señal
+# monitoreada) -- no son condiciones de tiempo duro, 2 Hz alcanza sin competir
+# con el resto del trafico Modbus (posicionamiento de antena, etc.).
+BITE_POLL_PERIOD_S = 0.5
 
 
 def create_app(hal: SimulatedHAL, dsp: MomentStreamReceiver, dsp_bind_host: str, dsp_port: int) -> FastAPI:
+    async def _bite_poll_loop(app: FastAPI) -> None:
+        while True:
+            events = await app.state.bite.poll(hal)
+            now = datetime.now(timezone.utc)
+            for event in events:
+                if event.transition is BiteTransition.FAULT:
+                    app.state.bite_since_wall[event.signal_id] = now
+                else:
+                    app.state.bite_since_wall.pop(event.signal_id, None)
+                await _broadcast(
+                    app,
+                    BiteEventMessage(signal_id=event.signal_id, transition=event.transition, detail=event.detail, at_wall=now),
+                )
+            await asyncio.sleep(BITE_POLL_PERIOD_S)
+
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         if not hal.is_connected():
             await hal.connect()
         await dsp.start(dsp_bind_host, dsp_port)
+        bite_task = asyncio.create_task(_bite_poll_loop(app))
         try:
             yield
         finally:
+            bite_task.cancel()
+            try:
+                await bite_task
+            except asyncio.CancelledError:
+                pass
             await hal.disconnect()
             await dsp.stop()
 
@@ -75,6 +104,11 @@ def create_app(hal: SimulatedHAL, dsp: MomentStreamReceiver, dsp_bind_host: str,
     app.state.started_at = datetime.now(timezone.utc)
     app.state.event_seq = 0
     app.state.websockets: set[WebSocket] = set()
+    app.state.bite = BiteManager()
+    # hora de pared de cuando cada falla activa se detecto -- BiteEvent.at_us es
+    # reloj monotono (core, "dos relojes"), esta es la asignada por el gateway al
+    # cruzar la frontera hacia la MMI, igual que ControlAuthorityState.since_wall.
+    app.state.bite_since_wall: dict[str, datetime] = {}
 
     def _dsp_status() -> DspStreamStatus:
         latest = dsp.latest
@@ -85,6 +119,16 @@ def create_app(hal: SimulatedHAL, dsp: MomentStreamReceiver, dsp_bind_host: str,
             last_elevation_number=latest.elevation_number if latest else None,
             last_radial_status=latest.radial_status if latest else None,
         )
+
+    def _active_bite_faults() -> list[BiteFaultSummary]:
+        return [
+            BiteFaultSummary(
+                signal_id=f.signal_id,
+                detail=f.detail,
+                since_wall=app.state.bite_since_wall.get(f.signal_id, datetime.now(timezone.utc)),
+            )
+            for f in app.state.bite.active_faults()
+        ]
 
     @app.get("/api/status", response_model=SystemStatusSnapshot)
     async def get_status() -> SystemStatusSnapshot:
@@ -98,6 +142,7 @@ def create_app(hal: SimulatedHAL, dsp: MomentStreamReceiver, dsp_bind_host: str,
             hal_connected=hal.is_connected(),
             antenna=antenna,
             dsp=_dsp_status(),
+            active_bite_faults=_active_bite_faults(),
         )
 
     @app.post("/api/control", response_model=ControlAuthorityState)
