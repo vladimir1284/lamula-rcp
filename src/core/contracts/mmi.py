@@ -25,6 +25,7 @@ from .control import RoutineResult
 from .dsp import RadialStatus
 from .hal import AntennaPosition, SignalId
 from .safety import AntennaAxis
+from .scan import AxisPositioningParams, ScanCutResult
 
 
 class OperatorMode(StrEnum):
@@ -86,6 +87,19 @@ class AntennaPositioningRequest(BaseModel):
     timeout_s: float
 
 
+class ScanCutExecutionRequest(BaseModel):
+    """`POST /api/scan/worksheet/{index}/execute` -- espejo de los kwargs de
+    `core.scan_controller.run_scan_cut` (sin `cut`, ya identificado por
+    `index`). Mismo criterio que el resto de este bloque: ningun campo lleva
+    default -- ninguno tiene un valor real confirmado (PEND-RCP-07/09)."""
+
+    azimuth_positioning: AxisPositioningParams
+    elevation_positioning: AxisPositioningParams
+    sweep_voltage_magnitude: float
+    sweep_tolerance_deg: float
+    sweep_timeout_s: float
+
+
 class ControlJobStatus(StrEnum):
     RUNNING = "running"
     DONE = "done"
@@ -112,7 +126,11 @@ class ControlJobStatusResponse(BaseModel):
     job_id: str
     routine: str
     status: ControlJobStatus
-    result: RoutineResult | None
+    # `ScanCutResult` (Scan Controller) se agrego a esta union en vez de un
+    # contrato de job separado -- mismo criterio D-10 (ampliar el contrato ya
+    # congelado): `routine` ya era `str` libre, no el enum cerrado
+    # `RoutineName`, y el resto del sobre (job_id/status/error) es identico.
+    result: RoutineResult | ScanCutResult | None
     error: str | None
 
 

@@ -48,13 +48,14 @@ from core.contracts.mmi import (
     OperatorEventMessage,
     OperatorMode,
     ReceiverPowerOnRequest,
+    ScanCutExecutionRequest,
     SessionMessage,
     SetControlModeRequest,
     SystemStatusSnapshot,
     TransmitterPowerOnRequest,
     WsMessage,
 )
-from core.contracts.scan import ScanCut
+from core.contracts.scan import ScanCut, ScanCutResult
 from core.control_routines import (
     run_antenna_movement,
     run_antenna_positioning,
@@ -63,6 +64,7 @@ from core.control_routines import (
     run_receiver_power_on,
     run_transmitter_power_on,
 )
+from core.scan_controller import run_scan_cut
 from core.session import ControlAuthority
 
 RCP_VERSION = "0.0.0"  # PEND: version real (pyproject/build info), no hay pipeline de release todavia
@@ -201,7 +203,7 @@ def create_app(hal: SimulatedHAL, dsp: MomentStreamReceiver, dsp_bind_host: str,
 
     CONTROL_JOB_HISTORY_LIMIT = 50  # mismo criterio que MAX_LOG en useGateway.ts -- evita crecimiento sin limite
 
-    def _start_control_job(routine: str, coro: Coroutine[Any, Any, RoutineResult]) -> ControlJobAccepted:
+    def _start_control_job(routine: str, coro: Coroutine[Any, Any, RoutineResult | ScanCutResult]) -> ControlJobAccepted:
         # D-12: los seis POST /api/control/* dejaron de bloquear hasta que la
         # rutina termina (podia ser hasta `timeout_s`, minutos en
         # antenna-positioning/power-on con caldeo real) -- arrancan la
@@ -297,6 +299,27 @@ def create_app(hal: SimulatedHAL, dsp: MomentStreamReceiver, dsp_bind_host: str,
             raise HTTPException(status_code=404, detail=f"indice {index} fuera de rango (worksheet tiene {len(app.state.scan_worksheet)} cortes)")
         del app.state.scan_worksheet[index]
         return app.state.scan_worksheet
+
+    @app.post("/api/scan/worksheet/{index}/execute", response_model=ControlJobAccepted, status_code=202)
+    async def execute_scan_cut(index: int, req: ScanCutExecutionRequest) -> ControlJobAccepted:
+        # Mismo gating que las seis rutinas -- el Scan Controller comanda el
+        # HAL de verdad (Rutinas 5/6), nunca en modo passive.
+        _require_active_control()
+        if index < 0 or index >= len(app.state.scan_worksheet):
+            raise HTTPException(status_code=404, detail=f"indice {index} fuera de rango (worksheet tiene {len(app.state.scan_worksheet)} cortes)")
+        cut = app.state.scan_worksheet[index]
+        return _start_control_job(
+            "scan_cut",
+            run_scan_cut(
+                hal,
+                cut,
+                azimuth_positioning=req.azimuth_positioning,
+                elevation_positioning=req.elevation_positioning,
+                sweep_voltage_magnitude=req.sweep_voltage_magnitude,
+                sweep_tolerance_deg=req.sweep_tolerance_deg,
+                sweep_timeout_s=req.sweep_timeout_s,
+            ),
+        )
 
     @app.websocket("/ws")
     async def ws_endpoint(websocket: WebSocket) -> None:

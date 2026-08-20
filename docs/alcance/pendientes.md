@@ -315,11 +315,45 @@ PRF/pulse-width/ancho de haz→velocidad de rotación) a este nuevo consumidor.
 /api/scan/worksheet` en `adapters/gateway/app.py`: editor manual de `PpiCut`/`RhiCut`, probado en
 navegador (Playwright/chrome-devtools) contra el gateway + `radar_emulator` reales — crear PPI,
 cambiar a RHI, crear con dos moments, eliminar, validación de cliente de "al menos un moment".
-Deliberadamente sin botón de "ejecutar" (eso es PEND-RCP-10, alcance separado). Limitaciones
-conocidas, sin resolver: lista en memoria sin persistencia en disco (un restart del gateway la
-borra), y sin sincronización entre pestañas/operadores (cada cliente solo ve lo que trajo en su
-propio `GET`, sin broadcast por WS). Ver también la nota en `core/contracts/scan.py` sobre por qué
-esto usa una lista plana en vez del modelo `ScanWorksheet` (`name` + `cuts`) ya definido ahí.
+En esta sesión dejó de estar sin botón de "ejecutar" -- ver "Scan Controller conectado a la vista
+Scan Worksheet" más abajo. Limitaciones conocidas, sin resolver: lista en memoria sin persistencia
+en disco (un restart del gateway la borra), y sin sincronización entre pestañas/operadores (cada
+cliente solo ve lo que trajo en su propio `GET`, sin broadcast por WS). Ver también la nota en
+`core/contracts/scan.py` sobre por qué esto usa una lista plana en vez del modelo `ScanWorksheet`
+(`name` + `cuts`) ya definido ahí.
+
+### Scan Controller conectado a la vista Scan Worksheet (Fase 2, 2026-08-20)
+
+`POST /api/scan/worksheet/{index}/execute` (`adapters/gateway/app.py`) ejecuta
+`core.scan_controller.run_scan_cut` sobre el corte elegido del worksheet, reusando el mismo patrón
+de job asíncrono (D-12) que los seis endpoints de rutinas: responde `202` con un `job_id`, la MMI
+sondea `GET /api/control/jobs/{job_id}` igual que ya hacía para esas seis. `ControlJobStatusResponse.
+result` se amplió a `RoutineResult | ScanCutResult` (mismo criterio D-10: ampliar el contrato ya
+congelado en vez de inventar un contrato de job separado -- `routine` ya era `str` libre, no el
+enum cerrado `RoutineName`, y el resto del sobre es idéntico). Gateado igual que las seis rutinas
+(`control.mode == active`, 403 si no). Nuevo panel "Ejecutar corte (Scan Controller)" en
+`ScanWorksheetView.vue`: un formulario único para todo el worksheet (no uno por fila, mismo
+criterio que Jog/Posicionar en `AntennaControlView.vue`), con selector de índice de corte y los
+mismos 11 campos obligatorios sin default que `run_scan_cut` exige
+(`azimuth_positioning`/`elevation_positioning` de a cuatro, más `sweep_voltage_magnitude`/
+`sweep_tolerance_deg`/`sweep_timeout_s`) -- botón deshabilitado hasta llenarlos todos, mismo
+patrón que el resto de la MMI.
+
+Verificado end-to-end contra `radar_emulator` + gateway reales: gating 403 en modo passive, 404 en
+índice fuera de rango, `RhiCut` completo con `outcome=success` tanto por HTTP directo como por
+click real en el navegador (Playwright/chrome-devtools) -- posicionamiento del eje fijo (azimut),
+barrido del eje móvil (elevación) hasta completar dentro de `sweep_tolerance_deg`, detención
+limpia. Antes de ejercitarlo hubo que forzar por el canal WS del propio `radar_emulator` las
+precondiciones de Rutina 5/6 (`ant.au_on_status`, límites de elevación, `i2t_drive_az`) -- mismo
+atajo que ya usaba `spike-fase2/scan_controller_spike.py`, no un flujo real de "encender la unidad
+de antena primero" (eso ya existe como rutina propia en la MMI, `AntennaControlView.vue`/card
+"Encendido").
+
+**No resuelto por este cambio, sigue abierto:** PEND-RCP-08 (guarda PRF×pulse-width) y PEND-RCP-09
+(VCP real) siguen bloqueando que este botón suba HV/radíe o aplique `prf_hz`/`pulse_width_us` --
+sigue siendo solo movimiento de antena. Tampoco resuelve la falta de persistencia/sincronización
+del worksheet (párrafo de arriba), ni agrega cancelación de un job en curso (misma limitación ya
+anotada para las seis rutinas).
 
 ### Rutinas de control cableadas al gateway + MMI (Fase 2)
 

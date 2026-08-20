@@ -3,6 +3,8 @@
 // Si el contrato Python cambia, este archivo hay que actualizarlo a mano
 // hasta que exista el codegen real.
 
+import type { ScanCutResult } from '@/types/scan'
+
 export type OperatorMode = 'passive' | 'active'
 
 export interface ControlAuthorityState {
@@ -125,7 +127,10 @@ export interface ControlJobStatusResponse {
   job_id: string
   routine: string
   status: ControlJobStatus
-  result: RoutineResult | null
+  // `ScanCutResult` (Scan Controller, POST /api/scan/worksheet/{index}/execute)
+  // se agrego a esta union en vez de un contrato de job separado -- ver
+  // ControlJobStatusResponse en core/contracts/mmi.py.
+  result: RoutineResult | ScanCutResult | null
   error: string | null
 }
 

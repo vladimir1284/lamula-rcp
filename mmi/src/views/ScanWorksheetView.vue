@@ -4,9 +4,20 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { MOMENT_IDS, type MomentId, type ScanCut } from '@/types/scan'
+import { useGateway } from '@/composables/useGateway'
+import {
+  MOMENT_IDS,
+  type AxisPositioningParams,
+  type MomentId,
+  type ScanCut,
+  type ScanCutExecutionRequest,
+  type ScanCutResult,
+} from '@/types/scan'
 
 const GATEWAY_HTTP = 'http://127.0.0.1:8000'
+
+const { control, runControlJob } = useGateway()
+const isActive = computed(() => control.value?.mode === 'active')
 
 const worksheet = ref<ScanCut[]>([])
 const loadError = ref<string | null>(null)
@@ -112,6 +123,79 @@ async function removeCut(index: number) {
   const res = await fetch(`${GATEWAY_HTTP}/api/scan/worksheet/${index}`, { method: 'DELETE' })
   if (!res.ok) return
   worksheet.value = (await res.json()) as ScanCut[]
+}
+
+// --- Ejecucion de un corte (Scan Controller, POST
+// /api/scan/worksheet/{index}/execute) -- panel unico compartido por todo el
+// worksheet, no un formulario por fila (mismo criterio que Jog/Posicionar en
+// AntennaControlView.vue). Ningun campo lleva default: no hay ganancia
+// volt->grados/s ni velocidad de barrido confirmadas (PEND-RCP-07/09), el
+// operador tiene que traerlas.
+const execIndex = ref<number | undefined>(undefined)
+const azGainVPerDeg = ref<number | undefined>(undefined)
+const azMaxVoltage = ref<number | undefined>(undefined)
+const azToleranceDeg = ref<number | undefined>(undefined)
+const azTimeoutS = ref<number | undefined>(undefined)
+const elGainVPerDeg = ref<number | undefined>(undefined)
+const elMaxVoltage = ref<number | undefined>(undefined)
+const elToleranceDeg = ref<number | undefined>(undefined)
+const elTimeoutS = ref<number | undefined>(undefined)
+const sweepVoltageMagnitude = ref<number | undefined>(undefined)
+const sweepToleranceDeg = ref<number | undefined>(undefined)
+const sweepTimeoutS = ref<number | undefined>(undefined)
+const execBusy = ref(false)
+const execResult = ref<ScanCutResult | null>(null)
+const execError = ref<string | null>(null)
+
+const execReady = computed(
+  () =>
+    execIndex.value !== undefined &&
+    azGainVPerDeg.value !== undefined &&
+    azMaxVoltage.value !== undefined &&
+    azToleranceDeg.value !== undefined &&
+    azTimeoutS.value !== undefined &&
+    elGainVPerDeg.value !== undefined &&
+    elMaxVoltage.value !== undefined &&
+    elToleranceDeg.value !== undefined &&
+    elTimeoutS.value !== undefined &&
+    sweepVoltageMagnitude.value !== undefined &&
+    sweepToleranceDeg.value !== undefined &&
+    sweepTimeoutS.value !== undefined,
+)
+
+async function executeCut() {
+  if (!execReady.value) return
+  execBusy.value = true
+  execError.value = null
+  try {
+    const azimuth_positioning: AxisPositioningParams = {
+      gain_v_per_deg: azGainVPerDeg.value as number,
+      max_voltage: azMaxVoltage.value as number,
+      tolerance_deg: azToleranceDeg.value as number,
+      timeout_s: azTimeoutS.value as number,
+    }
+    const elevation_positioning: AxisPositioningParams = {
+      gain_v_per_deg: elGainVPerDeg.value as number,
+      max_voltage: elMaxVoltage.value as number,
+      tolerance_deg: elToleranceDeg.value as number,
+      timeout_s: elTimeoutS.value as number,
+    }
+    const req: ScanCutExecutionRequest = {
+      azimuth_positioning,
+      elevation_positioning,
+      sweep_voltage_magnitude: sweepVoltageMagnitude.value as number,
+      sweep_tolerance_deg: sweepToleranceDeg.value as number,
+      sweep_timeout_s: sweepTimeoutS.value as number,
+    }
+    execResult.value = await runControlJob<ScanCutResult>(
+      `/api/scan/worksheet/${execIndex.value}/execute`,
+      req,
+    )
+  } catch (e) {
+    execError.value = e instanceof Error ? e.message : String(e)
+  } finally {
+    execBusy.value = false
+  }
 }
 
 function summarize(cut: ScanCut): string {
@@ -239,6 +323,97 @@ onMounted(() => {
           </div>
           <Button variant="destructive" size="sm" @click="removeCut(index)">Eliminar</Button>
         </div>
+      </CardContent>
+    </Card>
+
+    <Card>
+      <CardHeader>
+        <CardTitle>Ejecutar corte (Scan Controller)</CardTitle>
+      </CardHeader>
+      <CardContent class="flex flex-col gap-3">
+        <p class="text-xs text-muted-foreground">
+          Posiciona el eje fijo y barre el eje móvil del corte elegido (Rutinas 5/6). No sube HV
+          ni radía, y no aplica prf_hz/pulse_width_us (PEND-RCP-08/09/10, ver pendientes.md).
+        </p>
+        <label class="flex flex-col gap-1 text-sm">
+          corte a ejecutar
+          <select v-model.number="execIndex" class="rounded border bg-background px-2 py-1">
+            <option :value="undefined" disabled>seleccione un corte</option>
+            <option v-for="(cut, index) in worksheet" :key="index" :value="index">
+              #{{ index }} — {{ cut.mode.toUpperCase() }} · {{ summarize(cut) }}
+            </option>
+          </select>
+        </label>
+
+        <div class="grid grid-cols-2 gap-4 sm:grid-cols-2">
+          <div class="flex flex-col gap-2">
+            <span class="text-xs font-medium text-muted-foreground">azimuth_positioning (sin confirmar)</span>
+            <label class="flex flex-col gap-1 text-xs">
+              gain_v_per_deg
+              <Input v-model.number="azGainVPerDeg" type="number" step="0.01" />
+            </label>
+            <label class="flex flex-col gap-1 text-xs">
+              max_voltage
+              <Input v-model.number="azMaxVoltage" type="number" step="0.1" />
+            </label>
+            <label class="flex flex-col gap-1 text-xs">
+              tolerance_deg
+              <Input v-model.number="azToleranceDeg" type="number" step="0.1" />
+            </label>
+            <label class="flex flex-col gap-1 text-xs">
+              timeout_s
+              <Input v-model.number="azTimeoutS" type="number" step="1" />
+            </label>
+          </div>
+          <div class="flex flex-col gap-2">
+            <span class="text-xs font-medium text-muted-foreground">elevation_positioning (sin confirmar)</span>
+            <label class="flex flex-col gap-1 text-xs">
+              gain_v_per_deg
+              <Input v-model.number="elGainVPerDeg" type="number" step="0.01" />
+            </label>
+            <label class="flex flex-col gap-1 text-xs">
+              max_voltage
+              <Input v-model.number="elMaxVoltage" type="number" step="0.1" />
+            </label>
+            <label class="flex flex-col gap-1 text-xs">
+              tolerance_deg
+              <Input v-model.number="elToleranceDeg" type="number" step="0.1" />
+            </label>
+            <label class="flex flex-col gap-1 text-xs">
+              timeout_s
+              <Input v-model.number="elTimeoutS" type="number" step="1" />
+            </label>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <label class="flex flex-col gap-1 text-xs">
+            sweep_voltage_magnitude (sin confirmar)
+            <Input v-model.number="sweepVoltageMagnitude" type="number" step="0.1" min="0.001" />
+          </label>
+          <label class="flex flex-col gap-1 text-xs">
+            sweep_tolerance_deg (sin confirmar)
+            <Input v-model.number="sweepToleranceDeg" type="number" step="0.1" />
+          </label>
+          <label class="flex flex-col gap-1 text-xs">
+            sweep_timeout_s (sin confirmar)
+            <Input v-model.number="sweepTimeoutS" type="number" step="1" />
+          </label>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <Button :disabled="!isActive || execBusy || !execReady" @click="executeCut">
+            {{ execBusy ? 'Ejecutando...' : 'Ejecutar' }}
+          </Button>
+          <span v-if="execBusy" class="text-sm text-muted-foreground">en curso...</span>
+          <span v-if="execError" class="text-sm text-destructive">{{ execError }}</span>
+          <Badge v-if="execResult" :variant="execResult.outcome === 'success' ? 'default' : 'destructive'">
+            {{ execResult.outcome }}
+          </Badge>
+        </div>
+        <ul v-if="execResult" class="flex flex-col gap-0.5 text-xs text-muted-foreground">
+          <li v-for="(s, i) in execResult.steps" :key="i">{{ s.ok ? '✓' : '✗' }} {{ s.signal_id }} — {{ s.detail }}</li>
+        </ul>
       </CardContent>
     </Card>
   </div>

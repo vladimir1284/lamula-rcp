@@ -231,6 +231,16 @@ Visualization + BITE.
     (jog de antena, estado "en curso" visible durante el sondeo, transición a `success` con los
     steps completos).
 
+    ✅ Scan Controller conectado a la vista Scan Worksheet: `POST
+    /api/scan/worksheet/{index}/execute` ejecuta `run_scan_cut` sobre el corte elegido, mismo
+    patrón de job asíncrono (D-12) que las seis rutinas — `ControlJobStatusResponse.result` se
+    amplió a `RoutineResult | ScanCutResult` en vez de un contrato de job separado. Panel único
+    "Ejecutar corte" en `ScanWorksheetView.vue` (no un formulario por fila), mismos 11 campos
+    obligatorios sin default que exige `run_scan_cut`. Verificado end-to-end (gating 403/404,
+    `RhiCut` completo con `outcome=success`) por HTTP y por click real en el navegador contra
+    `radar_emulator` + gateway reales. Sigue sin subir HV/radiar ni aplicar PRF/pulse-width — ver
+    `docs/alcance/pendientes.md`.
+
     ⏸️ Sin resolver: para las Rutinas 2–6, valores concretos sin confirmar aunque PEND-RCP-07 se
     aceptó por decisión operativa (D-11) — tiempo de caldeo/umbral de
     sobrecorriente reales para la Rutina 2, tiempo de enganche del STALO para la Rutina 3, si
@@ -238,8 +248,7 @@ Visualization + BITE.
     Rutina 5, y la tolerancia/timeout/perfil de frenado reales para la Rutina 6; la mitad de la
     guarda de parámetros sobre PRF × pulse-width, bloqueada por falta de un contrato de forma de
     onda (PEND-RCP-08); reconciliación con VCP real (PEND-RCP-09); HV/radiar al arrancar un
-    escaneo y aplicación real de PRF/pulse-width en el Scan Controller (PEND-RCP-10); conectar el
-    Scan Controller a la vista Scan Worksheet (hoy son piezas separadas a propósito); scheduler de
+    escaneo y aplicación real de PRF/pulse-width en el Scan Controller (PEND-RCP-10); scheduler de
     volumen automático.
 
 ## Fase 3 — Data Views, Calibration, Archive & ORPG Feed (semanas 19–27)
