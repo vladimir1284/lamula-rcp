@@ -9,6 +9,8 @@ import type {
   AntennaMessage,
   BiteFaultSummary,
   ControlAuthorityState,
+  ControlJobAccepted,
+  ControlJobStatusResponse,
   DspStreamStatus,
   SetControlModeRequest,
   SystemStatusSnapshot,
@@ -88,9 +90,16 @@ export function useGateway() {
   }
 
   // Ejecucion de rutinas de control (POST /api/control/*, ver core/contracts/mmi.py
-  // y src/adapters/gateway/app.py) -- generico a proposito, cada vista tipa su propio
-  // request/response en la llamada, no hace falta un wrapper por endpoint.
-  async function postControl<T>(path: string, body?: unknown): Promise<T> {
+  // y src/adapters/gateway/app.py) -- D-12: el POST ya no bloquea hasta que la
+  // rutina termina (podia ser hasta timeout_s, minutos en antenna-positioning o
+  // power-on con caldeo real). Devuelve un job_id de inmediato (202); esta funcion
+  // sondea GET /api/control/jobs/{job_id} hasta que el job termina y devuelve el
+  // RoutineResult -- cada vista sigue viendo la misma forma "await, obtengo el
+  // resultado final" que ya tenia, solo que ahora puede tardar de verdad sin
+  // dejar el fetch original colgado.
+  const CONTROL_JOB_POLL_INTERVAL_MS = 400
+
+  async function runControlJob<T>(path: string, body?: unknown): Promise<T> {
     const res = await fetch(`${GATEWAY_HTTP}${path}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -100,8 +109,19 @@ export function useGateway() {
       const detail = await res.text()
       throw new Error(`POST ${path}: HTTP ${res.status} — ${detail}`)
     }
-    return (await res.json()) as T
+    const accepted = (await res.json()) as ControlJobAccepted
+
+    while (true) {
+      const jobRes = await fetch(`${GATEWAY_HTTP}/api/control/jobs/${accepted.job_id}`)
+      if (!jobRes.ok) throw new Error(`GET /api/control/jobs/${accepted.job_id}: HTTP ${jobRes.status}`)
+      const job = (await jobRes.json()) as ControlJobStatusResponse
+      if (job.status === 'done') {
+        if (job.error) throw new Error(`job ${job.job_id} (${job.routine}) fallo: ${job.error}`)
+        return job.result as T
+      }
+      await new Promise((resolve) => setTimeout(resolve, CONTROL_JOB_POLL_INTERVAL_MS))
+    }
   }
 
-  return { status, messages, control, antenna, dsp, sessionInfo, biteFaults, fetchStatus, setControlMode, postControl, send }
+  return { status, messages, control, antenna, dsp, sessionInfo, biteFaults, fetchStatus, setControlMode, runControlJob, send }
 }

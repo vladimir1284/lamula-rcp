@@ -18,8 +18,11 @@ eso queda para cuando se diseñe la vista PPI (Fase 2/3), ver
 from __future__ import annotations
 
 import asyncio
+import uuid
+from collections.abc import Coroutine
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
+from typing import Any
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -37,6 +40,9 @@ from core.contracts.mmi import (
     BiteEventMessage,
     BiteFaultSummary,
     ControlAuthorityState,
+    ControlJobAccepted,
+    ControlJobStatus,
+    ControlJobStatusResponse,
     DspStreamStatus,
     HeartbeatMessage,
     OperatorEventMessage,
@@ -130,6 +136,11 @@ def create_app(hal: SimulatedHAL, dsp: MomentStreamReceiver, dsp_bind_host: str,
     # del gateway. PEND: sin sincronizacion entre pestanas/operadores (cada cliente
     # solo ve lo que el mismo trajo por GET, no hay broadcast por WS de esto).
     app.state.scan_worksheet: list[ScanCut] = []
+    # Jobs asincronos de los seis POST /api/control/* (ver _start_control_job mas
+    # abajo) -- dict ordinario, el orden de inserccion de Python 3.7+ es lo que
+    # usa el tope de historial para descartar el mas viejo. En memoria, se pierde
+    # al reiniciar el gateway, mismo nivel de esqueleto que el resto del estado.
+    app.state.control_jobs: dict[str, ControlJobStatusResponse] = {}
 
     def _dsp_status() -> DspStreamStatus:
         latest = dsp.latest
@@ -188,42 +199,87 @@ def create_app(hal: SimulatedHAL, dsp: MomentStreamReceiver, dsp_bind_host: str,
         if app.state.control.state.mode != OperatorMode.ACTIVE:
             raise HTTPException(status_code=403, detail="control en modo passive -- tome control activo antes de comandar")
 
-    @app.post("/api/control/general-power-on", response_model=RoutineResult)
-    async def general_power_on() -> RoutineResult:
-        _require_active_control()
-        return await run_general_power_on(hal)
+    CONTROL_JOB_HISTORY_LIMIT = 50  # mismo criterio que MAX_LOG en useGateway.ts -- evita crecimiento sin limite
 
-    @app.post("/api/control/transmitter-power-on", response_model=RoutineResult)
-    async def transmitter_power_on(req: TransmitterPowerOnRequest) -> RoutineResult:
-        _require_active_control()
-        return await run_transmitter_power_on(hal, warmup_timeout_s=req.warmup_timeout_s)
+    def _start_control_job(routine: str, coro: Coroutine[Any, Any, RoutineResult]) -> ControlJobAccepted:
+        # D-12: los seis POST /api/control/* dejaron de bloquear hasta que la
+        # rutina termina (podia ser hasta `timeout_s`, minutos en
+        # antenna-positioning/power-on con caldeo real) -- arrancan la
+        # corrutina en un task de fondo y devuelven de inmediato; el llamador
+        # sondea GET /api/control/jobs/{job_id}.
+        job_id = uuid.uuid4().hex
+        app.state.control_jobs[job_id] = ControlJobStatusResponse(
+            job_id=job_id, routine=routine, status=ControlJobStatus.RUNNING, result=None, error=None
+        )
+        if len(app.state.control_jobs) > CONTROL_JOB_HISTORY_LIMIT:
+            del app.state.control_jobs[next(iter(app.state.control_jobs))]
 
-    @app.post("/api/control/receiver-power-on", response_model=RoutineResult)
-    async def receiver_power_on(req: ReceiverPowerOnRequest) -> RoutineResult:
-        _require_active_control()
-        return await run_receiver_power_on(hal, confirm_timeout_s=req.confirm_timeout_s)
+        async def _run() -> None:
+            try:
+                result = await coro
+                app.state.control_jobs[job_id] = ControlJobStatusResponse(
+                    job_id=job_id, routine=routine, status=ControlJobStatus.DONE, result=result, error=None
+                )
+            except Exception as e:
+                # Excepcion de infraestructura (ej. el HAL se desconecto a
+                # mitad de camino) -- distinto de un RoutineResult con
+                # outcome failed/interrupted, que es un resultado legitimo de
+                # la rutina, no un error.
+                app.state.control_jobs[job_id] = ControlJobStatusResponse(
+                    job_id=job_id, routine=routine, status=ControlJobStatus.DONE, result=None, error=str(e)
+                )
 
-    @app.post("/api/control/antenna-unit-power-on", response_model=RoutineResult)
-    async def antenna_unit_power_on(req: AntennaUnitPowerOnRequest) -> RoutineResult:
-        _require_active_control()
-        return await run_antenna_unit_power_on(hal, confirm_timeout_s=req.confirm_timeout_s)
+        asyncio.create_task(_run())
+        return ControlJobAccepted(job_id=job_id, routine=routine, status=ControlJobStatus.RUNNING)
 
-    @app.post("/api/control/antenna-movement", response_model=RoutineResult)
-    async def antenna_movement(req: AntennaMovementRequest) -> RoutineResult:
-        _require_active_control()
-        return await run_antenna_movement(hal, req.axis, req.voltage_reference)
+    @app.get("/api/control/jobs/{job_id}", response_model=ControlJobStatusResponse)
+    async def get_control_job(job_id: str) -> ControlJobStatusResponse:
+        record = app.state.control_jobs.get(job_id)
+        if record is None:
+            raise HTTPException(status_code=404, detail=f"job {job_id} no encontrado")
+        return record
 
-    @app.post("/api/control/antenna-positioning", response_model=RoutineResult)
-    async def antenna_positioning(req: AntennaPositioningRequest) -> RoutineResult:
+    @app.post("/api/control/general-power-on", response_model=ControlJobAccepted, status_code=202)
+    async def general_power_on() -> ControlJobAccepted:
         _require_active_control()
-        return await run_antenna_positioning(
-            hal,
-            req.axis,
-            req.target_deg,
-            gain_v_per_deg=req.gain_v_per_deg,
-            max_voltage=req.max_voltage,
-            tolerance_deg=req.tolerance_deg,
-            timeout_s=req.timeout_s,
+        return _start_control_job("general_power_on", run_general_power_on(hal))
+
+    @app.post("/api/control/transmitter-power-on", response_model=ControlJobAccepted, status_code=202)
+    async def transmitter_power_on(req: TransmitterPowerOnRequest) -> ControlJobAccepted:
+        _require_active_control()
+        return _start_control_job("transmitter_power_on", run_transmitter_power_on(hal, warmup_timeout_s=req.warmup_timeout_s))
+
+    @app.post("/api/control/receiver-power-on", response_model=ControlJobAccepted, status_code=202)
+    async def receiver_power_on(req: ReceiverPowerOnRequest) -> ControlJobAccepted:
+        _require_active_control()
+        return _start_control_job("receiver_power_on", run_receiver_power_on(hal, confirm_timeout_s=req.confirm_timeout_s))
+
+    @app.post("/api/control/antenna-unit-power-on", response_model=ControlJobAccepted, status_code=202)
+    async def antenna_unit_power_on(req: AntennaUnitPowerOnRequest) -> ControlJobAccepted:
+        _require_active_control()
+        return _start_control_job(
+            "antenna_unit_power_on", run_antenna_unit_power_on(hal, confirm_timeout_s=req.confirm_timeout_s)
+        )
+
+    @app.post("/api/control/antenna-movement", response_model=ControlJobAccepted, status_code=202)
+    async def antenna_movement(req: AntennaMovementRequest) -> ControlJobAccepted:
+        _require_active_control()
+        return _start_control_job("antenna_movement", run_antenna_movement(hal, req.axis, req.voltage_reference))
+
+    @app.post("/api/control/antenna-positioning", response_model=ControlJobAccepted, status_code=202)
+    async def antenna_positioning(req: AntennaPositioningRequest) -> ControlJobAccepted:
+        _require_active_control()
+        return _start_control_job(
+            "antenna_positioning",
+            run_antenna_positioning(
+                hal,
+                req.axis,
+                req.target_deg,
+                gain_v_per_deg=req.gain_v_per_deg,
+                max_voltage=req.max_voltage,
+                tolerance_deg=req.tolerance_deg,
+                timeout_s=req.timeout_s,
+            ),
         )
 
     @app.get("/api/scan/worksheet", response_model=list[ScanCut])

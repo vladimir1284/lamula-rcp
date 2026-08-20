@@ -21,6 +21,7 @@ from typing import Annotated, Literal, Union
 from pydantic import BaseModel, Field
 
 from .bite import BiteTransition
+from .control import RoutineResult
 from .dsp import RadialStatus
 from .hal import AntennaPosition, SignalId
 from .safety import AntennaAxis
@@ -83,6 +84,36 @@ class AntennaPositioningRequest(BaseModel):
     max_voltage: float
     tolerance_deg: float
     timeout_s: float
+
+
+class ControlJobStatus(StrEnum):
+    RUNNING = "running"
+    DONE = "done"
+
+
+class ControlJobAccepted(BaseModel):
+    """Respuesta inmediata (202) de los seis `POST /api/control/*` -- ya no
+    esperan a que la rutina termine (podia ser hasta `timeout_s`, minutos en
+    `antenna-positioning`/power-on con caldeo real). `status` siempre arranca
+    en `RUNNING`; el llamador sondea `GET /api/control/jobs/{job_id}`."""
+
+    job_id: str
+    routine: str
+    status: ControlJobStatus
+
+
+class ControlJobStatusResponse(BaseModel):
+    """Respuesta de `GET /api/control/jobs/{job_id}`. `result` es `None`
+    mientras `status == RUNNING`. `error` distingue una excepcion inesperada
+    (p.ej. el HAL se desconecto a mitad de camino) de un `RoutineResult` con
+    `outcome` en `failed`/`interrupted`, que es un resultado legitimo de la
+    rutina, no un error de infraestructura."""
+
+    job_id: str
+    routine: str
+    status: ControlJobStatus
+    result: RoutineResult | None
+    error: str | None
 
 
 class DspStreamStatus(BaseModel):

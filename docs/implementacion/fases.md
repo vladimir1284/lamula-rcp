@@ -221,7 +221,15 @@ Visualization + BITE.
     moves the antenna") — hasta esta sesión ningún botón de la MMI disparaba ninguna rutina.
     Probado end-to-end (backend con `httpx`/`curl`, frontend en navegador) contra
     `radar_emulator` + gateway reales. Ver `docs/alcance/pendientes.md` para limitaciones
-    conocidas (endpoints síncronos/bloqueantes, parámetros crudos sin valor sugerido en la UI).
+    conocidas (parámetros crudos sin valor sugerido en la UI).
+
+    ✅ Los seis endpoints de arriba pasaron de síncronos/bloqueantes a un patrón de job
+    asíncrono (D-12, `docs/alcance/decisiones.md`): `POST` responde `202` con un `job_id` de
+    inmediato, la rutina corre en un task de fondo, `GET /api/control/jobs/{job_id}` expone su
+    estado (`running`/`done`); la MMI sondea ese GET (`useGateway.ts: runControlJob`) sin dejar
+    el fetch original colgado hasta minutos después. Verificado con `curl` y en navegador real
+    (jog de antena, estado "en curso" visible durante el sondeo, transición a `success` con los
+    steps completos).
 
     ⏸️ Sin resolver: para las Rutinas 2–6, valores concretos sin confirmar aunque PEND-RCP-07 se
     aceptó por decisión operativa (D-11) — tiempo de caldeo/umbral de

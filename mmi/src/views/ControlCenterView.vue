@@ -15,7 +15,7 @@ import type {
   WsMessage,
 } from '@/types/mmi'
 
-const { status, messages, control, antenna, dsp, fetchStatus, setControlMode, postControl } = useGateway()
+const { status, messages, control, antenna, dsp, fetchStatus, setControlMode, runControlJob } = useGateway()
 
 const actor = ref('operador')
 const busy = ref(false)
@@ -50,7 +50,7 @@ async function runGeneralPowerOn() {
   generalBusy.value = true
   generalError.value = null
   try {
-    generalResult.value = await postControl<RoutineResult>('/api/control/general-power-on')
+    generalResult.value = await runControlJob<RoutineResult>('/api/control/general-power-on')
   } catch (e) {
     generalError.value = e instanceof Error ? e.message : String(e)
   } finally {
@@ -64,7 +64,7 @@ async function runTransmitterPowerOn() {
   txError.value = null
   try {
     const req: TransmitterPowerOnRequest = { warmup_timeout_s: txWarmupTimeoutS.value }
-    txResult.value = await postControl<RoutineResult>('/api/control/transmitter-power-on', req)
+    txResult.value = await runControlJob<RoutineResult>('/api/control/transmitter-power-on', req)
   } catch (e) {
     txError.value = e instanceof Error ? e.message : String(e)
   } finally {
@@ -78,7 +78,7 @@ async function runReceiverPowerOn() {
   rxError.value = null
   try {
     const req: ReceiverPowerOnRequest = { confirm_timeout_s: rxConfirmTimeoutS.value }
-    rxResult.value = await postControl<RoutineResult>('/api/control/receiver-power-on', req)
+    rxResult.value = await runControlJob<RoutineResult>('/api/control/receiver-power-on', req)
   } catch (e) {
     rxError.value = e instanceof Error ? e.message : String(e)
   } finally {
@@ -92,7 +92,7 @@ async function runAntennaUnitPowerOn() {
   auError.value = null
   try {
     const req: AntennaUnitPowerOnRequest = { confirm_timeout_s: auConfirmTimeoutS.value }
-    auResult.value = await postControl<RoutineResult>('/api/control/antenna-unit-power-on', req)
+    auResult.value = await runControlJob<RoutineResult>('/api/control/antenna-unit-power-on', req)
   } catch (e) {
     auError.value = e instanceof Error ? e.message : String(e)
   } finally {

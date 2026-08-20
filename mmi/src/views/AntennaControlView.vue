@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { useGateway } from '@/composables/useGateway'
 import type { AntennaAxis, AntennaMovementRequest, AntennaPositioningRequest, RoutineResult } from '@/types/mmi'
 
-const { control, antenna, postControl } = useGateway()
+const { control, antenna, runControlJob } = useGateway()
 
 const isActive = computed(() => control.value?.mode === 'active')
 
@@ -25,7 +25,7 @@ async function runJog(voltage: number) {
   jogError.value = null
   try {
     const req: AntennaMovementRequest = { axis: jogAxis.value, voltage_reference: voltage }
-    jogResult.value = await postControl<RoutineResult>('/api/control/antenna-movement', req)
+    jogResult.value = await runControlJob<RoutineResult>('/api/control/antenna-movement', req)
   } catch (e) {
     jogError.value = e instanceof Error ? e.message : String(e)
   } finally {
@@ -77,7 +77,7 @@ async function runPositioning() {
       tolerance_deg: toleranceDeg.value as number,
       timeout_s: timeoutS.value as number,
     }
-    posResult.value = await postControl<RoutineResult>('/api/control/antenna-positioning', req)
+    posResult.value = await runControlJob<RoutineResult>('/api/control/antenna-positioning', req)
   } catch (e) {
     posError.value = e instanceof Error ? e.message : String(e)
   } finally {
@@ -168,7 +168,8 @@ async function runPositioning() {
           </label>
         </div>
         <p class="text-xs text-muted-foreground">
-          Puede tardar hasta timeout_s segundos en responder -- sin progreso intermedio, es síncrono.
+          Puede tardar hasta timeout_s segundos en completarse -- el botón queda deshabilitado
+          mientras se sondea el resultado.
         </p>
         <div class="flex flex-wrap items-center gap-2">
           <Button :disabled="!isActive || posBusy || !posReady" @click="runPositioning">

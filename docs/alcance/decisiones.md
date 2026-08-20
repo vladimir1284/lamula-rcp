@@ -158,3 +158,39 @@ técnica nueva del experto.
 por línea confirmada como la que sí ocurrió para la Rutina 1 (PEND-RCP-06). Si en algún momento
 el product expert señala algo concreto sobre Rutinas 2–6, tiene prioridad sobre esta decisión sin
 necesidad de discutirla primero (a diferencia del resto de decisiones de este documento).
+
+---
+
+## D-12 · Los seis endpoints `POST /api/control/*` pasan a un patrón de job asíncrono
+
+**Decisión (2026-08-20).** Los seis endpoints de ejecución de rutinas de control
+(`docs/alcance/pendientes.md`, sección "Rutinas de control cableadas al gateway + MMI") dejan de
+bloquear la respuesta HTTP hasta que la rutina termina. `POST /api/control/*` responde `202` de
+inmediato con `{job_id, routine, status: "running"}` (`ControlJobAccepted`) y arranca la rutina en
+un `asyncio.create_task` de fondo; `GET /api/control/jobs/{job_id}` expone
+`ControlJobStatusResponse` (`status: running|done`, `result: RoutineResult|None`,
+`error: str|None`). La MMI (`useGateway.ts: runControlJob`) sondea ese GET cada 400 ms hasta
+`done` — cada vista sigue viendo la misma forma "await, obtengo el `RoutineResult` final" que ya
+tenía antes de este cambio, solo que ahora la promesa puede tardar de verdad (hasta `timeout_s`,
+minutos en algunos casos) sin dejar la conexión HTTP original colgada ni bloqueando el hilo del
+navegador.
+
+**Por qué.** El usuario preguntó explícitamente cómo manejar el estado de estos endpoints en
+procesos largos — el diseño anterior (200 bloqueante) no daba ninguna señal de progreso ni
+sobrevivía a una recarga de página a mitad de camino. Se evaluó también emitir el progreso por el
+canal WS ya existente (mismo patrón que BITE), pero se descartó: ningún consumidor lo iba a usar
+todavía (la MMI ya resuelve el caso con polling simple), así que hubiera sido construir para un
+requisito hipotético — el mismo error que este repo ya evita en otros lados (YAGNI).
+
+**`error` vs. `result` con `outcome` en `failed`/`interrupted`:** son cosas distintas a propósito.
+Un `RoutineResult` con `outcome != success` es un resultado legítimo de la rutina (una
+precondición no se cumplió, la guarda de seguridad interrumpió el movimiento). `error` es para
+cuando la corrutina lanza una excepción de infraestructura no prevista (ej. el HAL se desconecta
+a mitad de camino) — no debe confundirse con un fallo operativo normal.
+
+**Historial acotado:** `app.state.control_jobs` guarda como máximo 50 jobs
+(`CONTROL_JOB_HISTORY_LIMIT`), descartando el más viejo al superar el tope — mismo criterio que
+`MAX_LOG` en `useGateway.ts`, evita crecimiento sin límite en una sesión larga con muchos clics.
+
+**Sin resolver, fuera de alcance de esta decisión:** cancelación de un job en curso (ver
+`docs/alcance/pendientes.md`).

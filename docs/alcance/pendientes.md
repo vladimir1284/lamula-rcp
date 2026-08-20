@@ -348,11 +348,21 @@ navegador con Playwright/chrome-devtools) contra `radar_emulator` + gateway real
 correspondiente arranca vacío y el botón queda deshabilitado hasta que el operador lo llena; no
 hay ningún valor sugerido precargado.
 
+**Resuelto (2026-08-20, D-12):** los seis endpoints dejaron de ser síncronos/bloqueantes.
+`POST /api/control/*` responde `202` de inmediato con un `job_id` (`ControlJobAccepted`) y arranca
+la rutina en un `asyncio.create_task` de fondo; `GET /api/control/jobs/{job_id}` expone
+`ControlJobStatusResponse` (`status: running|done`, `result`, `error`). La MMI sondea ese GET cada
+400 ms (`useGateway.ts: runControlJob`) hasta `done` — cada vista sigue viendo la misma forma
+"await, obtengo el resultado final" que ya tenía, solo que ahora puede tardar de verdad sin dejar
+el fetch original colgado. Historial de jobs acotado a 50 (`CONTROL_JOB_HISTORY_LIMIT`, mismo
+criterio que `MAX_LOG` en `useGateway.ts`) para no crecer sin límite en una sesión larga.
+Verificado con `curl` (202/404/transición running→done) y en navegador real (jog de antena con
+"en curso" visible durante el sondeo). Ver D-12 en `docs/alcance/decisiones.md`.
+
 **Limitaciones conocidas, sin resolver:**
-- Los seis endpoints son síncronos/bloqueantes — la respuesta HTTP no llega hasta que la rutina
-  termina (hasta `timeout_s`, que puede ser de decenas de segundos en `antenna-positioning`), sin
-  ningún progreso intermedio por WS. Aceptable para este MVP; revisar si Fase 3 necesita
-  cancelar/ver progreso a mitad de camino.
+- Sin cancelación: si el operador cierra la pestaña o navega a otra vista a mitad de un job, la
+  rutina sigue corriendo del lado del RCP hasta que termina por sí sola (no hay endpoint para
+  abortarla). Aceptable para este MVP de un solo operador; revisar si Fase 3 lo necesita.
 - La sección "Posicionar" de `AntennaControlView.vue` (y "Jog") expone `gain_v_per_deg`/
   `max_voltage`/`tolerance_deg`/`timeout_s`/`voltage_reference` como campos numéricos crudos que
   el operador debe llenar a mano en cada uso, sin memoria entre sesiones ni valor sugerido — es la

@@ -111,6 +111,24 @@ export interface AntennaPositioningRequest {
   timeout_s: number
 }
 
+// D-12: los seis POST /api/control/* ya no bloquean hasta que la rutina
+// termina -- devuelven un job (202) y el llamador sondea su estado.
+export type ControlJobStatus = 'running' | 'done'
+
+export interface ControlJobAccepted {
+  job_id: string
+  routine: string
+  status: ControlJobStatus
+}
+
+export interface ControlJobStatusResponse {
+  job_id: string
+  routine: string
+  status: ControlJobStatus
+  result: RoutineResult | null
+  error: string | null
+}
+
 export interface SessionMessage {
   type: 'session'
   rcp_version: string
