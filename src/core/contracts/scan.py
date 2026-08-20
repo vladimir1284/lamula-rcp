@@ -22,24 +22,20 @@ ningun adaptador HAL/DSP que los reciba -- `scan_controller.py` no los
 aplica a nada (PEND-RCP-10). Este contrato define la forma de un escaneo,
 no implementa enviarlo a ningun lado.
 
-**Guarda de duty cycle (PEND-RCP-08, parcialmente resuelto 2026-08-20):**
-el feedback del experto confirma que `Duty Cycle Ok/Fault` es una senal de
-hardware pura (la tarjeta del modulador corta la transmision ella misma,
+**Guarda de duty cycle (PEND-RCP-08, resuelto 2026-08-20):** el feedback
+del experto confirma que `Duty Cycle Ok/Fault` es una senal de hardware
+pura (la tarjeta del modulador corta la transmision ella misma,
 `tx.duty_cycle_ok_status` en el catalogo) -- el RCP nunca necesito una
 senal HAL nueva ni un adaptador de forma de onda para esto, el bloqueo
 original estaba mal planteado. Lo que el RCP si debe hacer es la cuenta en
 software al momento de captura del dato (VCP personalizado, este
 Worksheet manual): `duty = prf_hz * pulse_width_us * 1e-6`, rechazada aqui
-mismo si excede `DUTY_CYCLE_LIMIT`. **`DUTY_CYCLE_LIMIT` es un marcador de
-posicion generico (0.001, "limite tipico/estandar" del reporte del
-experto), no el limite real de este RD100S** -- el mismo reporte da otros
-tres casos (magnetron VMS1157 0.0006, MRL-5 0.0005, modulador de estado
-solido La Habana 0.0005/0.0008, hasta 0.002 segun modo) sin confirmar cual
-aplica aca; el catalogo usa nomenclatura `tx.magnetron_*`, lo que sugiere
-el caso magnetron y no el de estado solido, pero es inferencia por nombre
-de senal, no confirmacion directa. Perfiles predefinidos (VCP fijo por el
-sistema) no pasan por esta guarda -- no existe todavia mecanismo de
-perfiles en este repo.
+mismo si excede `DUTY_CYCLE_LIMIT`. **`DUTY_CYCLE_LIMIT = 0.00085`
+(0,085%) es el numero confirmado por el usuario (2026-08-20) como el
+maximo valido en cualquier caso/configuracion de este RD100S** -- no un
+marcador de posicion como el 0.001 generico usado antes. Perfiles
+predefinidos (VCP fijo por el sistema) no pasan por esta guarda -- no
+existe todavia mecanismo de perfiles en este repo.
 
 **Velocidad de rotacion de la antena durante el escaneo: fuera de este
 contrato a proposito.** Relacionar PRF/pulse-width/ancho de haz con una
@@ -59,9 +55,10 @@ from .common import MonotonicMicros
 from .control import RoutineOutcome, RoutineStepResult
 from .dsp import MomentId
 
-DUTY_CYCLE_LIMIT = 0.001
-"""Marcador de posicion generico (PEND-RCP-08), no el limite real del
-RD100S -- ver docstring del modulo."""
+DUTY_CYCLE_LIMIT = 0.00085
+"""Confirmado por el usuario (2026-08-20, PEND-RCP-08): 0,085%, el maximo
+valido en cualquier caso/configuracion de este RD100S -- ver docstring del
+modulo."""
 
 
 def _check_duty_cycle(prf_hz: float, pulse_width_us: float) -> None:

@@ -266,15 +266,13 @@ mitad fuera explícitamente.
     en el punto de entrada porque perfiles predefinidos (VCP fijo por el sistema) no necesitan la
     guarda, y ese mecanismo de perfiles no existe todavía en este repo.
 
-    **Sigue sin resolver, es la parte que de verdad bloqueaba:** el valor numérico del límite.
-    El reporte da cuatro casos sin decir cuál aplica al RD100S real (magnetrón VMS1157 0.06%,
-    MRL-5 0.05%, modulador de estado sólido La Habana 0.05%/0.08%, hasta 0.2% según modo). Por
-    decisión explícita del usuario (2026-08-20), `DUTY_CYCLE_LIMIT` en `core/contracts/scan.py`
-    usa el valor genérico del reporte (0.001) **como marcador de posición**, no como el límite
-    confirmado de este radar -- el catálogo usa nomenclatura `tx.magnetron_*`, lo que sugiere el
-    caso magnetrón y no el de estado sólido, pero es inferencia por nombre de señal, no
-    confirmación directa del product expert. Confirmar el número real antes de tratar esta guarda
-    como algo más que un primer borrador -- mismo criterio que las Rutinas 2-6 (PEND-RCP-07).
+    **Resuelto también el valor numérico (2026-08-20):** el reporte inicial daba cuatro casos sin
+    decir cuál aplicaba al RD100S real (magnetrón VMS1157 0.06%, MRL-5 0.05%, modulador de estado
+    sólido La Habana 0.05%/0.08%, hasta 0.2% según modo). El usuario confirmó directamente el
+    número real: **0,085% (0.00085), el máximo válido en cualquier caso/configuración de este
+    RD100S** -- no un valor genérico ni una inferencia por nombre de señal. `DUTY_CYCLE_LIMIT` en
+    `core/contracts/scan.py` actualizado de 0.001 (placeholder) a 0.00085 (confirmado). PEND-RCP-08
+    queda resuelto por completo -- mecanismo y número.
 
 ### PEND-RCP-09 · Reconciliar el Scan Worksheet manual con VCP real (Fase 3)
 
