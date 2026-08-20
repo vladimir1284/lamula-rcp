@@ -458,9 +458,14 @@ riesgo, menor que Jog/Posicionar/Scan Cut, por eso ninguna necesita el `except B
 limpieza de eje). `ControlCenterView.vue` ahora rastrea el `job_id` de cada una (mismo callback
 `onJobId` de `runControlJob` que ya usaba "Posicionar") y agrega un botón "Cancelar" visible
 mientras la rutina está en curso, reusando `POST /api/control/jobs/{job_id}/cancel` ya existente
--- sin cambios de backend. Verificado con `type-check`/`lint` en verde; no se re-ejercitó en
-navegador contra una instancia real (el endpoint de cancelación ya se probó extensamente para
-Posicionar/Scan Cut, el cambio nuevo es solo cableado de frontend).
+-- sin cambios de backend. Verificado con `type-check`/`lint` en verde y en navegador real
+(chrome-devtools) contra `radar_emulator` + gateway reales: forzadas por WS las tres fuentes de
+alimentación de `rx.*` (dejando `rfe_on_status`/`stalo_locked_status` en falso a propósito, mismo
+atajo ya usado en otros spikes) para que "Receptor power-on" quedara sondeando confirmación en vez
+de fallar de inmediato -- click en "Cancelar" durante el sondeo canceló el job real
+(`job ... (receiver_power_on) falló: cancelado por el operador`), botón volvió a su estado normal.
+Solo se ejercitó Receptor en vivo; General/Transmisor/Unidad de antena comparten el mismo cableado
+línea por línea, no variante propia.
 - La sección "Posicionar" de `AntennaControlView.vue` (y "Jog") expone `gain_v_per_deg`/
   `max_voltage`/`tolerance_deg`/`timeout_s`/`voltage_reference` como campos numéricos crudos que
   el operador debe llenar a mano en cada uso, sin memoria entre sesiones ni valor sugerido — es la
