@@ -451,12 +451,16 @@ reales (`antenna-positioning`, `scan_cut`) por HTTP y por click real en el naveg
 siempre terminó detenido (`az_rate_deg_s`/`el_rate_deg_s` ≈ 0) y el job siempre reportó
 "cancelado por el operador", no un error de Modbus.
 
-**Limitación conocida, sin resolver:** las cuatro rutinas de encendido (`general_power_on.py` y
-las otras tres) no tienen este mismo manejo -- son pulsos digitales momentáneos + sondeo de
-confirmación, no actuación continua, así que cancelarlas a mitad de camino no deja nada "corriendo
-indefinidamente" (distinto riesgo, menor), pero tampoco tienen botón de cancelar en
-`ControlCenterView.vue` todavía. Si el caldeo real del transmisor (~180s) hace molesto esperar sin
-poder cancelar, revisar agregarlo ahí con el mismo patrón.
+**Resuelto (2026-08-20): botón de cancelar en las cuatro rutinas de encendido.** Sin prerequisito
+de seguridad nuevo -- son pulsos digitales momentáneos + sondeo de confirmación, no actuación
+continua, así que cancelarlas a mitad de camino no deja nada "corriendo indefinidamente" (distinto
+riesgo, menor que Jog/Posicionar/Scan Cut, por eso ninguna necesita el `except BaseException` de
+limpieza de eje). `ControlCenterView.vue` ahora rastrea el `job_id` de cada una (mismo callback
+`onJobId` de `runControlJob` que ya usaba "Posicionar") y agrega un botón "Cancelar" visible
+mientras la rutina está en curso, reusando `POST /api/control/jobs/{job_id}/cancel` ya existente
+-- sin cambios de backend. Verificado con `type-check`/`lint` en verde; no se re-ejercitó en
+navegador contra una instancia real (el endpoint de cancelación ya se probó extensamente para
+Posicionar/Scan Cut, el cambio nuevo es solo cableado de frontend).
 - La sección "Posicionar" de `AntennaControlView.vue` (y "Jog") expone `gain_v_per_deg`/
   `max_voltage`/`tolerance_deg`/`timeout_s`/`voltage_reference` como campos numéricos crudos que
   el operador debe llenar a mano en cada uso, sin memoria entre sesiones ni valor sugerido — es la

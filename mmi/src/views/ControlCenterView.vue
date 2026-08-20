@@ -15,7 +15,8 @@ import type {
   WsMessage,
 } from '@/types/mmi'
 
-const { status, messages, control, antenna, dsp, fetchStatus, setControlMode, runControlJob } = useGateway()
+const { status, messages, control, antenna, dsp, fetchStatus, setControlMode, runControlJob, cancelControlJob } =
+  useGateway()
 
 const actor = ref('operador')
 const busy = ref(false)
@@ -28,33 +29,83 @@ const error = ref<string | null>(null)
 const isActive = computed(() => control.value?.mode === 'active')
 
 const generalBusy = ref(false)
+const generalJobId = ref<string | null>(null)
 const generalResult = ref<RoutineResult | null>(null)
 const generalError = ref<string | null>(null)
 
 const txWarmupTimeoutS = ref<number | undefined>(undefined)
 const txBusy = ref(false)
+const txJobId = ref<string | null>(null)
 const txResult = ref<RoutineResult | null>(null)
 const txError = ref<string | null>(null)
 
 const rxConfirmTimeoutS = ref<number | undefined>(undefined)
 const rxBusy = ref(false)
+const rxJobId = ref<string | null>(null)
 const rxResult = ref<RoutineResult | null>(null)
 const rxError = ref<string | null>(null)
 
 const auConfirmTimeoutS = ref<number | undefined>(undefined)
 const auBusy = ref(false)
+const auJobId = ref<string | null>(null)
 const auResult = ref<RoutineResult | null>(null)
 const auError = ref<string | null>(null)
+
+// Cancelar estas cuatro rutinas es de menor riesgo que Jog/Posicionar/Scan
+// Cut (D-12 extendido, ver docstring de core/control_routines/): son pulsos
+// digitales momentaneos + sondeo de confirmacion, no actuacion continua --
+// cancelar a mitad de camino no deja nada moviendose indefinidamente, por
+// eso ninguna de las cuatro tiene el `except BaseException` de limpieza que
+// si necesitan `antenna_movement.py`/`antenna_positioning.py`/`scan_controller.py`.
+async function cancelGeneralPowerOn() {
+  if (!generalJobId.value) return
+  try {
+    await cancelControlJob(generalJobId.value)
+  } catch (e) {
+    generalError.value = e instanceof Error ? e.message : String(e)
+  }
+}
+
+async function cancelTransmitterPowerOn() {
+  if (!txJobId.value) return
+  try {
+    await cancelControlJob(txJobId.value)
+  } catch (e) {
+    txError.value = e instanceof Error ? e.message : String(e)
+  }
+}
+
+async function cancelReceiverPowerOn() {
+  if (!rxJobId.value) return
+  try {
+    await cancelControlJob(rxJobId.value)
+  } catch (e) {
+    rxError.value = e instanceof Error ? e.message : String(e)
+  }
+}
+
+async function cancelAntennaUnitPowerOn() {
+  if (!auJobId.value) return
+  try {
+    await cancelControlJob(auJobId.value)
+  } catch (e) {
+    auError.value = e instanceof Error ? e.message : String(e)
+  }
+}
 
 async function runGeneralPowerOn() {
   generalBusy.value = true
   generalError.value = null
+  generalJobId.value = null
   try {
-    generalResult.value = await runControlJob<RoutineResult>('/api/control/general-power-on')
+    generalResult.value = await runControlJob<RoutineResult>('/api/control/general-power-on', undefined, (id) => {
+      generalJobId.value = id
+    })
   } catch (e) {
     generalError.value = e instanceof Error ? e.message : String(e)
   } finally {
     generalBusy.value = false
+    generalJobId.value = null
   }
 }
 
@@ -62,13 +113,17 @@ async function runTransmitterPowerOn() {
   if (txWarmupTimeoutS.value === undefined) return
   txBusy.value = true
   txError.value = null
+  txJobId.value = null
   try {
     const req: TransmitterPowerOnRequest = { warmup_timeout_s: txWarmupTimeoutS.value }
-    txResult.value = await runControlJob<RoutineResult>('/api/control/transmitter-power-on', req)
+    txResult.value = await runControlJob<RoutineResult>('/api/control/transmitter-power-on', req, (id) => {
+      txJobId.value = id
+    })
   } catch (e) {
     txError.value = e instanceof Error ? e.message : String(e)
   } finally {
     txBusy.value = false
+    txJobId.value = null
   }
 }
 
@@ -76,13 +131,17 @@ async function runReceiverPowerOn() {
   if (rxConfirmTimeoutS.value === undefined) return
   rxBusy.value = true
   rxError.value = null
+  rxJobId.value = null
   try {
     const req: ReceiverPowerOnRequest = { confirm_timeout_s: rxConfirmTimeoutS.value }
-    rxResult.value = await runControlJob<RoutineResult>('/api/control/receiver-power-on', req)
+    rxResult.value = await runControlJob<RoutineResult>('/api/control/receiver-power-on', req, (id) => {
+      rxJobId.value = id
+    })
   } catch (e) {
     rxError.value = e instanceof Error ? e.message : String(e)
   } finally {
     rxBusy.value = false
+    rxJobId.value = null
   }
 }
 
@@ -90,13 +149,17 @@ async function runAntennaUnitPowerOn() {
   if (auConfirmTimeoutS.value === undefined) return
   auBusy.value = true
   auError.value = null
+  auJobId.value = null
   try {
     const req: AntennaUnitPowerOnRequest = { confirm_timeout_s: auConfirmTimeoutS.value }
-    auResult.value = await runControlJob<RoutineResult>('/api/control/antenna-unit-power-on', req)
+    auResult.value = await runControlJob<RoutineResult>('/api/control/antenna-unit-power-on', req, (id) => {
+      auJobId.value = id
+    })
   } catch (e) {
     auError.value = e instanceof Error ? e.message : String(e)
   } finally {
     auBusy.value = false
+    auJobId.value = null
   }
 }
 
@@ -194,6 +257,13 @@ onMounted(async () => {
       <CardContent class="flex flex-col gap-4">
         <div class="flex flex-wrap items-center gap-2">
           <Button :disabled="!isActive || generalBusy" @click="runGeneralPowerOn">General power-on</Button>
+          <Button
+            v-if="generalBusy"
+            variant="destructive"
+            :disabled="!generalJobId"
+            @click="cancelGeneralPowerOn"
+            >Cancelar</Button
+          >
           <span v-if="generalBusy" class="text-sm text-muted-foreground">en curso...</span>
           <span v-if="generalError" class="text-sm text-destructive">{{ generalError }}</span>
           <Badge v-if="generalResult" :variant="generalResult.outcome === 'success' ? 'default' : 'destructive'">
@@ -218,6 +288,9 @@ onMounted(async () => {
           <Button :disabled="!isActive || txBusy || txWarmupTimeoutS === undefined" @click="runTransmitterPowerOn">
             Transmisor power-on
           </Button>
+          <Button v-if="txBusy" variant="destructive" :disabled="!txJobId" @click="cancelTransmitterPowerOn"
+            >Cancelar</Button
+          >
           <span v-if="txBusy" class="text-sm text-muted-foreground">en curso...</span>
           <span v-if="txError" class="text-sm text-destructive">{{ txError }}</span>
           <Badge v-if="txResult" :variant="txResult.outcome === 'success' ? 'default' : 'destructive'">
@@ -240,6 +313,9 @@ onMounted(async () => {
           <Button :disabled="!isActive || rxBusy || rxConfirmTimeoutS === undefined" @click="runReceiverPowerOn">
             Receptor power-on
           </Button>
+          <Button v-if="rxBusy" variant="destructive" :disabled="!rxJobId" @click="cancelReceiverPowerOn"
+            >Cancelar</Button
+          >
           <span v-if="rxBusy" class="text-sm text-muted-foreground">en curso...</span>
           <span v-if="rxError" class="text-sm text-destructive">{{ rxError }}</span>
           <Badge v-if="rxResult" :variant="rxResult.outcome === 'success' ? 'default' : 'destructive'">
@@ -262,6 +338,9 @@ onMounted(async () => {
           <Button :disabled="!isActive || auBusy || auConfirmTimeoutS === undefined" @click="runAntennaUnitPowerOn">
             Unidad de antena power-on
           </Button>
+          <Button v-if="auBusy" variant="destructive" :disabled="!auJobId" @click="cancelAntennaUnitPowerOn"
+            >Cancelar</Button
+          >
           <span v-if="auBusy" class="text-sm text-muted-foreground">en curso...</span>
           <span v-if="auError" class="text-sm text-destructive">{{ auError }}</span>
           <Badge v-if="auResult" :variant="auResult.outcome === 'success' ? 'default' : 'destructive'">
