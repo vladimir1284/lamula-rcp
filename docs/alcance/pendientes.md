@@ -398,10 +398,45 @@ criterio que `MAX_LOG` en `useGateway.ts`) para no crecer sin límite en una ses
 Verificado con `curl` (202/404/transición running→done) y en navegador real (jog de antena con
 "en curso" visible durante el sondeo). Ver D-12 en `docs/alcance/decisiones.md`.
 
-**Limitaciones conocidas, sin resolver:**
-- Sin cancelación: si el operador cierra la pestaña o navega a otra vista a mitad de un job, la
-  rutina sigue corriendo del lado del RCP hasta que termina por sí sola (no hay endpoint para
-  abortarla). Aceptable para este MVP de un solo operador; revisar si Fase 3 lo necesita.
+**Resuelto (2026-08-20): cancelación de jobs.** `POST /api/control/jobs/{job_id}/cancel` cancela
+un job en curso -- `_start_control_job` ahora guarda la `asyncio.Task` (`app.state.
+control_job_tasks`) además del resultado, y el endpoint llama `task.cancel()` y espera a que la
+corrutina termine antes de responder. Idempotente: cancelar un job ya terminado devuelve su
+estado actual sin error. Botón "Cancelar" agregado a "Posicionar" (`AntennaControlView.vue`) y
+"Ejecutar corte" (`ScanWorksheetView.vue`) -- no a "Jog" (ya se detiene mandando 0 V como comando
+nuevo, no necesita cancelar la tarea) ni a las cuatro rutinas de encendido en
+`ControlCenterView.vue` (pulsos momentáneos, no actuación continua -- ver más abajo).
+
+**Prerequisito de seguridad, resuelto antes de exponer el botón:** ninguna rutina tenía manejo de
+cancelación -- si la tarea moría a mitad de un movimiento continuo, el eje seguiría recibiendo esa
+referencia de voltaje indefinidamente. Se agregó `except BaseException: <detener eje>; raise`
+alrededor del tramo que comanda movimiento en `run_antenna_movement` (`antenna_movement.py`),
+`run_antenna_positioning` (`antenna_positioning.py`) y el sondeo de barrido de `run_scan_cut`
+(`scan_controller.py`).
+
+**Hallazgo real durante la verificación (no hipotético):** la primera versión atrapaba solo
+`except asyncio.CancelledError`, y el botón de cancelar **dejaba la antena girando** en la
+verificación real contra `radar_emulator` + navegador -- pymodbus, cuando la cancelación llega
+mientras un `await hal.write_analog`/`read_*` está en vuelo (petición Modbus real pendiente), no
+deja propagar un `CancelledError` limpio: lo convierte en su propia `ModbusIOException` ("Request
+cancelled outside library"). Ese `except` nunca se disparaba, y la limpieza (detener el eje)
+nunca corría. Corregido ampliando a `except BaseException` en los tres puntos -- `core/` no puede
+importar el tipo exacto de pymodbus para atraparlo puntualmente (límite core/adapters, AGENTS.md),
+así que se atrapa cualquier excepción. Para no perder la distinción "cancelado a propósito" vs.
+"error de infraestructura genuino" en el mensaje que ve el operador, el gateway ahora marca el
+`job_id` en `app.state.control_job_cancel_requested` *antes* de llamar `task.cancel()`, y `_run()`
+lo consulta para decidir el texto del error en vez de adivinar por el mensaje de la excepción.
+Verificado con 9 corridas con distintos delays (20ms–1s) antes de cancelar más las dos rutas
+reales (`antenna-positioning`, `scan_cut`) por HTTP y por click real en el navegador: el eje
+siempre terminó detenido (`az_rate_deg_s`/`el_rate_deg_s` ≈ 0) y el job siempre reportó
+"cancelado por el operador", no un error de Modbus.
+
+**Limitación conocida, sin resolver:** las cuatro rutinas de encendido (`general_power_on.py` y
+las otras tres) no tienen este mismo manejo -- son pulsos digitales momentáneos + sondeo de
+confirmación, no actuación continua, así que cancelarlas a mitad de camino no deja nada "corriendo
+indefinidamente" (distinto riesgo, menor), pero tampoco tienen botón de cancelar en
+`ControlCenterView.vue` todavía. Si el caldeo real del transmisor (~180s) hace molesto esperar sin
+poder cancelar, revisar agregarlo ahí con el mismo patrón.
 - La sección "Posicionar" de `AntennaControlView.vue` (y "Jog") expone `gain_v_per_deg`/
   `max_voltage`/`tolerance_deg`/`timeout_s`/`voltage_reference` como campos numéricos crudos que
   el operador debe llenar a mano en cada uso, sin memoria entre sesiones ni valor sugerido — es la

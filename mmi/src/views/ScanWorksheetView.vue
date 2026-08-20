@@ -16,7 +16,7 @@ import {
 
 const GATEWAY_HTTP = 'http://127.0.0.1:8000'
 
-const { control, runControlJob } = useGateway()
+const { control, runControlJob, cancelControlJob } = useGateway()
 const isActive = computed(() => control.value?.mode === 'active')
 
 const worksheet = ref<ScanCut[]>([])
@@ -144,6 +144,7 @@ const sweepVoltageMagnitude = ref<number | undefined>(undefined)
 const sweepToleranceDeg = ref<number | undefined>(undefined)
 const sweepTimeoutS = ref<number | undefined>(undefined)
 const execBusy = ref(false)
+const execJobId = ref<string | null>(null)
 const execResult = ref<ScanCutResult | null>(null)
 const execError = ref<string | null>(null)
 
@@ -167,6 +168,7 @@ async function executeCut() {
   if (!execReady.value) return
   execBusy.value = true
   execError.value = null
+  execJobId.value = null
   try {
     const azimuth_positioning: AxisPositioningParams = {
       gain_v_per_deg: azGainVPerDeg.value as number,
@@ -190,11 +192,27 @@ async function executeCut() {
     execResult.value = await runControlJob<ScanCutResult>(
       `/api/scan/worksheet/${execIndex.value}/execute`,
       req,
+      (id) => {
+        execJobId.value = id
+      },
     )
   } catch (e) {
     execError.value = e instanceof Error ? e.message : String(e)
   } finally {
     execBusy.value = false
+    execJobId.value = null
+  }
+}
+
+// Cancela una ejecucion en curso -- el Scan Controller detiene el eje de
+// barrido antes de que el job quede en `done` (ver docstring de
+// core/scan_controller.py, bloque try/except CancelledError).
+async function cancelExecution() {
+  if (!execJobId.value) return
+  try {
+    await cancelControlJob(execJobId.value)
+  } catch (e) {
+    execError.value = e instanceof Error ? e.message : String(e)
   }
 }
 
@@ -405,6 +423,7 @@ onMounted(() => {
           <Button :disabled="!isActive || execBusy || !execReady" @click="executeCut">
             {{ execBusy ? 'Ejecutando...' : 'Ejecutar' }}
           </Button>
+          <Button v-if="execBusy" variant="destructive" :disabled="!execJobId" @click="cancelExecution">Cancelar</Button>
           <span v-if="execBusy" class="text-sm text-muted-foreground">en curso...</span>
           <span v-if="execError" class="text-sm text-destructive">{{ execError }}</span>
           <Badge v-if="execResult" :variant="execResult.outcome === 'success' ? 'default' : 'destructive'">

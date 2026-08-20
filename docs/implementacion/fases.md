@@ -247,6 +247,20 @@ Visualization + BITE.
     tumbar el proceso. Verificado matando y relanzando el proceso del gateway. Sigue sin
     sincronización entre pestañas/operadores en vivo (ver `docs/alcance/pendientes.md`).
 
+    ✅ Cancelación de jobs de control: `POST /api/control/jobs/{job_id}/cancel`, botón "Cancelar"
+    en "Posicionar" (`AntennaControlView.vue`) y "Ejecutar corte" (`ScanWorksheetView.vue`).
+    Requirió agregar manejo de cancelación en `run_antenna_movement`/`run_antenna_positioning`/
+    `run_scan_cut` que faltaba por completo -- **verificación real encontró un bug de seguridad
+    genuino**: la primera versión (`except asyncio.CancelledError`) dejaba la antena girando
+    porque pymodbus convierte una cancelación en vuelo (petición Modbus real pendiente) en su
+    propia excepción en vez de un `CancelledError` limpio. Corregido con `except BaseException` en
+    los tres puntos. Verificado con 9 corridas a distintos delays (20ms–1s) más las dos rutas
+    reales por HTTP y por click en el navegador: el eje siempre terminó detenido y el job siempre
+    reportó "cancelado por el operador" (no un error de Modbus, distinguido vía
+    `control_job_cancel_requested` en el gateway, no por el texto de la excepción). Ver
+    `docs/alcance/pendientes.md` para el detalle del bug. No cubre las cuatro rutinas de encendido
+    (pulsos momentáneos, menor riesgo, sin botón de cancelar todavía).
+
     ⏸️ Sin resolver: para las Rutinas 2–6, valores concretos sin confirmar aunque PEND-RCP-07 se
     aceptó por decisión operativa (D-11) — tiempo de caldeo/umbral de
     sobrecorriente reales para la Rutina 2, tiempo de enganche del STALO para la Rutina 3, si

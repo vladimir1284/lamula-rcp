@@ -173,46 +173,60 @@ async def run_scan_cut(
     # docstring de `AntennaMoveDirection` (core/contracts/safety.py).
     direction_for_guard = AntennaMoveDirection.UP if voltage > 0 else AntennaMoveDirection.DOWN
 
-    while time.monotonic() < deadline:
-        await asyncio.sleep(poll_interval_s)
+    # El eje de barrido esta girando continuo desde el paso 3 -- si la tarea
+    # se cancela (job cancelado desde la MMI) en cualquier `await` de este
+    # bucle, seguiria girando indefinidamente sin este `except` (mismo riesgo
+    # que en `antenna_movement.py`/`antenna_positioning.py`). `except
+    # BaseException` (no solo `asyncio.CancelledError`) por el mismo motivo
+    # que esas dos rutinas: pymodbus puede convertir una cancelacion en
+    # vuelo en su propia excepcion en vez de un `CancelledError` limpio --
+    # ver docstring de `antenna_movement.py` para el bug real que esto
+    # corrige. Se re-lanza despues de detener para que la cancelacion/error
+    # siga propagandose.
+    try:
+        while time.monotonic() < deadline:
+            await asyncio.sleep(poll_interval_s)
 
-        guard = await check_antenna_movement(hal, swept_axis, direction_for_guard)
-        if not guard.allowed:
-            stop_result = await run_antenna_movement(hal, swept_axis, 0.0)
-            steps.extend(stop_result.steps)
-            steps.append(
-                RoutineStepResult(
-                    signal_id=guard.signal_id,
-                    ok=False,
-                    detail=f"guarda rechazo continuar el barrido a mitad de camino: {guard.reason}",
+            guard = await check_antenna_movement(hal, swept_axis, direction_for_guard)
+            if not guard.allowed:
+                stop_result = await run_antenna_movement(hal, swept_axis, 0.0)
+                steps.extend(stop_result.steps)
+                steps.append(
+                    RoutineStepResult(
+                        signal_id=guard.signal_id,
+                        ok=False,
+                        detail=f"guarda rechazo continuar el barrido a mitad de camino: {guard.reason}",
+                    )
                 )
-            )
-            return ScanCutResult(outcome=RoutineOutcome.INTERRUPTED, steps=steps, at_us=_now_us())
+                return ScanCutResult(outcome=RoutineOutcome.INTERRUPTED, steps=steps, at_us=_now_us())
 
-        position = await hal.read_antenna_position()
-        current_deg = _current_deg(position, swept_axis)
-        traveled_deg += _signed_delta_deg(current_deg, previous_deg)
-        previous_deg = current_deg
+            position = await hal.read_antenna_position()
+            current_deg = _current_deg(position, swept_axis)
+            traveled_deg += _signed_delta_deg(current_deg, previous_deg)
+            previous_deg = current_deg
 
-        if abs(traveled_deg) >= abs(total_sweep_deg) - sweep_tolerance_deg:
-            stop_result = await run_antenna_movement(hal, swept_axis, 0.0)
-            steps.extend(stop_result.steps)
-            steps.append(
-                RoutineStepResult(
-                    signal_id=position_signal,
-                    ok=stop_result.outcome == RoutineOutcome.SUCCESS,
-                    detail=f"barrido completo: recorrido={traveled_deg:.3f} deg de {total_sweep_deg:.3f} deg pedidos",
+            if abs(traveled_deg) >= abs(total_sweep_deg) - sweep_tolerance_deg:
+                stop_result = await run_antenna_movement(hal, swept_axis, 0.0)
+                steps.extend(stop_result.steps)
+                steps.append(
+                    RoutineStepResult(
+                        signal_id=position_signal,
+                        ok=stop_result.outcome == RoutineOutcome.SUCCESS,
+                        detail=f"barrido completo: recorrido={traveled_deg:.3f} deg de {total_sweep_deg:.3f} deg pedidos",
+                    )
                 )
-            )
-            outcome = RoutineOutcome.SUCCESS if stop_result.outcome == RoutineOutcome.SUCCESS else RoutineOutcome.FAILED
-            return ScanCutResult(outcome=outcome, steps=steps, at_us=_now_us())
+                outcome = RoutineOutcome.SUCCESS if stop_result.outcome == RoutineOutcome.SUCCESS else RoutineOutcome.FAILED
+                return ScanCutResult(outcome=outcome, steps=steps, at_us=_now_us())
 
-    await run_antenna_movement(hal, swept_axis, 0.0)
-    steps.append(
-        RoutineStepResult(
-            signal_id=position_signal,
-            ok=False,
-            detail=f"no se completo el barrido en {sweep_timeout_s}s: recorrido={traveled_deg:.3f} deg de {total_sweep_deg:.3f} deg pedidos",
+        await run_antenna_movement(hal, swept_axis, 0.0)
+        steps.append(
+            RoutineStepResult(
+                signal_id=position_signal,
+                ok=False,
+                detail=f"no se completo el barrido en {sweep_timeout_s}s: recorrido={traveled_deg:.3f} deg de {total_sweep_deg:.3f} deg pedidos",
+            )
         )
-    )
-    return ScanCutResult(outcome=RoutineOutcome.FAILED, steps=steps, at_us=_now_us())
+        return ScanCutResult(outcome=RoutineOutcome.FAILED, steps=steps, at_us=_now_us())
+    except BaseException:
+        await run_antenna_movement(hal, swept_axis, 0.0)
+        raise

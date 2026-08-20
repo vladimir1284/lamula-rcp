@@ -92,54 +92,70 @@ async def run_antenna_positioning(
     position_signal = POSITION_SIGNAL[axis]
     deadline = time.monotonic() + timeout_s
 
-    while time.monotonic() < deadline:
-        position = await hal.read_antenna_position()
-        current_deg, valid = _current_deg_and_valid(position, axis)
+    # Cada iteracion puede dejar el eje moviendose con un voltaje proporcional
+    # al error (via la Rutina 5) hasta la proxima iteracion -- si la tarea se
+    # cancela (job cancelado desde la MMI) entre una iteracion y la siguiente,
+    # el eje seguiria recibiendo esa referencia indefinidamente sin este
+    # `except`. `except BaseException` (no solo `asyncio.CancelledError`) por
+    # el mismo motivo que `antenna_movement.py`: pymodbus puede convertir una
+    # cancelacion en vuelo en su propia excepcion en vez de un
+    # `CancelledError` limpio -- ver docstring de esa rutina para el bug real
+    # que esto corrige. `run_antenna_movement(hal, axis, 0.0)` es seguro de
+    # llamar de nuevo aca (ya tiene su propia proteccion, ver su docstring) --
+    # se re-lanza despues para que la cancelacion/error siga propagandose
+    # hacia quien la pidio.
+    try:
+        while time.monotonic() < deadline:
+            position = await hal.read_antenna_position()
+            current_deg, valid = _current_deg_and_valid(position, axis)
 
-        if not valid:
+            if not valid:
+                steps.append(
+                    RoutineStepResult(
+                        signal_id=position_signal,
+                        ok=False,
+                        detail="lectura de posicion invalida (encoder degradado), no se puede posicionar",
+                    )
+                )
+                return RoutineResult(routine=RoutineName.ANTENNA_POSITIONING, outcome=RoutineOutcome.FAILED, steps=steps, at_us=_now_us())
+
+            error_deg = _azimuth_error_deg(target_deg, current_deg) if axis is AntennaAxis.AZIMUTH else target_deg - current_deg
+
+            if abs(error_deg) <= tolerance_deg:
+                stop_result = await run_antenna_movement(hal, axis, 0.0)
+                steps.extend(stop_result.steps)
+                steps.append(
+                    RoutineStepResult(
+                        signal_id=position_signal,
+                        ok=stop_result.outcome == RoutineOutcome.SUCCESS,
+                        detail=f"dentro de tolerancia (error={error_deg:.3f} deg), eje detenido",
+                    )
+                )
+                outcome = RoutineOutcome.SUCCESS if stop_result.outcome == RoutineOutcome.SUCCESS else RoutineOutcome.FAILED
+                return RoutineResult(routine=RoutineName.ANTENNA_POSITIONING, outcome=outcome, steps=steps, at_us=_now_us())
+
+            voltage = max(-max_voltage, min(max_voltage, gain_v_per_deg * error_deg))
+            move_result = await run_antenna_movement(hal, axis, voltage)
+            steps.extend(move_result.steps)
             steps.append(
                 RoutineStepResult(
                     signal_id=position_signal,
-                    ok=False,
-                    detail="lectura de posicion invalida (encoder degradado), no se puede posicionar",
+                    ok=move_result.outcome == RoutineOutcome.SUCCESS,
+                    detail=f"error={error_deg:.3f} deg -> voltaje comandado={voltage:.3f} V (outcome={move_result.outcome})",
                 )
             )
-            return RoutineResult(routine=RoutineName.ANTENNA_POSITIONING, outcome=RoutineOutcome.FAILED, steps=steps, at_us=_now_us())
 
-        error_deg = _azimuth_error_deg(target_deg, current_deg) if axis is AntennaAxis.AZIMUTH else target_deg - current_deg
+            if move_result.outcome != RoutineOutcome.SUCCESS:
+                # La Rutina 5 ya fallo o fue interrumpida (guarda de seguridad de
+                # parametros, o el eje nunca arranco) -- no tiene sentido seguir
+                # pidiendo voltajes nuevos, se propaga tal cual.
+                return RoutineResult(routine=RoutineName.ANTENNA_POSITIONING, outcome=move_result.outcome, steps=steps, at_us=_now_us())
 
-        if abs(error_deg) <= tolerance_deg:
-            stop_result = await run_antenna_movement(hal, axis, 0.0)
-            steps.extend(stop_result.steps)
-            steps.append(
-                RoutineStepResult(
-                    signal_id=position_signal,
-                    ok=stop_result.outcome == RoutineOutcome.SUCCESS,
-                    detail=f"dentro de tolerancia (error={error_deg:.3f} deg), eje detenido",
-                )
-            )
-            outcome = RoutineOutcome.SUCCESS if stop_result.outcome == RoutineOutcome.SUCCESS else RoutineOutcome.FAILED
-            return RoutineResult(routine=RoutineName.ANTENNA_POSITIONING, outcome=outcome, steps=steps, at_us=_now_us())
-
-        voltage = max(-max_voltage, min(max_voltage, gain_v_per_deg * error_deg))
-        move_result = await run_antenna_movement(hal, axis, voltage)
-        steps.extend(move_result.steps)
         steps.append(
-            RoutineStepResult(
-                signal_id=position_signal,
-                ok=move_result.outcome == RoutineOutcome.SUCCESS,
-                detail=f"error={error_deg:.3f} deg -> voltaje comandado={voltage:.3f} V (outcome={move_result.outcome})",
-            )
+            RoutineStepResult(signal_id=position_signal, ok=False, detail=f"no se alcanzo la tolerancia en {timeout_s}s")
         )
-
-        if move_result.outcome != RoutineOutcome.SUCCESS:
-            # La Rutina 5 ya fallo o fue interrumpida (guarda de seguridad de
-            # parametros, o el eje nunca arranco) -- no tiene sentido seguir
-            # pidiendo voltajes nuevos, se propaga tal cual.
-            return RoutineResult(routine=RoutineName.ANTENNA_POSITIONING, outcome=move_result.outcome, steps=steps, at_us=_now_us())
-
-    steps.append(
-        RoutineStepResult(signal_id=position_signal, ok=False, detail=f"no se alcanzo la tolerancia en {timeout_s}s")
-    )
-    await run_antenna_movement(hal, axis, 0.0)
-    return RoutineResult(routine=RoutineName.ANTENNA_POSITIONING, outcome=RoutineOutcome.FAILED, steps=steps, at_us=_now_us())
+        await run_antenna_movement(hal, axis, 0.0)
+        return RoutineResult(routine=RoutineName.ANTENNA_POSITIONING, outcome=RoutineOutcome.FAILED, steps=steps, at_us=_now_us())
+    except BaseException:
+        await run_antenna_movement(hal, axis, 0.0)
+        raise

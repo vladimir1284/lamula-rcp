@@ -167,6 +167,19 @@ def create_app(
     # usa el tope de historial para descartar el mas viejo. En memoria, se pierde
     # al reiniciar el gateway, mismo nivel de esqueleto que el resto del estado.
     app.state.control_jobs: dict[str, ControlJobStatusResponse] = {}
+    # Task real detras de cada job -- separado de control_jobs (que solo
+    # guarda el estado ya serializable) porque POST /api/control/jobs/{id}/cancel
+    # necesita el objeto asyncio.Task para poder cancelarlo. Comparte tope de
+    # historial con control_jobs (misma job_id, podado junto en el mismo
+    # punto mas abajo) en vez de tener el suyo propio.
+    app.state.control_job_tasks: dict[str, asyncio.Task[None]] = {}
+    # job_id de jobs cancelados a proposito -- distingue "esta excepcion es la
+    # cancelacion pedida por el operador, solo que pymodbus la envolvio en su
+    # propia excepcion en vez de un CancelledError limpio" de un error de
+    # infraestructura genuino, ambos indistinguibles por tipo en `_run` de
+    # `_start_control_job` mas abajo. Mismo tope de historial que
+    # control_jobs/control_job_tasks.
+    app.state.control_job_cancel_requested: set[str] = set()
 
     def _dsp_status() -> DspStreamStatus:
         latest = dsp.latest
@@ -238,7 +251,10 @@ def create_app(
             job_id=job_id, routine=routine, status=ControlJobStatus.RUNNING, result=None, error=None
         )
         if len(app.state.control_jobs) > CONTROL_JOB_HISTORY_LIMIT:
-            del app.state.control_jobs[next(iter(app.state.control_jobs))]
+            oldest_job_id = next(iter(app.state.control_jobs))
+            del app.state.control_jobs[oldest_job_id]
+            app.state.control_job_tasks.pop(oldest_job_id, None)
+            app.state.control_job_cancel_requested.discard(oldest_job_id)
 
         async def _run() -> None:
             try:
@@ -246,16 +262,38 @@ def create_app(
                 app.state.control_jobs[job_id] = ControlJobStatusResponse(
                     job_id=job_id, routine=routine, status=ControlJobStatus.DONE, result=result, error=None
                 )
-            except Exception as e:
-                # Excepcion de infraestructura (ej. el HAL se desconecto a
-                # mitad de camino) -- distinto de un RoutineResult con
-                # outcome failed/interrupted, que es un resultado legitimo de
-                # la rutina, no un error.
+            except asyncio.CancelledError:
+                # Cancelado desde POST /api/control/jobs/{job_id}/cancel -- la
+                # corrutina ya tuvo su chance de detener el eje que estuviera
+                # comandando (cada rutina de movimiento/Scan Controller
+                # atrapa la cancelacion, detiene y re-lanza; ver sus
+                # docstrings) antes de llegar aca. Se absorbe aca en vez de
+                # dejarla propagar: el job debe quedar en un estado terminal
+                # (`DONE` + `error`) que el poller de la MMI pueda leer, no
+                # una Task cancelada que nadie mas espera.
                 app.state.control_jobs[job_id] = ControlJobStatusResponse(
-                    job_id=job_id, routine=routine, status=ControlJobStatus.DONE, result=None, error=str(e)
+                    job_id=job_id, routine=routine, status=ControlJobStatus.DONE, result=None, error="cancelado por el operador"
+                )
+            except Exception as e:
+                # Dos causas posibles aca, indistinguibles por tipo de
+                # excepcion: (a) excepcion de infraestructura genuina (ej. el
+                # HAL se desconecto a mitad de camino), o (b) esta misma
+                # cancelacion, pero pymodbus la convirtio en su propia
+                # excepcion en vez de un `CancelledError` limpio si la
+                # cancelacion llego mientras un `write_analog`/`read_*`
+                # estaba en vuelo (ver docstring de
+                # core/control_routines/antenna_movement.py). Se distingue
+                # por `control_job_cancel_requested` (lo marca
+                # POST /api/control/jobs/{job_id}/cancel antes de llamar
+                # `task.cancel()`), no por el mensaje de la excepcion --
+                # mas robusto que adivinar el texto exacto de un error de
+                # pymodbus.
+                error = "cancelado por el operador" if job_id in app.state.control_job_cancel_requested else str(e)
+                app.state.control_jobs[job_id] = ControlJobStatusResponse(
+                    job_id=job_id, routine=routine, status=ControlJobStatus.DONE, result=None, error=error
                 )
 
-        asyncio.create_task(_run())
+        app.state.control_job_tasks[job_id] = asyncio.create_task(_run())
         return ControlJobAccepted(job_id=job_id, routine=routine, status=ControlJobStatus.RUNNING)
 
     @app.get("/api/control/jobs/{job_id}", response_model=ControlJobStatusResponse)
@@ -264,6 +302,23 @@ def create_app(
         if record is None:
             raise HTTPException(status_code=404, detail=f"job {job_id} no encontrado")
         return record
+
+    @app.post("/api/control/jobs/{job_id}/cancel", response_model=ControlJobStatusResponse)
+    async def cancel_control_job(job_id: str) -> ControlJobStatusResponse:
+        record = app.state.control_jobs.get(job_id)
+        if record is None:
+            raise HTTPException(status_code=404, detail=f"job {job_id} no encontrado")
+        task = app.state.control_job_tasks.get(job_id)
+        if record.status == ControlJobStatus.DONE or task is None or task.done():
+            # Idempotente a proposito: si ya termino (por si solo o por una
+            # cancelacion anterior), no hay nada que cancelar -- devolver el
+            # estado actual en vez de 409/404, mismo criterio de "informar,
+            # no fallar" que el resto de este endpoint.
+            return record
+        app.state.control_job_cancel_requested.add(job_id)
+        task.cancel()
+        await task  # espera a que la rutina detenga el eje antes de responder
+        return app.state.control_jobs[job_id]
 
     @app.post("/api/control/general-power-on", response_model=ControlJobAccepted, status_code=202)
     async def general_power_on() -> ControlJobAccepted:

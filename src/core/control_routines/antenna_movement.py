@@ -134,42 +134,61 @@ async def run_antenna_movement(
     await hal.write_analog(speed_signal, voltage_reference)
     steps.append(RoutineStepResult(signal_id=speed_signal, ok=True, detail=f"referencia comandada: {voltage_reference} V"))
 
+    # A partir de aca el eje esta recibiendo una referencia de voltaje != 0 --
+    # si la tarea (asyncio) que corre esta rutina se cancela (job cancelado
+    # desde la MMI) en cualquier `await` de este bloque, dejaria el eje
+    # girando indefinidamente sin pasar por ninguno de los dos caminos que ya
+    # lo detienen (guarda/timeout de mas abajo). `except BaseException` (no
+    # solo `asyncio.CancelledError`) a proposito: verificado contra un HAL
+    # real que si la cancelacion llega mientras un `await hal.write_analog`/
+    # `read_*` esta en vuelo, pymodbus no deja propagar un `CancelledError`
+    # limpio -- lo convierte en su propia `ModbusIOException` ("Request
+    # cancelled outside library"), que `except CancelledError` no atrapaba
+    # (bug encontrado end-to-end: la antena seguia girando tras "cancelar").
+    # `core/` no puede importar pymodbus para atrapar ese tipo exacto (limite
+    # core/adapters, AGENTS.md), asi que se atrapa cualquier excepcion aca;
+    # se re-lanza despues de detener para que quien cancelo
+    # (adapters/gateway/app.py) siga viendo el error/cancelacion propagarse.
     deadline = time.monotonic() + CONFIRM_TIMEOUT_S
-    while time.monotonic() < deadline:
-        await asyncio.sleep(POLL_INTERVAL_S)
+    try:
+        while time.monotonic() < deadline:
+            await asyncio.sleep(POLL_INTERVAL_S)
 
-        guard = await check_antenna_movement(hal, axis, direction)
-        if not guard.allowed:
-            await hal.write_analog(speed_signal, 0.0)
-            if axis is AntennaAxis.AZIMUTH:
-                await hal.write_digital(enable_signal, False)
-            steps.append(
-                RoutineStepResult(
-                    signal_id=guard.signal_id,
-                    ok=False,
-                    detail=f"guarda rechazo continuar, movimiento detenido: {guard.reason}",
+            guard = await check_antenna_movement(hal, axis, direction)
+            if not guard.allowed:
+                await hal.write_analog(speed_signal, 0.0)
+                if axis is AntennaAxis.AZIMUTH:
+                    await hal.write_digital(enable_signal, False)
+                steps.append(
+                    RoutineStepResult(
+                        signal_id=guard.signal_id,
+                        ok=False,
+                        detail=f"guarda rechazo continuar, movimiento detenido: {guard.reason}",
+                    )
                 )
-            )
-            return RoutineResult(routine=RoutineName.ANTENNA_MOVEMENT, outcome=RoutineOutcome.INTERRUPTED, steps=steps, at_us=_now_us())
+                return RoutineResult(routine=RoutineName.ANTENNA_MOVEMENT, outcome=RoutineOutcome.INTERRUPTED, steps=steps, at_us=_now_us())
 
-        position = await hal.read_antenna_position()
-        rate = _rate_deg_s(position, axis)
-        if (rate > 0) == (voltage_reference > 0) and abs(rate) > MOVING_EPS_DEG_S:
-            steps.append(
-                RoutineStepResult(
-                    signal_id=speed_signal,
-                    ok=True,
-                    detail=f"movimiento confirmado en el sentido pedido: rate={rate:.3f} deg/s",
+            position = await hal.read_antenna_position()
+            rate = _rate_deg_s(position, axis)
+            if (rate > 0) == (voltage_reference > 0) and abs(rate) > MOVING_EPS_DEG_S:
+                steps.append(
+                    RoutineStepResult(
+                        signal_id=speed_signal,
+                        ok=True,
+                        detail=f"movimiento confirmado en el sentido pedido: rate={rate:.3f} deg/s",
+                    )
                 )
-            )
-            return RoutineResult(routine=RoutineName.ANTENNA_MOVEMENT, outcome=RoutineOutcome.SUCCESS, steps=steps, at_us=_now_us())
+                return RoutineResult(routine=RoutineName.ANTENNA_MOVEMENT, outcome=RoutineOutcome.SUCCESS, steps=steps, at_us=_now_us())
 
-    await hal.write_analog(speed_signal, 0.0)
-    steps.append(
-        RoutineStepResult(
-            signal_id=speed_signal,
-            ok=False,
-            detail=f"no se confirmo movimiento en {CONFIRM_TIMEOUT_S}s, referencia devuelta a 0 V",
+        await hal.write_analog(speed_signal, 0.0)
+        steps.append(
+            RoutineStepResult(
+                signal_id=speed_signal,
+                ok=False,
+                detail=f"no se confirmo movimiento en {CONFIRM_TIMEOUT_S}s, referencia devuelta a 0 V",
+            )
         )
-    )
-    return RoutineResult(routine=RoutineName.ANTENNA_MOVEMENT, outcome=RoutineOutcome.FAILED, steps=steps, at_us=_now_us())
+        return RoutineResult(routine=RoutineName.ANTENNA_MOVEMENT, outcome=RoutineOutcome.FAILED, steps=steps, at_us=_now_us())
+    except BaseException:
+        await hal.write_analog(speed_signal, 0.0)
+        raise

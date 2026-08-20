@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { useGateway } from '@/composables/useGateway'
 import type { AntennaAxis, AntennaMovementRequest, AntennaPositioningRequest, RoutineResult } from '@/types/mmi'
 
-const { control, antenna, runControlJob } = useGateway()
+const { control, antenna, runControlJob, cancelControlJob } = useGateway()
 
 const isActive = computed(() => control.value?.mode === 'active')
 
@@ -52,6 +52,7 @@ const maxVoltage = ref<number | undefined>(undefined)
 const toleranceDeg = ref<number | undefined>(undefined)
 const timeoutS = ref<number | undefined>(undefined)
 const posBusy = ref(false)
+const posJobId = ref<string | null>(null)
 const posResult = ref<RoutineResult | null>(null)
 const posError = ref<string | null>(null)
 
@@ -68,6 +69,7 @@ async function runPositioning() {
   if (!posReady.value) return
   posBusy.value = true
   posError.value = null
+  posJobId.value = null
   try {
     const req: AntennaPositioningRequest = {
       axis: posAxis.value,
@@ -77,11 +79,29 @@ async function runPositioning() {
       tolerance_deg: toleranceDeg.value as number,
       timeout_s: timeoutS.value as number,
     }
-    posResult.value = await runControlJob<RoutineResult>('/api/control/antenna-positioning', req)
+    posResult.value = await runControlJob<RoutineResult>('/api/control/antenna-positioning', req, (id) => {
+      posJobId.value = id
+    })
   } catch (e) {
     posError.value = e instanceof Error ? e.message : String(e)
   } finally {
     posBusy.value = false
+    posJobId.value = null
+  }
+}
+
+// Cancela un Posicionar en curso -- a diferencia del Jog (que se detiene
+// mandando 0V como un comando nuevo), el proprocional de la Rutina 6 sigue
+// pidiendo voltajes por su cuenta cada iteracion hasta llegar a tolerancia;
+// sin cancelar el job de verdad, un 0V manual desde otra parte de la MMI
+// quedaria sobrescrito en la proxima iteracion (ver docstring de
+// antenna_positioning.py).
+async function cancelPositioning() {
+  if (!posJobId.value) return
+  try {
+    await cancelControlJob(posJobId.value)
+  } catch (e) {
+    posError.value = e instanceof Error ? e.message : String(e)
   }
 }
 </script>
@@ -175,6 +195,7 @@ async function runPositioning() {
           <Button :disabled="!isActive || posBusy || !posReady" @click="runPositioning">
             {{ posBusy ? 'Posicionando...' : 'Posicionar' }}
           </Button>
+          <Button v-if="posBusy" variant="destructive" :disabled="!posJobId" @click="cancelPositioning">Cancelar</Button>
           <span v-if="posError" class="text-sm text-destructive">{{ posError }}</span>
           <Badge v-if="posResult" :variant="posResult.outcome === 'success' ? 'default' : 'destructive'">
             {{ posResult.outcome }}

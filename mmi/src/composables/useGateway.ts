@@ -99,7 +99,7 @@ export function useGateway() {
   // dejar el fetch original colgado.
   const CONTROL_JOB_POLL_INTERVAL_MS = 400
 
-  async function runControlJob<T>(path: string, body?: unknown): Promise<T> {
+  async function runControlJob<T>(path: string, body?: unknown, onJobId?: (jobId: string) => void): Promise<T> {
     const res = await fetch(`${GATEWAY_HTTP}${path}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -110,6 +110,7 @@ export function useGateway() {
       throw new Error(`POST ${path}: HTTP ${res.status} — ${detail}`)
     }
     const accepted = (await res.json()) as ControlJobAccepted
+    onJobId?.(accepted.job_id)
 
     while (true) {
       const jobRes = await fetch(`${GATEWAY_HTTP}/api/control/jobs/${accepted.job_id}`)
@@ -123,5 +124,33 @@ export function useGateway() {
     }
   }
 
-  return { status, messages, control, antenna, dsp, sessionInfo, biteFaults, fetchStatus, setControlMode, runControlJob, send }
+  // Cancela un job en curso (POST /api/control/jobs/{job_id}/cancel) -- cada
+  // rutina de movimiento/Scan Controller ya se encarga de detener el eje que
+  // estuviera comandando antes de que el job quede en `done` (ver
+  // adapters/gateway/app.py, `_start_control_job`/docstrings de
+  // core/control_routines/antenna_*.py). Idempotente del lado del backend:
+  // si el job ya termino, esto no falla, solo devuelve su estado actual.
+  async function cancelControlJob(jobId: string): Promise<ControlJobStatusResponse> {
+    const res = await fetch(`${GATEWAY_HTTP}/api/control/jobs/${jobId}/cancel`, { method: 'POST' })
+    if (!res.ok) {
+      const detail = await res.text()
+      throw new Error(`POST /api/control/jobs/${jobId}/cancel: HTTP ${res.status} — ${detail}`)
+    }
+    return (await res.json()) as ControlJobStatusResponse
+  }
+
+  return {
+    status,
+    messages,
+    control,
+    antenna,
+    dsp,
+    sessionInfo,
+    biteFaults,
+    fetchStatus,
+    setControlMode,
+    runControlJob,
+    cancelControlJob,
+    send,
+  }
 }
