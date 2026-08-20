@@ -8,6 +8,7 @@ para como levantar el emulador con puertos no privilegiados.
 from __future__ import annotations
 
 import argparse
+from pathlib import Path
 
 import uvicorn
 
@@ -27,6 +28,12 @@ def main() -> None:
     ap.add_argument("--dsp-port", type=int, default=15551)
     ap.add_argument("--http-host", default="0.0.0.0")
     ap.add_argument("--http-port", type=int, default=8000)
+    ap.add_argument(
+        "--scan-worksheet-path",
+        type=Path,
+        default=Path("data/scan_worksheet.json"),
+        help="Archivo JSON donde persiste el Scan Worksheet manual (se crea si no existe).",
+    )
     args = ap.parse_args()
 
     hal = SimulatedHAL(
@@ -36,7 +43,7 @@ def main() -> None:
         udp_port=args.udp_port,
     )
     dsp = MomentStreamReceiver()
-    app = create_app(hal, dsp, args.dsp_bind_host, args.dsp_port)
+    app = create_app(hal, dsp, args.dsp_bind_host, args.dsp_port, scan_worksheet_path=args.scan_worksheet_path)
     uvicorn.run(app, host=args.http_host, port=args.http_port)
 
 

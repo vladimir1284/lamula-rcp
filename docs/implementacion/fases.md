@@ -241,6 +241,12 @@ Visualization + BITE.
     `radar_emulator` + gateway reales. Sigue sin subir HV/radiar ni aplicar PRF/pulse-width — ver
     `docs/alcance/pendientes.md`.
 
+    ✅ Scan Worksheet persistido en disco: `--scan-worksheet-path` (default
+    `data/scan_worksheet.json`, gitignored) guarda el worksheet entero en cada `POST`/`DELETE` y
+    lo recarga al arrancar el gateway; archivo ausente o corrupto arranca en lista vacía en vez de
+    tumbar el proceso. Verificado matando y relanzando el proceso del gateway. Sigue sin
+    sincronización entre pestañas/operadores en vivo (ver `docs/alcance/pendientes.md`).
+
     ⏸️ Sin resolver: para las Rutinas 2–6, valores concretos sin confirmar aunque PEND-RCP-07 se
     aceptó por decisión operativa (D-11) — tiempo de caldeo/umbral de
     sobrecorriente reales para la Rutina 2, tiempo de enganche del STALO para la Rutina 3, si

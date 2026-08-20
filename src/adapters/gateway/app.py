@@ -18,14 +18,17 @@ eso queda para cuando se diseñe la vista PPI (Fase 2/3), ver
 from __future__ import annotations
 
 import asyncio
+import json
 import uuid
 from collections.abc import Coroutine
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import TypeAdapter
 
 from adapters.dsp import MomentStreamReceiver
 from adapters.hal_sim import SimulatedHAL
@@ -79,7 +82,16 @@ WS_HEARTBEAT_PERIOD_S = 1.0
 BITE_POLL_PERIOD_S = 0.5
 
 
-def create_app(hal: SimulatedHAL, dsp: MomentStreamReceiver, dsp_bind_host: str, dsp_port: int) -> FastAPI:
+SCAN_WORKSHEET_LIST_ADAPTER = TypeAdapter(list[ScanCut])
+
+
+def create_app(
+    hal: SimulatedHAL,
+    dsp: MomentStreamReceiver,
+    dsp_bind_host: str,
+    dsp_port: int,
+    scan_worksheet_path: Path = Path("data/scan_worksheet.json"),
+) -> FastAPI:
     async def _bite_poll_loop(app: FastAPI) -> None:
         while True:
             events = await app.state.bite.poll(hal)
@@ -133,11 +145,23 @@ def create_app(hal: SimulatedHAL, dsp: MomentStreamReceiver, dsp_bind_host: str,
     # reloj monotono (core, "dos relojes"), esta es la asignada por el gateway al
     # cruzar la frontera hacia la MMI, igual que ControlAuthorityState.since_wall.
     app.state.bite_since_wall: dict[str, datetime] = {}
-    # Scan Worksheet manual (plan Sec.8.2 Fase 2, core/contracts/scan.py): lista en
-    # memoria, sin persistencia en disco -- mismo nivel de esqueleto que el resto
-    # del gateway. PEND: sin sincronizacion entre pestanas/operadores (cada cliente
-    # solo ve lo que el mismo trajo por GET, no hay broadcast por WS de esto).
-    app.state.scan_worksheet: list[ScanCut] = []
+    # Scan Worksheet manual (plan Sec.8.2 Fase 2, core/contracts/scan.py):
+    # persistido a un JSON en disco (`scan_worksheet_path`, `data/` gitignored --
+    # un solo operador/instancia, sin necesidad de DB). Se carga una vez al
+    # arrancar el proceso, se reescribe entero en cada mutacion (_save_scan_worksheet
+    # mas abajo) -- suficiente para el tamaño de un worksheet manual, no pensado
+    # para escritura concurrente de multiples operadores. Un archivo ausente o
+    # corrupto arranca en lista vacia en vez de tumbar el proceso (mismo nivel de
+    # esqueleto que el resto del gateway); PEND: todavia sin sincronizacion entre
+    # pestanas/operadores en vivo (cada cliente solo ve lo que el mismo trajo por
+    # GET, no hay broadcast por WS de esto).
+    app.state.scan_worksheet_path = scan_worksheet_path
+    try:
+        app.state.scan_worksheet: list[ScanCut] = SCAN_WORKSHEET_LIST_ADAPTER.validate_python(
+            json.loads(scan_worksheet_path.read_text())
+        )
+    except (FileNotFoundError, ValueError):
+        app.state.scan_worksheet: list[ScanCut] = []
     # Jobs asincronos de los seis POST /api/control/* (ver _start_control_job mas
     # abajo) -- dict ordinario, el orden de inserccion de Python 3.7+ es lo que
     # usa el tope de historial para descartar el mas viejo. En memoria, se pierde
@@ -284,6 +308,12 @@ def create_app(hal: SimulatedHAL, dsp: MomentStreamReceiver, dsp_bind_host: str,
             ),
         )
 
+    def _save_scan_worksheet() -> None:
+        app.state.scan_worksheet_path.parent.mkdir(parents=True, exist_ok=True)
+        app.state.scan_worksheet_path.write_text(
+            SCAN_WORKSHEET_LIST_ADAPTER.dump_json(app.state.scan_worksheet).decode()
+        )
+
     @app.get("/api/scan/worksheet", response_model=list[ScanCut])
     async def get_scan_worksheet() -> list[ScanCut]:
         return app.state.scan_worksheet
@@ -291,6 +321,7 @@ def create_app(hal: SimulatedHAL, dsp: MomentStreamReceiver, dsp_bind_host: str,
     @app.post("/api/scan/worksheet", response_model=list[ScanCut])
     async def add_scan_cut(cut: ScanCut) -> list[ScanCut]:
         app.state.scan_worksheet.append(cut)
+        _save_scan_worksheet()
         return app.state.scan_worksheet
 
     @app.delete("/api/scan/worksheet/{index}", response_model=list[ScanCut])
@@ -298,6 +329,7 @@ def create_app(hal: SimulatedHAL, dsp: MomentStreamReceiver, dsp_bind_host: str,
         if index < 0 or index >= len(app.state.scan_worksheet):
             raise HTTPException(status_code=404, detail=f"indice {index} fuera de rango (worksheet tiene {len(app.state.scan_worksheet)} cortes)")
         del app.state.scan_worksheet[index]
+        _save_scan_worksheet()
         return app.state.scan_worksheet
 
     @app.post("/api/scan/worksheet/{index}/execute", response_model=ControlJobAccepted, status_code=202)

@@ -316,11 +316,16 @@ PRF/pulse-width/ancho de haz→velocidad de rotación) a este nuevo consumidor.
 navegador (Playwright/chrome-devtools) contra el gateway + `radar_emulator` reales — crear PPI,
 cambiar a RHI, crear con dos moments, eliminar, validación de cliente de "al menos un moment".
 En esta sesión dejó de estar sin botón de "ejecutar" -- ver "Scan Controller conectado a la vista
-Scan Worksheet" más abajo. Limitaciones conocidas, sin resolver: lista en memoria sin persistencia
-en disco (un restart del gateway la borra), y sin sincronización entre pestañas/operadores (cada
-cliente solo ve lo que trajo en su propio `GET`, sin broadcast por WS). Ver también la nota en
-`core/contracts/scan.py` sobre por qué esto usa una lista plana en vez del modelo `ScanWorksheet`
-(`name` + `cuts`) ya definido ahí.
+Scan Worksheet" más abajo. **Resuelto (2026-08-20): persistencia en disco.** El worksheet se
+guarda entero a un JSON (`--scan-worksheet-path`, default `data/scan_worksheet.json`, `data/` ya
+gitignored -- un solo operador/instancia, sin necesidad de DB) en cada `POST`/`DELETE`, y se carga
+una vez al arrancar el proceso; un archivo ausente o corrupto arranca en lista vacía en vez de
+tumbar el gateway. Verificado matando y relanzando el proceso del gateway con datos ya guardados:
+el corte sobrevivió el restart. Limitación conocida, sin resolver: sin sincronización entre
+pestañas/operadores en vivo (cada cliente solo ve lo que trajo en su propio `GET`, no hay
+broadcast por WS de esto -- la persistencia en disco no cambia esto, solo sobrevive un restart).
+Ver también la nota en `core/contracts/scan.py` sobre por qué esto usa una lista plana en vez del
+modelo `ScanWorksheet` (`name` + `cuts`) ya definido ahí.
 
 ### Scan Controller conectado a la vista Scan Worksheet (Fase 2, 2026-08-20)
 
