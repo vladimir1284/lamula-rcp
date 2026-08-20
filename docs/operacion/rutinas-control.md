@@ -17,24 +17,31 @@ hacía el operador a mano desde el panel de control.
 
 ## Rutina 1 — Encendido general del radar
 
-**Estado:** implementada y probada contra el simulador del radar. No probada contra hardware
-real.
+**Estado:** procedimiento **confirmado por el product expert** (`ControlRoutines.md`,
+2026-08-20 — absorbido en `radar_emulator/docs/alcance/pendientes.md` PEND-27/PEND-28, ya no
+vive como fichero suelto en este repo) e **implementado en `general_power_on.py`** siguiendo
+este procedimiento. No probada contra hardware real; sin confirmar quedan solo PEND-27/PEND-28
+(mapeo de canal físico del chequeo final de Cabinet Fans).
 
 ### Qué revisa antes de encender
 
-Antes de intentar el encendido, el sistema comprueba que estas tres condiciones estén en buen
-estado:
+Antes de intentar el encendido, el sistema comprueba que estas **cuatro** condiciones estén en
+buen estado:
 
-1. **Parámetros de línea eléctrica correctos** (señal `sys.line_parameters_ok_status`).
-2. **Condiciones ambientales correctas** (señal `sys.environment_ok_status`).
-3. **Sistema en espera (standby) correcto** (señal `sys.standby_system_ok_status`).
+1. **Sistema en espera (standby) correcto** (señal `sys.standby_system_ok_status`).
+2. **Parámetros de línea eléctrica correctos** (señal `sys.line_parameters_ok_status`).
+3. **Condiciones ambientales correctas** (señal `sys.environment_ok_status`).
+4. **Modo remoto correcto** (señal `sys.remote_mode_ok_status`) — confirmada por el experto.
 
-Si **cualquiera** de las tres no está en buen estado, el sistema **no envía ninguna orden** al
-radar y reporta el intento como fallido.
+Si **cualquiera** de las cuatro no está en buen estado, el sistema **no envía ninguna orden** al
+radar y reporta el intento como fallido. Mientras el radar esté encendido, las condiciones 2 y 3
+(línea eléctrica, ambiente) deben seguir correctas de forma continua, no solo en el instante del
+encendido — una caída de cualquiera de las dos en caliente es falla, no solo precondición de
+arranque.
 
 ### Qué hace al encender
 
-Si las tres condiciones están bien, el sistema envía una orden breve de "Encender Radar" — como
+Si las cuatro condiciones están bien, el sistema envía una orden breve de "Encender Radar" — como
 pulsar un botón momentáneamente, no como sostener un interruptor. Esto es así porque, según la
 documentación del equipo de simulación, el radar interpreta esta orden como un pulso (una
 presión de botón), no como un nivel sostenido: si dos órdenes opuestas ("Encender" / "Apagar")
@@ -42,33 +49,51 @@ estuvieran activas a la vez, gana apagar, por seguridad.
 
 ### Cómo se determina si funcionó
 
-Después de enviar el pulso, el sistema espera un instante y vuelve a revisar las mismas tres
-condiciones. Si siguen bien, considera el encendido exitoso.
+Después de enviar el pulso, el experto confirma que hay que esperar la activación de dos señales
+de confirmación directa — ya no se infiere el éxito de que las precondiciones "sigan bien":
 
-!!! question "Para el experto: revisar antes de confiar en esta rutina"
-    - ¿Es correcto el conjunto de estas tres condiciones, y en este orden, para el procedimiento
-      real de encendido general? Se dedujeron de los nombres disponibles en el catálogo de
-      señales del radar, no de un manual ni de un procedimiento operativo confirmado.
-    - ¿Existe, en el radar real, alguna señal de "radar encendido" que debiéramos usar como
-      confirmación directa? Hoy no existe ninguna en el catálogo disponible — el éxito se infiere
-      de que las tres condiciones de arriba "sigan bien" después del pulso, no de una lectura que
-      diga explícitamente "encendido".
+1. **Sistema encendido** (señal `sys.system_on_ok_status`).
+2. **Ventilación de la pizarra de distribución (MDB) correcta** (señal `sys.mdb_fan_ok_status`).
+
+Como paso final de la rutina, se chequea además la ventilación de los tres subsistemas
+restantes — **Tx, Rx y AU** —, agregada como una sola condición:
+
+3. **Cabinet Fans Ok** (Tx + Rx + AU). En `radar_emulator` existe agregada como
+   `sys.cabinet_fans_ok`, pero es una señal virtual interna del simulador, sin equivalente en el
+   catálogo real — la rutina lee las cuatro señales reales por separado (los dos blowers de Tx ya
+   implementados, más `sys.rx_cabinet_fan_ok_status`/`sys.au_cabinet_fan_ok_status`) y hace el AND
+   ella misma, mismo criterio que la Rutina 2 con `tx.interlock_ok_status`. El mapeo exacto de
+   canal físico para Rx/AU y la reconciliación de "Tx Cabinet Fan Ok Status" con la semilla
+   existente todavía no están confirmados — ver PEND-27/PEND-28 en
+   `radar_emulator/docs/alcance/pendientes.md` antes de tratar este paso como cerrado. Si el pulso
+   y los dos chequeos anteriores salieron bien pero falla algún Cabinet Fan, la rutina reporta el
+   resultado como **interrumpido**, no como fallo — el radar sí quedó encendido.
+
+`radar_emulator` ya modela toda esta secuencia en un bloque `sys.fsm` real (`state_machine`,
+estados OFF/STARTING/ON/FAULT) con una señal de confirmación directa, `sys.radar_on_status` — pero
+es virtual, interna al simulador y sin equivalente en el catálogo real (el propio ICD confirma que
+no existe una señal de "radar encendido" en el hardware), así que la rutina no la lee: usa
+`system_on_ok_status`/`mdb_fan_ok_status` como confirmación, igual que haría contra hardware real.
 
 ### Diagrama de la secuencia
 
 ```mermaid
 flowchart TD
-    A[Inicio: intento de encendido general] --> B{¿Parámetros de línea eléctrica OK?}
+    A[Inicio: intento de encendido general] --> B{¿Standby OK?}
     B -- No --> F[Fallo: no se envía ninguna orden]
-    B -- Sí --> C{¿Condiciones ambientales OK?}
+    B -- Sí --> C{¿Parámetros de línea eléctrica OK?}
     C -- No --> F
-    C -- Sí --> D{¿Sistema en espera OK?}
+    C -- Sí --> D{¿Condiciones ambientales OK?}
     D -- No --> F
-    D -- Sí --> E[Enviar pulso breve: Encender Radar]
-    E --> G[Esperar un instante]
-    G --> H{¿Las tres condiciones siguen OK?}
+    D -- Sí --> R{¿Modo remoto OK?}
+    R -- No --> F
+    R -- Sí --> E[Enviar pulso breve: Encender Radar]
+    E --> G[Esperar activación]
+    G --> H{¿System On Ok y MDB Fan Ok?}
     H -- No --> F
-    H -- Sí --> I[Éxito: encendido general completado]
+    H -- Sí --> J{¿Cabinet Fans Ok — Tx/Rx/AU?}
+    J -- No --> K[Encendido parcial: reportar falla de ventilación]
+    J -- Sí --> I[Éxito: encendido general completado]
 ```
 
 Las siguientes cinco rutinas todavía no tienen código — lo que sigue es el **diseño propuesto**
@@ -350,7 +375,7 @@ pueda deducir de él.
 
 | Rutina | Estado | Complejidad frente al simulador |
 |---|---|---|
-| 1. Encendido general | Implementada, probada contra simulador | Sin lógica simulada — sirvió para sentar el patrón |
+| 1. Encendido general | Procedimiento confirmado por el experto e implementado | `sys.fsm` real en el simulador (antes: sin lógica simulada) |
 | 2. Encendido del transmisor | Implementada hasta "listo", probada contra simulador | Secuencia con tiempos y enclavamientos ya modelada en el simulador |
 | 3. Encendido del receptor | Implementada, probada contra simulador | Sin lógica simulada — camino de éxito solo probado forzando señales |
 | 4. Encendido de unidad de antena | Implementada, probada contra simulador | Sin lógica simulada — orden tratada como nivel, no pulso (decisión sin confirmar) |
@@ -358,8 +383,9 @@ pueda deducir de él.
 | 6. Posicionamiento de antena | Implementada, probada contra simulador | No modelada en absoluto — diseño nuevo del RCP |
 
 Con esto, las seis rutinas del plan tienen primer borrador implementado y probado contra el
-simulador — ninguna confirmada con el product expert (PEND-RCP-06 para la Rutina 1, PEND-RCP-07
-para las Rutinas 2 a 6).
+simulador. La Rutina 1 ya tiene su procedimiento confirmado por el product expert (`PEND-RCP-06`,
+resuelto salvo el mapeo de canal de PEND-27/28 en `radar_emulator`); las Rutinas 2 a 6 siguen sin
+confirmar (`PEND-RCP-07`).
 
 ## Trazabilidad técnica
 
@@ -371,6 +397,6 @@ Para quien necesite correlacionar esta página con el código: la Rutina 1 vive 
 `src/core/control_routines/antenna_movement.py` (consume la guarda de límites de antena en
 `src/core/safety_guard/`) y la Rutina 6 en
 `src/core/control_routines/antenna_positioning.py` (consume la Rutina 5 en cada paso de control).
-Las preguntas abiertas de la Rutina 1 están en `PEND-RCP-06`, y las de las Rutinas 2 a 6
-(incluidas las de las Rutinas 5 y 6 ya implementadas) en `PEND-RCP-07` — ambas en
-[Pendientes](../alcance/pendientes.md).
+La Rutina 1 ya implementa el procedimiento confirmado por el product expert (`PEND-RCP-06`). Las
+preguntas de las Rutinas 2 a 6 (incluidas las de las Rutinas 5 y 6 ya implementadas) siguen
+abiertas en `PEND-RCP-07` — ambas en [Pendientes](../alcance/pendientes.md).

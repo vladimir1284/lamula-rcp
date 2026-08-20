@@ -118,6 +118,36 @@ aparece) el procedimiento real de "general radar power-on" antes de tratar esta 
 más que un primer borrador — y decidir si vale la pena pedir a `radar_emulator` un bloque de
 lógica para `sys.*` equivalente a `tx.fsm`, igual que se hizo notar para el transmisor.
 
+!!! success "Parcialmente resuelto (2026-08-20): feedback de expertos + `sys.fsm` en `radar_emulator`"
+    El product expert revisó la Rutina 1 (`ControlRoutines.md`, absorbido en
+    `radar_emulator/docs/alcance/pendientes.md` PEND-27/PEND-28 y ya no vive como fichero suelto
+    en este repo). Responde las dos preguntas abiertas de arriba:
+
+    - **Precondiciones confirmadas:** son **cuatro**, no tres — `sys.standby_system_ok_status`,
+      `sys.line_parameters_ok_status`, `sys.environment_ok_status` **y
+      `sys.remote_mode_ok_status`** (falta esta última en `PRECONDITIONS` de
+      `general_power_on.py`).
+    - **Sí existe ahora una confirmación de "radar encendido":** tras el pulso, el procedimiento
+      confirmado exige comprobar `sys.system_on_ok_status` y `sys.mdb_fan_ok_status` (antes
+      inexistentes en el catálogo), y como paso final, `Tx/Rx/AU Cabinet Fan Ok Status`
+      (`sys.cabinet_fans_ok`, agregado). `radar_emulator` ya modela todo esto en un bloque
+      `sys.fsm` real (`state_machine`, OFF/STARTING/ON/FAULT) — equivalente a `tx.fsm`, lo que
+      esta rutina pedía como trabajo futuro ya está hecho del lado del simulador.
+
+    **Resuelto del lado del código (2026-08-20):** `general_power_on.py` ya chequea las cuatro
+    precondiciones, lee `system_on_ok_status`/`mdb_fan_ok_status` como confirmación directa
+    post-pulso, y agrega el chequeo final de Cabinet Fans leyendo las cuatro señales reales por
+    separado (no `sys.cabinet_fans_ok`, que es virtual/interna al simulador — mismo criterio que
+    `tx.interlock_ok_status` en la Rutina 2). Si el pulso y la confirmación salen bien pero falla
+    algún Cabinet Fan, la rutina reporta `INTERRUPTED` (el radar sí quedó encendido), no `FAILED`.
+    No lee `sys.radar_on_status`: es virtual y sin equivalente en el catálogo real, coherente con
+    que el ICD confirma que esa señal no existe en el hardware real.
+
+    Sigue quedando abierto: las dos asunciones del mapeo de "Cabinet Fan" en `radar_emulator`
+    (PEND-27/PEND-28), y la prueba contra una instancia real de `radar_emulator` con el `sys.fsm`
+    nuevo (el spike `spike-fase2/general_power_on_spike.py` se actualizó al mismo tiempo que el
+    código pero no se re-ejecutó en esta sesión).
+
 ### PEND-RCP-07 · Secuencia y umbrales de las rutinas de control 2–6 (Fase 2)
 
 Mismo problema de fondo que PEND-RCP-06, extendido a las cinco rutinas que todavía no tienen

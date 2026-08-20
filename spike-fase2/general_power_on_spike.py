@@ -1,12 +1,13 @@
 """Spike Fase 2 -- ejercita `core.control_routines.run_general_power_on` contra una
 instancia real de `radar_emulator` (Modbus TCP + su canal de control WS para forzar
-las tres precondiciones, igual patron que spike-fase1/fault_injection_spike.py).
+precondiciones/confirmaciones, igual patron que spike-fase1/fault_injection_spike.py).
 
-`sys.turn_on_radar_conmand` no tiene ningun bloque de logica en el emulador (a
-diferencia de `tx.fsm`), asi que este spike solo puede confirmar "el pulso se
-envio y las precondiciones siguen en OK" -- no que la secuencia elegida sea la
-correcta para hardware real. Ver PEND-RCP-06 (docs/alcance/pendientes.md) y el
-docstring de `general_power_on.py`.
+Actualizado (2026-08-20) al procedimiento confirmado por el product expert:
+`radar_emulator` ya tiene un bloque `sys.fsm` real detras de
+`sys.turn_on_radar_conmand` (equivalente a `tx.fsm`), y el catalogo trae las
+senales de confirmacion (`POST_PULSE_CHECKS`, `CABINET_FAN_CHECKS`) que antes
+no existian. Ver PEND-RCP-06 (docs/alcance/pendientes.md) y el docstring de
+`general_power_on.py`.
 """
 
 import argparse
@@ -22,7 +23,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 from adapters.hal_sim import SimulatedHAL
 from core.contracts.control import RoutineOutcome
 from core.control_routines import run_general_power_on
-from core.control_routines.general_power_on import COMMAND_ON, PRECONDITIONS
+from core.control_routines.general_power_on import (
+    CABINET_FAN_CHECKS,
+    COMMAND_ON,
+    POST_PULSE_CHECKS,
+    PRECONDITIONS,
+)
 
 FAILURES = []
 
@@ -68,22 +74,33 @@ async def run(ws_url, modbus_port, udp_port):
             f"comando {COMMAND_ON} no se toco cuando fallan precondiciones (before={before.value} after={after.value})",
         )
 
-        # --- precondiciones en verdadero: la rutina debe pulsar el comando y reportar exito ---
-        for signal_id in PRECONDITIONS:
+        # --- todo en verdadero: la rutina debe pulsar el comando y reportar exito ---
+        for signal_id in (*PRECONDITIONS, *POST_PULSE_CHECKS, *CABINET_FAN_CHECKS):
             await force(ws, signal_id, True)
         await asyncio.sleep(0.2)
 
         result = await run_general_power_on(hal)
         post = await hal.read_digital(COMMAND_ON)
 
-        check(result.outcome == RoutineOutcome.SUCCESS, f"precondiciones en verdadero -> outcome={result.outcome}")
+        check(result.outcome == RoutineOutcome.SUCCESS, f"todo en verdadero -> outcome={result.outcome}")
         check(all(s.ok for s in result.steps), f"todos los pasos reportan ok=True: {[(s.signal_id, s.ok) for s in result.steps]}")
         check(
             post.value == False,  # noqa: E712
             f"comando {COMMAND_ON} vuelve a False tras el pulso (flanco, no nivel) -- post={post.value}",
         )
 
-        for signal_id in PRECONDITIONS:
+        # --- todo en verdadero salvo un Cabinet Fan: el radar quedo encendido pero interrumpido ---
+        await release(ws, CABINET_FAN_CHECKS[0])
+        await asyncio.sleep(0.2)
+
+        result = await run_general_power_on(hal)
+        check(
+            result.outcome == RoutineOutcome.INTERRUPTED,
+            f"falla un Cabinet Fan tras encender -> outcome={result.outcome}",
+        )
+        await force(ws, CABINET_FAN_CHECKS[0], True)
+
+        for signal_id in (*PRECONDITIONS, *POST_PULSE_CHECKS, *CABINET_FAN_CHECKS):
             await release(ws, signal_id)
 
     await hal.disconnect()

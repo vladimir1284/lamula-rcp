@@ -1684,7 +1684,7 @@
     }
   },
   {
-    "id": "sys.spare_01",
+    "id": "sys.system_on_ok_status",
     "subsystem": "sys",
     "kind": "DI",
     "type": "bool",
@@ -1698,7 +1698,7 @@
     }
   },
   {
-    "id": "sys.spare_02",
+    "id": "sys.mdb_fan_ok_status",
     "subsystem": "sys",
     "kind": "DI",
     "type": "bool",
@@ -1712,7 +1712,7 @@
     }
   },
   {
-    "id": "sys.spare_03",
+    "id": "sys.remote_mode_ok_status",
     "subsystem": "sys",
     "kind": "DI",
     "type": "bool",
@@ -1726,7 +1726,7 @@
     }
   },
   {
-    "id": "sys.spare_04",
+    "id": "sys.rx_cabinet_fan_ok_status",
     "subsystem": "sys",
     "kind": "DI",
     "type": "bool",
@@ -1740,7 +1740,7 @@
     }
   },
   {
-    "id": "sys.spare_05",
+    "id": "sys.au_cabinet_fan_ok_status",
     "subsystem": "sys",
     "kind": "DI",
     "type": "bool",
