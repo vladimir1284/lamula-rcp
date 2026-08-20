@@ -320,3 +320,42 @@ conocidas, sin resolver: lista en memoria sin persistencia en disco (un restart 
 borra), y sin sincronización entre pestañas/operadores (cada cliente solo ve lo que trajo en su
 propio `GET`, sin broadcast por WS). Ver también la nota en `core/contracts/scan.py` sobre por qué
 esto usa una lista plana en vez del modelo `ScanWorksheet` (`name` + `cuts`) ya definido ahí.
+
+### Rutinas de control cableadas al gateway + MMI (Fase 2)
+
+Hasta esta sesión, `core/control_routines/` solo se ejercitaba desde spikes de línea de comandos
+— ningún botón de la MMI podía disparar nada, pese a que el criterio de salida M2 del plan
+(project-plan.md §8.3) dice literalmente que el operador "powers up the radar ... positions and
+moves the antenna". Cerrado con seis endpoints nuevos en `adapters/gateway/app.py`
+(`POST /api/control/{general-power-on,transmitter-power-on,receiver-power-on,
+antenna-unit-power-on,antenna-movement,antenna-positioning}`, request models nuevos en
+`core/contracts/mmi.py`) y su consumo desde la MMI: card "Encendido" en `ControlCenterView.vue`
+(las cuatro rutinas de encendido) y vista nueva `AntennaControlView.vue` (ruta
+`/antenna-control`, Jog con Rutina 5 + Posicionar con Rutina 6). También se agregó
+`SystemInformationView.vue` (ruta `/system-information`, versión/uptime/autoridad de control —
+sin backend nuevo, solo consume el `SessionMessage` que ya viajaba por WS).
+
+**Gating de autoridad de control:** los seis endpoints exigen `control.mode == active` (403 si
+no) — primer punto donde D-07 se hace cumplir de verdad contra un comando real al HAL, no solo
+contra el cambio de modo. Verificado end-to-end (backend con `httpx`/`curl`, frontend en
+navegador con Playwright/chrome-devtools) contra `radar_emulator` + gateway reales: gating
+403/422, `general-power-on` con `outcome=success` vía HTTP y vía click real en la MMI,
+`antenna-movement` confirma movimiento real (jog + detención) por ambos caminos.
+
+**Ningún campo de request lleva default** (mismo criterio que `core/control_routines/`:
+`warmup_timeout_s`, `confirm_timeout_s`, `gain_v_per_deg`, `max_voltage`, `tolerance_deg`,
+`timeout_s`, `voltage_reference` salvo el `0` explícito de "detener") — en la MMI, cada input
+correspondiente arranca vacío y el botón queda deshabilitado hasta que el operador lo llena; no
+hay ningún valor sugerido precargado.
+
+**Limitaciones conocidas, sin resolver:**
+- Los seis endpoints son síncronos/bloqueantes — la respuesta HTTP no llega hasta que la rutina
+  termina (hasta `timeout_s`, que puede ser de decenas de segundos en `antenna-positioning`), sin
+  ningún progreso intermedio por WS. Aceptable para este MVP; revisar si Fase 3 necesita
+  cancelar/ver progreso a mitad de camino.
+- La sección "Posicionar" de `AntennaControlView.vue` (y "Jog") expone `gain_v_per_deg`/
+  `max_voltage`/`tolerance_deg`/`timeout_s`/`voltage_reference` como campos numéricos crudos que
+  el operador debe llenar a mano en cada uso, sin memoria entre sesiones ni valor sugerido — es la
+  misma falta de dato real (PEND-RCP-07) empujada hasta la UI, no una carencia de esta vista.
+  Cuando exista una ganancia/tabla de referencia real, considerar precargar (nunca fijar como
+  default silencioso) estos campos desde un perfil por eje.

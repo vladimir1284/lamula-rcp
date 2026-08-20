@@ -210,6 +210,19 @@ Visualization + BITE.
     ejecución (alcance separado del Scan Controller). Ver PEND-RCP-10 para limitaciones conocidas
     (sin persistencia, sin sincronización entre pestañas).
 
+    ✅ Rutinas de control cableadas al gateway + MMI: seis endpoints REST nuevos
+    (`POST /api/control/{general-power-on,transmitter-power-on,receiver-power-on,
+    antenna-unit-power-on,antenna-movement,antenna-positioning}`), gateados por autoridad de
+    control activa (D-07) — primer punto donde eso se hace cumplir contra un comando real, no
+    solo el cambio de modo. Consumidos desde la MMI: card "Encendido" en `ControlCenterView.vue`,
+    vista nueva `AntennaControlView.vue` (`/antenna-control`, Jog + Posicionar), y
+    `SystemInformationView.vue` (`/system-information`, sin backend nuevo). Cierra el hueco que se
+    identificó contra el criterio M2 del plan ("the operator powers up the radar ... positions and
+    moves the antenna") — hasta esta sesión ningún botón de la MMI disparaba ninguna rutina.
+    Probado end-to-end (backend con `httpx`/`curl`, frontend en navegador) contra
+    `radar_emulator` + gateway reales. Ver `docs/alcance/pendientes.md` para limitaciones
+    conocidas (endpoints síncronos/bloqueantes, parámetros crudos sin valor sugerido en la UI).
+
     ⏸️ Sin resolver: para las Rutinas 2–6, valores concretos sin confirmar aunque PEND-RCP-07 se
     aceptó por decisión operativa (D-11) — tiempo de caldeo/umbral de
     sobrecorriente reales para la Rutina 2, tiempo de enganche del STALO para la Rutina 3, si

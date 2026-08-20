@@ -63,6 +63,54 @@ export interface SetControlModeRequest {
   actor: string
 }
 
+// --- Ejecucion de rutinas de control (Fase 2, core/control_routines/ via
+// POST /api/control/*) -- espejo manual de los request models nuevos en
+// core/contracts/mmi.py. Ningun campo lleva default: ver la regla del
+// modulo Python, es la misma aqui.
+
+export type RoutineOutcome = 'success' | 'failed' | 'interrupted'
+
+export interface RoutineStepResult {
+  signal_id: string
+  ok: boolean
+  detail: string
+}
+
+export interface RoutineResult {
+  routine: string
+  outcome: RoutineOutcome
+  steps: RoutineStepResult[]
+  at_us: number
+}
+
+export type AntennaAxis = 'azimuth' | 'elevation'
+
+export interface TransmitterPowerOnRequest {
+  warmup_timeout_s: number
+}
+
+export interface ReceiverPowerOnRequest {
+  confirm_timeout_s: number
+}
+
+export interface AntennaUnitPowerOnRequest {
+  confirm_timeout_s: number
+}
+
+export interface AntennaMovementRequest {
+  axis: AntennaAxis
+  voltage_reference: number
+}
+
+export interface AntennaPositioningRequest {
+  axis: AntennaAxis
+  target_deg: number
+  gain_v_per_deg: number
+  max_voltage: number
+  tolerance_deg: number
+  timeout_s: number
+}
+
 export interface SessionMessage {
   type: 'session'
   rcp_version: string

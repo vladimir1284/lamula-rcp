@@ -15,6 +15,11 @@ import type {
   WsMessage,
 } from '@/types/mmi'
 
+export interface SessionInfo {
+  rcp_version: string
+  started_at_wall: string
+}
+
 const GATEWAY_HTTP = 'http://127.0.0.1:8000'
 const GATEWAY_WS = 'ws://127.0.0.1:8000/ws'
 
@@ -25,6 +30,7 @@ export function useGateway() {
   const control = shallowRef<ControlAuthorityState | null>(null)
   const antenna = shallowRef<AntennaMessage['position'] | null>(null)
   const dsp = shallowRef<DspStreamStatus | null>(null)
+  const sessionInfo = shallowRef<SessionInfo | null>(null)
   // clave: signal_id -- mismo dato que app.state.bite_since_wall del lado del gateway,
   // reconstruido aca a partir del snapshot inicial + BiteEventMessage en vivo.
   const biteFaults = ref<Map<string, BiteFaultSummary>>(new Map())
@@ -36,7 +42,10 @@ export function useGateway() {
       messages.value.push(msg)
       if (messages.value.length > MAX_LOG) messages.value.shift()
 
-      if (msg.type === 'session') control.value = msg.control
+      if (msg.type === 'session') {
+        control.value = msg.control
+        sessionInfo.value = { rcp_version: msg.rcp_version, started_at_wall: msg.started_at_wall }
+      }
       if (msg.type === 'antenna') antenna.value = msg.position
       if (msg.type === 'event' && msg.kind === 'control_mode_changed') {
         // el gateway ya mando el nuevo ControlAuthorityState via el POST que
@@ -78,5 +87,21 @@ export function useGateway() {
     return state
   }
 
-  return { status, messages, control, antenna, dsp, biteFaults, fetchStatus, setControlMode, send }
+  // Ejecucion de rutinas de control (POST /api/control/*, ver core/contracts/mmi.py
+  // y src/adapters/gateway/app.py) -- generico a proposito, cada vista tipa su propio
+  // request/response en la llamada, no hace falta un wrapper por endpoint.
+  async function postControl<T>(path: string, body?: unknown): Promise<T> {
+    const res = await fetch(`${GATEWAY_HTTP}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    })
+    if (!res.ok) {
+      const detail = await res.text()
+      throw new Error(`POST ${path}: HTTP ${res.status} — ${detail}`)
+    }
+    return (await res.json()) as T
+  }
+
+  return { status, messages, control, antenna, dsp, sessionInfo, biteFaults, fetchStatus, setControlMode, postControl, send }
 }
