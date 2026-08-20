@@ -186,8 +186,12 @@ Visualization + BITE.
     8 en Transmisor y vuelve a 7 al forzar/liberar `tx.mps_fault_status` en vivo, sin romper
     Control Center ni System Status.
 
-    ⏸️ Sin resolver: secuencia/criterio de éxito de la Rutina 1 no confirmados con el product
-    expert (PEND-RCP-06); para las Rutinas 2–6 (PEND-RCP-07): tiempo de caldeo/umbral de
+    ✅ Rutina 1 (`general_power_on.py`) actualizada al procedimiento confirmado por el product
+    expert (PEND-RCP-06, cuatro precondiciones + confirmación directa + chequeo de Cabinet Fans
+    contra `sys.fsm` real) y re-verificada contra una instancia real de `radar_emulator`
+    (`spike-fase2/RESULTADO-general-power-on.md`).
+
+    ⏸️ Sin resolver: para las Rutinas 2–6 (PEND-RCP-07): tiempo de caldeo/umbral de
     sobrecorriente reales para la Rutina 2, tiempo de enganche del STALO para la Rutina 3, si
     la unidad de antena es pulso o nivel para la Rutina 4, la ganancia real volt→grados/s para la
     Rutina 5, y la tolerancia/timeout/perfil de frenado reales para la Rutina 6; la mitad de la

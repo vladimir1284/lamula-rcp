@@ -143,10 +143,14 @@ lógica para `sys.*` equivalente a `tx.fsm`, igual que se hizo notar para el tra
     No lee `sys.radar_on_status`: es virtual y sin equivalente en el catálogo real, coherente con
     que el ICD confirma que esa señal no existe en el hardware real.
 
+    **Re-ejecutado contra instancia real (2026-08-20):** `spike-fase2/general_power_on_spike.py`
+    corrido contra `radar_emulator` con el `sys.fsm` nuevo (119 señales) — las tres corridas
+    (precondiciones en falso, todo en verdadero, un Cabinet Fan caído) en verde, ver
+    `spike-fase2/RESULTADO-general-power-on.md`. PEND-RCP-06 queda resuelto del lado de
+    código+simulador.
+
     Sigue quedando abierto: las dos asunciones del mapeo de "Cabinet Fan" en `radar_emulator`
-    (PEND-27/PEND-28), y la prueba contra una instancia real de `radar_emulator` con el `sys.fsm`
-    nuevo (el spike `spike-fase2/general_power_on_spike.py` se actualizó al mismo tiempo que el
-    código pero no se re-ejecutó en esta sesión).
+    (PEND-27/PEND-28) — sin equivalente que validar contra hardware real todavía.
 
 ### PEND-RCP-07 · Secuencia y umbrales de las rutinas de control 2–6 (Fase 2)
 
