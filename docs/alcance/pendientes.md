@@ -219,6 +219,14 @@ simulador y listo" alcance: varios de los valores que el simulador usa son marca
 inventados por el equipo de `radar_emulator`, no datos del radar real, y los de la Rutina 6 no
 tienen ni siquiera ese respaldo débil.
 
+!!! success "Aceptado por decisión del usuario (2026-08-20), no por revisión confirmada — ver D-11"
+    El product expert no ha objetado nada de las Rutinas 2–6 (solo la Rutina 1 tuvo feedback
+    explícito, ver PEND-RCP-06). El usuario decide aceptar esto como suficiente para seguir
+    adelante sin bloquear más trabajo de Fase 2/3. **Esto es inferencia por ausencia de
+    objeción, no una confirmación línea por línea** como sí ocurrió con la Rutina 1 — si el
+    experto señala algo concreto sobre estas rutinas más adelante, tiene prioridad automática
+    sobre esta decisión. Ver [D-11](decisiones.md#d-11-pend-rcp-07-rutinas-26-se-acepta-como-suficientemente-confirmado-por-silencio).
+
 ### PEND-RCP-08 · Guarda de PRF × pulse-width para protección del klystron/magnetrón (Fase 2)
 
 El plan (§4.3/§4.4) pide que la guarda de seguridad de parámetros rechace "combinaciones de

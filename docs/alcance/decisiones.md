@@ -141,3 +141,20 @@ llegó?" para el operador/diagnóstico.
 **Nota:** es una ampliación de un contrato marcado como congelado (AGENTS.md), no una
 reinterpretación de algo ya decidido — se registra aquí para que quede trazable. Ver
 [pendientes.md](pendientes.md#pend-rcp-05-el-dsp-externo-no-tiene-aun-una-interfaz-de-referencia-ejecutable).
+
+---
+
+## D-11 · PEND-RCP-07 (Rutinas 2–6) se acepta como suficientemente confirmado por silencio
+
+**Decisión (2026-08-20).** El usuario indica que el product expert no ha objetado nada de
+`docs/operacion/rutinas-control.md` para las Rutinas 2–6 (solo la Rutina 1 tuvo feedback
+explícito, absorbido como PEND-27/PEND-28 en `radar_emulator`). Con esto, PEND-RCP-07 se cierra
+como "aceptado", se sigue con otro trabajo de Fase 2/3.
+
+**Por qué.** Decisión operativa del usuario para no bloquear el avance, no una confirmación
+técnica nueva del experto.
+
+**Salvedad importante:** esto es **inferencia por ausencia de objeción**, no una revisión línea
+por línea confirmada como la que sí ocurrió para la Rutina 1 (PEND-RCP-06). Si en algún momento
+el product expert señala algo concreto sobre Rutinas 2–6, tiene prioridad sobre esta decisión sin
+necesidad de discutirla primero (a diferencia del resto de decisiones de este documento).
