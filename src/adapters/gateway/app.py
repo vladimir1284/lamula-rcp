@@ -28,20 +28,35 @@ from adapters.dsp import MomentStreamReceiver
 from adapters.hal_sim import SimulatedHAL
 from core.bite import BiteManager
 from core.contracts.bite import BiteTransition
+from core.contracts.control import RoutineResult
 from core.contracts.mmi import (
     AntennaMessage,
+    AntennaMovementRequest,
+    AntennaPositioningRequest,
+    AntennaUnitPowerOnRequest,
     BiteEventMessage,
     BiteFaultSummary,
     ControlAuthorityState,
     DspStreamStatus,
     HeartbeatMessage,
     OperatorEventMessage,
+    OperatorMode,
+    ReceiverPowerOnRequest,
     SessionMessage,
     SetControlModeRequest,
     SystemStatusSnapshot,
+    TransmitterPowerOnRequest,
     WsMessage,
 )
 from core.contracts.scan import ScanCut
+from core.control_routines import (
+    run_antenna_movement,
+    run_antenna_positioning,
+    run_antenna_unit_power_on,
+    run_general_power_on,
+    run_receiver_power_on,
+    run_transmitter_power_on,
+)
 from core.session import ControlAuthority
 
 RCP_VERSION = "0.0.0"  # PEND: version real (pyproject/build info), no hay pipeline de release todavia
@@ -164,6 +179,52 @@ def create_app(hal: SimulatedHAL, dsp: MomentStreamReceiver, dsp_bind_host: str,
         )
         await _broadcast(app, event)
         return state
+
+    def _require_active_control() -> None:
+        # Primer punto donde la autoridad de control (D-07) importa de
+        # verdad -- hasta esta sesion nada mas que el propio cambio de modo
+        # la consultaba. Los seis endpoints de abajo comandan el HAL de
+        # verdad, nunca deben ejecutar en modo passive.
+        if app.state.control.state.mode != OperatorMode.ACTIVE:
+            raise HTTPException(status_code=403, detail="control en modo passive -- tome control activo antes de comandar")
+
+    @app.post("/api/control/general-power-on", response_model=RoutineResult)
+    async def general_power_on() -> RoutineResult:
+        _require_active_control()
+        return await run_general_power_on(hal)
+
+    @app.post("/api/control/transmitter-power-on", response_model=RoutineResult)
+    async def transmitter_power_on(req: TransmitterPowerOnRequest) -> RoutineResult:
+        _require_active_control()
+        return await run_transmitter_power_on(hal, warmup_timeout_s=req.warmup_timeout_s)
+
+    @app.post("/api/control/receiver-power-on", response_model=RoutineResult)
+    async def receiver_power_on(req: ReceiverPowerOnRequest) -> RoutineResult:
+        _require_active_control()
+        return await run_receiver_power_on(hal, confirm_timeout_s=req.confirm_timeout_s)
+
+    @app.post("/api/control/antenna-unit-power-on", response_model=RoutineResult)
+    async def antenna_unit_power_on(req: AntennaUnitPowerOnRequest) -> RoutineResult:
+        _require_active_control()
+        return await run_antenna_unit_power_on(hal, confirm_timeout_s=req.confirm_timeout_s)
+
+    @app.post("/api/control/antenna-movement", response_model=RoutineResult)
+    async def antenna_movement(req: AntennaMovementRequest) -> RoutineResult:
+        _require_active_control()
+        return await run_antenna_movement(hal, req.axis, req.voltage_reference)
+
+    @app.post("/api/control/antenna-positioning", response_model=RoutineResult)
+    async def antenna_positioning(req: AntennaPositioningRequest) -> RoutineResult:
+        _require_active_control()
+        return await run_antenna_positioning(
+            hal,
+            req.axis,
+            req.target_deg,
+            gain_v_per_deg=req.gain_v_per_deg,
+            max_voltage=req.max_voltage,
+            tolerance_deg=req.tolerance_deg,
+            timeout_s=req.timeout_s,
+        )
 
     @app.get("/api/scan/worksheet", response_model=list[ScanCut])
     async def get_scan_worksheet() -> list[ScanCut]:

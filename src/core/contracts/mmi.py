@@ -23,6 +23,7 @@ from pydantic import BaseModel, Field
 from .bite import BiteTransition
 from .dsp import RadialStatus
 from .hal import AntennaPosition, SignalId
+from .safety import AntennaAxis
 
 
 class OperatorMode(StrEnum):
@@ -47,6 +48,41 @@ class ControlAuthorityState(BaseModel):
 class SetControlModeRequest(BaseModel):
     mode: OperatorMode
     actor: str
+
+
+# --- Ejecucion de rutinas de control (Fase 2, ampliacion de este contrato ya
+# congelado -- mismo criterio que D-10 en docs/alcance/decisiones.md: se
+# amplia para una capacidad nueva y necesaria, no se reinterpreta nada ya
+# fijado). Ninguno de estos campos lleva default: si `core/control_routines/`
+# exige el parametro sin default (no hay valor real confirmado, ver
+# PEND-RCP-07), la MMI tiene que traerlo explicito -- inventar un default aca
+# seria el mismo error ya evitado ahi. ---
+
+
+class TransmitterPowerOnRequest(BaseModel):
+    warmup_timeout_s: float
+
+
+class ReceiverPowerOnRequest(BaseModel):
+    confirm_timeout_s: float
+
+
+class AntennaUnitPowerOnRequest(BaseModel):
+    confirm_timeout_s: float
+
+
+class AntennaMovementRequest(BaseModel):
+    axis: AntennaAxis
+    voltage_reference: float
+
+
+class AntennaPositioningRequest(BaseModel):
+    axis: AntennaAxis
+    target_deg: float
+    gain_v_per_deg: float
+    max_voltage: float
+    tolerance_deg: float
+    timeout_s: float
 
 
 class DspStreamStatus(BaseModel):
