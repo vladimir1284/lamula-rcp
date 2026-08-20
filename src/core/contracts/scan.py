@@ -36,6 +36,8 @@ from typing import Annotated, Literal, Union
 
 from pydantic import BaseModel, Field, model_validator
 
+from .common import MonotonicMicros
+from .control import RoutineOutcome, RoutineStepResult
 from .dsp import MomentId
 
 
@@ -82,7 +84,45 @@ ScanCut = Annotated[Union[PpiCut, RhiCut], Field(discriminator="mode")]
 
 class ScanWorksheet(BaseModel):
     """Una secuencia de cortes que el operador arma a mano. Sin campo de
-    "volumen"/VCP -- ver docstring del modulo."""
+    "volumen"/VCP -- ver docstring del modulo.
+
+    **Nota (2026-08-20):** la vista MMI "Scan Worksheet"
+    (`mmi/src/views/ScanWorksheetView.vue`) y los endpoints del gateway
+    (`GET/POST/DELETE /api/scan/worksheet`) todavia no usan este modelo --
+    implementan una lista plana de `ScanCut` sin nombre ni el minimo de un
+    corte (`min_length=1` aqui exigiria al menos uno; el gateway arranca
+    con la lista vacia). Es una decision de alcance para el primer borrador
+    (un unico worksheet implicito, sin necesidad de nombre todavia), no una
+    inconsistencia pasada por alto. Si en algun momento se necesita mas de
+    un worksheet nombrado (o el `min_length=1` importa de verdad), este
+    modelo es el punto de partida para esa migracion."""
 
     name: str
     cuts: list[ScanCut] = Field(min_length=1)
+
+
+class AxisPositioningParams(BaseModel):
+    """Los cuatro parametros obligatorios (sin default, ver
+    `core/control_routines/antenna_positioning.py`) que la Rutina 6 exige
+    para posicionar UN eje. `core/scan_controller.py` necesita uno de estos
+    por eje (azimut y elevacion pueden tener ganancias/tolerancias reales
+    distintas) -- vive aqui, no en `control.py`, porque solo tiene sentido
+    junto a `PpiCut`/`RhiCut`."""
+
+    gain_v_per_deg: float
+    max_voltage: float
+    tolerance_deg: float
+    timeout_s: float
+
+
+class ScanCutResult(BaseModel):
+    """Resultado de `core.scan_controller.run_scan_cut`.
+
+    Mismo espiritu que `RoutineResult` (`core/contracts/control.py`), pero
+    sin `routine: RoutineName`: el Scan Controller no es una de las seis
+    rutinas del plan (Sec. 4.3), es un orquestador que las consume -- no le
+    corresponde ese campo cerrado."""
+
+    outcome: RoutineOutcome
+    steps: list[RoutineStepResult]
+    at_us: MonotonicMicros

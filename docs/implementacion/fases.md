@@ -191,13 +191,35 @@ Visualization + BITE.
     contra `sys.fsm` real) y re-verificada contra una instancia real de `radar_emulator`
     (`spike-fase2/RESULTADO-general-power-on.md`).
 
-    ⏸️ Sin resolver: para las Rutinas 2–6 (PEND-RCP-07): tiempo de caldeo/umbral de
+    ✅ PEND-RCP-07 (Rutinas 2–6) aceptado por decisión del usuario, no por revisión confirmada
+    del experto — ver [D-11](../alcance/decisiones.md#d-11-pend-rcp-07-rutinas-26-se-acepta-como-suficientemente-confirmado-por-silencio).
+
+    ✅ Scan Controller, primer borrador de alcance acotado (`core/scan_controller.py`,
+    `run_scan_cut`): dado un corte del Scan Worksheet (`PpiCut`/`RhiCut`), posiciona el eje fijo y
+    barre el eje móvil apoyándose en las Rutinas 5/6 — cubre la mitad de "Sequences ... scans;
+    drives the control routines" del plan (tabla de componentes). Deliberadamente **no** sube HV
+    ni radía, y **no** aplica `prf_hz`/`pulse_width_us` (PEND-RCP-08, sigue bloqueado) — ver
+    PEND-RCP-10. Probado contra una instancia real de `radar_emulator`
+    (`spike-fase2/RESULTADO-scan-controller.md`), 9/9 verificaciones en verde. De paso corrigió un
+    bug real en `src/adapters/hal_sim/simulated_hal.py` (codificación con signo de analógicas
+    Modbus, nunca disparado antes porque ningún spike previo comandó una analógica negativa).
+
+    ✅ Vista "Scan Worksheet" en la MMI (`mmi/src/views/ScanWorksheetView.vue`, ruta
+    `/scan-worksheet`) + `GET/POST/DELETE /api/scan/worksheet` en el gateway: editor manual de
+    cortes PPI/RHI, probado en navegador contra el gateway + `radar_emulator` reales. Sin botón de
+    ejecución (alcance separado del Scan Controller). Ver PEND-RCP-10 para limitaciones conocidas
+    (sin persistencia, sin sincronización entre pestañas).
+
+    ⏸️ Sin resolver: para las Rutinas 2–6, valores concretos sin confirmar aunque PEND-RCP-07 se
+    aceptó por decisión operativa (D-11) — tiempo de caldeo/umbral de
     sobrecorriente reales para la Rutina 2, tiempo de enganche del STALO para la Rutina 3, si
     la unidad de antena es pulso o nivel para la Rutina 4, la ganancia real volt→grados/s para la
     Rutina 5, y la tolerancia/timeout/perfil de frenado reales para la Rutina 6; la mitad de la
-    guarda de parámetros sobre PRF × pulse-width, bloqueada por falta de Scan Worksheet y de un
-    contrato de forma de onda (PEND-RCP-08); reconciliación con VCP real (PEND-RCP-09); Scan
-    Controller que consuma el Worksheet; scheduler de volumen.
+    guarda de parámetros sobre PRF × pulse-width, bloqueada por falta de un contrato de forma de
+    onda (PEND-RCP-08); reconciliación con VCP real (PEND-RCP-09); HV/radiar al arrancar un
+    escaneo y aplicación real de PRF/pulse-width en el Scan Controller (PEND-RCP-10); conectar el
+    Scan Controller a la vista Scan Worksheet (hoy son piezas separadas a propósito); scheduler de
+    volumen automático.
 
 ## Fase 3 — Data Views, Calibration, Archive & ORPG Feed (semanas 19–27)
 

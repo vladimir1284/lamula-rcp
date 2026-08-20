@@ -21,7 +21,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 from adapters.dsp import MomentStreamReceiver
@@ -41,6 +41,7 @@ from core.contracts.mmi import (
     SystemStatusSnapshot,
     WsMessage,
 )
+from core.contracts.scan import ScanCut
 from core.session import ControlAuthority
 
 RCP_VERSION = "0.0.0"  # PEND: version real (pyproject/build info), no hay pipeline de release todavia
@@ -109,6 +110,11 @@ def create_app(hal: SimulatedHAL, dsp: MomentStreamReceiver, dsp_bind_host: str,
     # reloj monotono (core, "dos relojes"), esta es la asignada por el gateway al
     # cruzar la frontera hacia la MMI, igual que ControlAuthorityState.since_wall.
     app.state.bite_since_wall: dict[str, datetime] = {}
+    # Scan Worksheet manual (plan Sec.8.2 Fase 2, core/contracts/scan.py): lista en
+    # memoria, sin persistencia en disco -- mismo nivel de esqueleto que el resto
+    # del gateway. PEND: sin sincronizacion entre pestanas/operadores (cada cliente
+    # solo ve lo que el mismo trajo por GET, no hay broadcast por WS de esto).
+    app.state.scan_worksheet: list[ScanCut] = []
 
     def _dsp_status() -> DspStreamStatus:
         latest = dsp.latest
@@ -158,6 +164,22 @@ def create_app(hal: SimulatedHAL, dsp: MomentStreamReceiver, dsp_bind_host: str,
         )
         await _broadcast(app, event)
         return state
+
+    @app.get("/api/scan/worksheet", response_model=list[ScanCut])
+    async def get_scan_worksheet() -> list[ScanCut]:
+        return app.state.scan_worksheet
+
+    @app.post("/api/scan/worksheet", response_model=list[ScanCut])
+    async def add_scan_cut(cut: ScanCut) -> list[ScanCut]:
+        app.state.scan_worksheet.append(cut)
+        return app.state.scan_worksheet
+
+    @app.delete("/api/scan/worksheet/{index}", response_model=list[ScanCut])
+    async def delete_scan_cut(index: int) -> list[ScanCut]:
+        if index < 0 or index >= len(app.state.scan_worksheet):
+            raise HTTPException(status_code=404, detail=f"indice {index} fuera de rango (worksheet tiene {len(app.state.scan_worksheet)} cortes)")
+        del app.state.scan_worksheet[index]
+        return app.state.scan_worksheet
 
     @app.websocket("/ws")
     async def ws_endpoint(websocket: WebSocket) -> None:

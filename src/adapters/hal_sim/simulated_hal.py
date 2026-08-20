@@ -91,7 +91,10 @@ class SimulatedHAL(HardwareAbstractionLayer):
             raise RuntimeError(
                 f"{signal_id}: excepcion Modbus leyendo holding {spec.address} (unit {spec.unit_id}): {resp}"
             )
-        value = spec.to_engineering(resp.registers[0])
+        raw = resp.registers[0]  # registro Modbus, sin signo (0..65535)
+        if spec.raw is not None and spec.raw.raw_lo < 0 and raw >= 0x8000:
+            raw -= 0x10000  # complemento a dos de 16 bits -> entero con signo real (int16)
+        value = spec.to_engineering(raw)
         in_range = spec.eng_lo <= value <= spec.eng_hi
         quality = SignalQuality.OK if in_range else SignalQuality.OUT_OF_RANGE
         return SignalReading(value=value, quality=quality, at_us=_now_us())
@@ -117,7 +120,9 @@ class SimulatedHAL(HardwareAbstractionLayer):
             raise ValueError(f"{signal_id}: de solo lectura (AI), no se puede escribir")
         client = self._client_or_raise()
         raw = spec.to_raw(value)
-        resp = await client.write_register(spec.address, raw, device_id=spec.unit_id)
+        wire_value = raw & 0xFFFF  # to_raw() devuelve int16 con signo (puede ser negativo);
+        # el registro Modbus en el wire es no-signado -- complemento a dos de 16 bits.
+        resp = await client.write_register(spec.address, wire_value, device_id=spec.unit_id)
         if resp.isError():
             raise RuntimeError(
                 f"{signal_id}: excepcion Modbus escribiendo holding {spec.address} (unit {spec.unit_id}): {resp}"

@@ -275,3 +275,48 @@ manual. No se anticipa esa forma en este contrato. Tampoco se definió aquí nin
 PRF/pulse-width/ancho de haz y velocidad de rotación de la antena durante un corte — es teoría de
 escaneo de radar real que el product expert debe confirmar, no algo que se pueda inventar sin
 respaldo (mismo criterio que PEND-RCP-07 para la Rutina 6).
+
+### PEND-RCP-10 · Scan Controller: alcance acotado a movimiento de antena, sin confirmar (Fase 2)
+
+`core/scan_controller.py` (`run_scan_cut`) secuencia solo el movimiento de antena de un corte del
+Scan Worksheet (posicionar eje fijo + barrer eje móvil, apoyado en las Rutinas 5/6). Deliberadamente
+no sube alta tensión ni radía (ver docstring del módulo — `transmitter_power_on.py` se detuvo en
+`tx.ready_status` a propósito, sin que exista todavía una secuencia decidida para lo que sigue) ni
+aplica `prf_hz`/`pulse_width_us` a ningún adaptador (PEND-RCP-08, bloqueado). La detección de fin de
+barrido (acumulación de delta angular hasta alcanzar el ancho total pedido) es diseño propio de este
+repo sin nada que imitar del simulador ni del plan — mismo criterio que ya justificó los parámetros
+obligatorios de la Rutina 6. Probado como primer borrador contra una instancia real de
+`radar_emulator` (`spike-fase2/RESULTADO-scan-controller.md`): `RhiCut`/`PpiCut` simples,
+interrupción por guarda de seguridad a mitad de barrido, precondición `au_on_status` en falso. Sin
+confirmar con el product expert.
+
+**Hallazgo colateral (bug real, no de diseño):** el spike disparó un bug en
+`src/adapters/hal_sim/simulated_hal.py` — `write_analog`/`read_analog` no manejaban la codificación
+con signo (`int16`) de analógicas con rango crudo negativo (ej. `ant.speed_reference_driver_az`,
+`-32768..32767`) contra el registro Modbus, sin signo en el wire (`0..65535`). Nunca se había
+disparado antes porque ningún spike de Fase 1/2 había comandado una analógica negativa. Corregido
+con conversión de complemento a dos de 16 bits en la frontera del wire — ver
+`spike-fase2/RESULTADO-scan-controller.md` para el detalle.
+
+**No probado en este spike:** vuelta completa de PPI (`azimuth_end_deg == 360`) — la lógica del
+acumulador es la misma que el caso parcial, pero no se ejercitó ese caso límite. Tampoco el
+sobrepaso de frenado con voltajes de barrido altos (misma limitación conocida de la Rutina 6,
+heredada aquí vía `run_antenna_positioning`).
+
+**Acción pendiente explícita:** decidir con el experto la secuencia de HV/radiar al arrancar un
+escaneo (candidato natural para donde `transmitter_power_on.py` se detuvo), y si la detección de
+fin de barrido por acumulación de delta es aceptable o si el radar real ofrece una señal de
+posición de referencia distinta. Extiende PEND-RCP-07/09 (ganancia volt→grados/s, relación
+PRF/pulse-width/ancho de haz→velocidad de rotación) a este nuevo consumidor.
+
+### Vista MMI "Scan Worksheet" y endpoints de soporte (Fase 2)
+
+`mmi/src/views/ScanWorksheetView.vue` (ruta `/scan-worksheet`) + `GET/POST/DELETE
+/api/scan/worksheet` en `adapters/gateway/app.py`: editor manual de `PpiCut`/`RhiCut`, probado en
+navegador (Playwright/chrome-devtools) contra el gateway + `radar_emulator` reales — crear PPI,
+cambiar a RHI, crear con dos moments, eliminar, validación de cliente de "al menos un moment".
+Deliberadamente sin botón de "ejecutar" (eso es PEND-RCP-10, alcance separado). Limitaciones
+conocidas, sin resolver: lista en memoria sin persistencia en disco (un restart del gateway la
+borra), y sin sincronización entre pestañas/operadores (cada cliente solo ve lo que trajo en su
+propio `GET`, sin broadcast por WS). Ver también la nota en `core/contracts/scan.py` sobre por qué
+esto usa una lista plana en vez del modelo `ScanWorksheet` (`name` + `cuts`) ya definido ahí.
