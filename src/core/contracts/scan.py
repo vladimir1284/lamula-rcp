@@ -18,9 +18,28 @@ scheduler de volumen automatico termine consumiendo VCPs de ORPG en vez
 de (o ademas de) este Worksheet manual. No se anticipa esa forma aqui.
 
 **PRF y pulse width son solo datos, todavia sin ejecutor:** no existe
-ningun adaptador HAL/DSP que los reciba -- la guarda de PRF x pulse-width
-(plan §4.3) sigue bloqueada por PEND-RCP-08. Este contrato define la
-forma de un escaneo, no implementa enviarlo a ningun lado.
+ningun adaptador HAL/DSP que los reciba -- `scan_controller.py` no los
+aplica a nada (PEND-RCP-10). Este contrato define la forma de un escaneo,
+no implementa enviarlo a ningun lado.
+
+**Guarda de duty cycle (PEND-RCP-08, parcialmente resuelto 2026-08-20):**
+el feedback del experto confirma que `Duty Cycle Ok/Fault` es una senal de
+hardware pura (la tarjeta del modulador corta la transmision ella misma,
+`tx.duty_cycle_ok_status` en el catalogo) -- el RCP nunca necesito una
+senal HAL nueva ni un adaptador de forma de onda para esto, el bloqueo
+original estaba mal planteado. Lo que el RCP si debe hacer es la cuenta en
+software al momento de captura del dato (VCP personalizado, este
+Worksheet manual): `duty = prf_hz * pulse_width_us * 1e-6`, rechazada aqui
+mismo si excede `DUTY_CYCLE_LIMIT`. **`DUTY_CYCLE_LIMIT` es un marcador de
+posicion generico (0.001, "limite tipico/estandar" del reporte del
+experto), no el limite real de este RD100S** -- el mismo reporte da otros
+tres casos (magnetron VMS1157 0.0006, MRL-5 0.0005, modulador de estado
+solido La Habana 0.0005/0.0008, hasta 0.002 segun modo) sin confirmar cual
+aplica aca; el catalogo usa nomenclatura `tx.magnetron_*`, lo que sugiere
+el caso magnetron y no el de estado solido, pero es inferencia por nombre
+de senal, no confirmacion directa. Perfiles predefinidos (VCP fijo por el
+sistema) no pasan por esta guarda -- no existe todavia mecanismo de
+perfiles en este repo.
 
 **Velocidad de rotacion de la antena durante el escaneo: fuera de este
 contrato a proposito.** Relacionar PRF/pulse-width/ancho de haz con una
@@ -39,6 +58,19 @@ from pydantic import BaseModel, Field, model_validator
 from .common import MonotonicMicros
 from .control import RoutineOutcome, RoutineStepResult
 from .dsp import MomentId
+
+DUTY_CYCLE_LIMIT = 0.001
+"""Marcador de posicion generico (PEND-RCP-08), no el limite real del
+RD100S -- ver docstring del modulo."""
+
+
+def _check_duty_cycle(prf_hz: float, pulse_width_us: float) -> None:
+    duty = prf_hz * pulse_width_us * 1e-6
+    if duty > DUTY_CYCLE_LIMIT:
+        raise ValueError(
+            f"duty cycle {duty:.6f} excede el limite {DUTY_CYCLE_LIMIT} "
+            f"(prf_hz={prf_hz}, pulse_width_us={pulse_width_us})"
+        )
 
 
 class PpiCut(BaseModel):
@@ -60,6 +92,11 @@ class PpiCut(BaseModel):
             raise ValueError("azimuth_start_deg y azimuth_end_deg no pueden ser iguales (barrido de ancho cero)")
         return self
 
+    @model_validator(mode="after")
+    def _duty_cycle_dentro_de_limite(self) -> "PpiCut":
+        _check_duty_cycle(self.prf_hz, self.pulse_width_us)
+        return self
+
 
 class RhiCut(BaseModel):
     """Azimut fijo, barre elevacion -- vista RHI (plan §3)."""
@@ -76,6 +113,11 @@ class RhiCut(BaseModel):
     def _sweep_no_degenerado(self) -> "RhiCut":
         if self.elevation_start_deg == self.elevation_end_deg:
             raise ValueError("elevation_start_deg y elevation_end_deg no pueden ser iguales (barrido de ancho cero)")
+        return self
+
+    @model_validator(mode="after")
+    def _duty_cycle_dentro_de_limite(self) -> "RhiCut":
+        _check_duty_cycle(self.prf_hz, self.pulse_width_us)
         return self
 
 

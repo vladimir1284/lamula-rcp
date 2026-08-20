@@ -2,14 +2,15 @@
 §4.3/§4.4: "Parameter-Safety Guard").
 
 Como `control.py`, no es un contrato RCP<->MMI; es interno a
-`core/safety_guard/`. Solo modela hoy la parte de la guarda que tiene
-senales reales que vigilar (limites de antena, ver
-`core/safety_guard/antenna_limits.py`). La otra mitad del plan --
-"prevention of pulse-width x PRF combinations that would damage the
-klystron/magnetron" -- no tiene todavia ningun dato que consultar (ni senal
-HAL, ni campo en `core/contracts/dsp.py`, ni contrato con el Scan
-Worksheet/generador de forma de onda) y queda fuera de este modulo -- ver
-PEND-RCP-08 en docs/alcance/pendientes.md.
+`core/safety_guard/`. Solo modela la parte de la guarda que necesita
+contexto de una senal HAL viva (limites de antena, `signal_id`/`at_us` de
+una lectura real -- ver `core/safety_guard/antenna_limits.py`). La otra
+mitad del plan -- "prevention of pulse-width x PRF combinations that would
+damage the klystron/magnetron" -- resulto no necesitar ninguna senal HAL
+(el hardware se autoprotege, ver PEND-RCP-08): es una validacion de
+software pura sobre datos que el operador ya escribio, sin nada de HAL que
+consultar, asi que vive como `model_validator` en `core/contracts/scan.py`
+(`PpiCut`/`RhiCut`), no aqui.
 """
 
 from __future__ import annotations

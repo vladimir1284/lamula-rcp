@@ -251,10 +251,30 @@ Ver `spike-fase2/RESULTADO-parameter-guard.md` para el spike que implementó y v
 parte de límites de antena de esta guarda (`core/safety_guard/antenna_limits.py`), dejando esta
 mitad fuera explícitamente.
 
-**Acción pendiente explícita:** no implementar esta parte de la guarda hasta que exista (a) el
-Scan Worksheet o el punto de entrada que fije PRF/pulse-width, y (b) la tabla de límites de
-ciclo de trabajo del klystron/magnetrón del RD100S real, propiedad del product expert según el
-propio plan ("Product-expert-owned duty-cycle/limit rules", §11 Risk Register).
+!!! success "Parcialmente resuelto (2026-08-20): feedback de expertos, replantea el bloqueo"
+    Reporte técnico del product expert sobre `Duty Cycle Ok/Fault` e `I²t` de servodrives.
+    Confirma que `Duty Cycle Ok/Fault` es señal de hardware pura -- la tarjeta del modulador
+    evalúa PRF×pulse-width contra el dispositivo emisor (magnetrón/klystron) y corta la
+    transmisión ella misma; el RCP solo lee el estado (`tx.duty_cycle_ok_status`, ya en el
+    catálogo, ya alimenta el interlock de subida de HV en `tx.fsm`). **El bloqueo original estaba
+    mal planteado:** no hacía falta ninguna señal HAL nueva ni un contrato con un adaptador de
+    forma de onda -- eso es responsabilidad exclusiva del hardware. Lo que el RCP sí debe hacer es
+    la guarda de **software, en el punto de captura del dato** (VCP personalizado -- en este repo,
+    el Scan Worksheet manual): calcular `duty = prf_hz × pulse_width_us` y bloquear la
+    confirmación si excede norma. Implementado como validador de pydantic directamente en
+    `core/contracts/scan.py` (`PpiCut`/`RhiCut`, función `_check_duty_cycle`) -- se aplica solo
+    en el punto de entrada porque perfiles predefinidos (VCP fijo por el sistema) no necesitan la
+    guarda, y ese mecanismo de perfiles no existe todavía en este repo.
+
+    **Sigue sin resolver, es la parte que de verdad bloqueaba:** el valor numérico del límite.
+    El reporte da cuatro casos sin decir cuál aplica al RD100S real (magnetrón VMS1157 0.06%,
+    MRL-5 0.05%, modulador de estado sólido La Habana 0.05%/0.08%, hasta 0.2% según modo). Por
+    decisión explícita del usuario (2026-08-20), `DUTY_CYCLE_LIMIT` en `core/contracts/scan.py`
+    usa el valor genérico del reporte (0.001) **como marcador de posición**, no como el límite
+    confirmado de este radar -- el catálogo usa nomenclatura `tx.magnetron_*`, lo que sugiere el
+    caso magnetrón y no el de estado sólido, pero es inferencia por nombre de señal, no
+    confirmación directa del product expert. Confirmar el número real antes de tratar esta guarda
+    como algo más que un primer borrador -- mismo criterio que las Rutinas 2-6 (PEND-RCP-07).
 
 ### PEND-RCP-09 · Reconciliar el Scan Worksheet manual con VCP real (Fase 3)
 
