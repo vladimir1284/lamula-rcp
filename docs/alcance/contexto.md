@@ -57,8 +57,12 @@ no un detalle interno de ninguno de los dos.
 
 ## Estado
 
-!!! danger "Repo recién creado, sin código todavía"
-    Este documento y el resto de `docs/alcance/` son la traducción inicial del plan de proyecto.
-    No hay decisiones de implementación tomadas aún salvo las que el propio plan ya fija (ver
-    [Decisiones](decisiones.md)). La Fase 0 (spikes de Modbus/UDP contra `radar_emulator`,
-    congelamiento de los cuatro contratos) no se ha ejecutado.
+!!! note "Fase 2 en curso"
+    Fase 0 completa: los spikes de Modbus/UDP/RDA↔ORPG contra `radar_emulator` ya corrieron (ver
+    `spike-fase0/`), y tres de los cuatro contratos (RCP↔HAL, RCP↔DSP/DRX, RCP↔MMI) están
+    congelados como esquemas Pydantic en `src/core/contracts/`. Falta RCP↔ORPG (bloqueado por
+    acceso a un ORPG real, no por trabajo pendiente de este repo — ver
+    [pendientes.md](pendientes.md)). Fase 1 completa (HAL-simulador, gateway, shell MMI). Fase 2
+    en curso: las seis rutinas de control, la guarda de seguridad, el Scan Worksheet y BITE ya
+    están cableados al gateway y a la MMI — ver [fases.md](../implementacion/fases.md) para el
+    detalle vivo de qué falta dentro de la fase actual.

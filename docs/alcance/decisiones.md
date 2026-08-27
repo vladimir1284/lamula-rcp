@@ -194,3 +194,35 @@ a mitad de camino) — no debe confundirse con un fallo operativo normal.
 
 **Sin resolver, fuera de alcance de esta decisión:** cancelación de un job en curso (ver
 `docs/alcance/pendientes.md`).
+
+---
+
+## D-13 · Gate de "modo mantenimiento" para acciones de calibración, aparte del toggle passive/active
+
+**Decisión (2026-08-27).** Las acciones que escriben calibración — commit del workflow manual de
+single-point/TX power calibration, y ediciones de la carpeta de constantes de la ecuación del
+radar (`docs/referencia/project-plan.md` §4.5, DRX/RSP Control & Calibration, sub-vistas 2 y 6) —
+quedan detrás de un segundo gate explícito, **modo mantenimiento**, además del toggle activo ya
+existente (D-07). Sin modo mantenimiento activado, esos endpoints rechazan la escritura tanto en
+cliente como en servidor — mismo criterio que ya usa la guarda de seguridad de parámetros para
+límites de antena (rechazo en los dos lados, no solo en la UI).
+
+**Alcance del gate — explícitamente acotado:** solo cubre las dos sub-vistas de arriba. No cubre
+TX/RX adjustment (setpoints operativos del día a día, con lectura en vivo inmediata) ni
+Trigger/timing setup — esas siguen detrás de nada más que el toggle activo, igual que el resto de
+los controles. **Zero Check queda exento por diseño:** es muestreo automático de piso de ruido en
+boot + intervalo de fondo, sin acción de operador — no hay nada que gatear.
+
+**Mecánica:** entrar a modo mantenimiento es en sí una acción de operador logueada (mismo
+criterio que el log de actividad de calibración ya descrito en el plan). Es de alcance de sesión:
+se limpia solo al ceder control activo (volver a passive) o al desconectarse de la sesión — no
+persiste "desbloqueado" entre sesiones ni queda como estado olvidado.
+
+**Por qué.** Cierra [PEND-RCP-11](pendientes.md#pend-rcp-11-detalle-ravis-para-data-views-y-drxrsp-control-calibration-pantallas-de-fase-3-aun-no-construidas):
+una calibración mal aplicada no da señal visible inmediata (a diferencia de mover la antena) —
+degrada silenciosamente la precisión de reflectividad de todas las observaciones siguientes hasta
+que alguien note el drift. Un gate de acción, no de operador: **no** reabre D-07 ni reinstala el
+arbitraje de cuatro niveles de Ravis — sigue habiendo un solo operador con control activo; el gate
+es sobre *qué tipo de acción* ese mismo operador puede ejecutar en un momento dado, no sobre quién
+tiene autoridad. Decisión operativa del usuario, no del product expert — igual que D-11, queda
+sujeta a revisión si el product expert señala algo distinto al llegar a Fase 3.

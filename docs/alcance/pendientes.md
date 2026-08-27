@@ -327,6 +327,62 @@ fin de barrido por acumulación de delta es aceptable o si el radar real ofrece 
 posición de referencia distinta. Extiende PEND-RCP-07/09 (ganancia volt→grados/s, relación
 PRF/pulse-width/ancho de haz→velocidad de rotación) a este nuevo consumidor.
 
+### PEND-RCP-11 · Detalle Ravis para Data Views y DRX/RSP Control & Calibration (pantallas de Fase 3, aún no construidas)
+
+`docs/referencia/project-plan.md` §4.5 ("MMI Screen Inventory") se amplió con detalle funcional
+minado de los capítulos "Control Windows", "Data Views" y "Calibration and Alignment" del manual
+Ravis 1.3 — capacidades e interacciones, nunca texto/etiquetas literales del manual (regla de
+sourcing en `docs/index.md` de `lamula-dsp`). Cubre solo las dos pantallas que **todavía no
+existen en este repo** (Data Views PPI/RHI/ASCOPE, DRX/RSP Control & Calibration) — las pantallas
+ya construidas (System Visualization, Antenna Control, Scan Worksheet, BITE, System Information)
+no se tocaron.
+
+Se registra como **pendiente propuesto, no como decisión** (a diferencia de la mayoría de este
+documento de plan): el plan en sí no pasó por el product expert de este proyecto, y un punto en
+particular choca con una decisión ya congelada — ver más abajo. Nada de esto se implementa sin
+confirmación explícita.
+
+**Data Views (PPI/RHI/ASCOPE + color management).** Corrección, no solo adición: el plan
+anterior decía que las tres vistas comparten un único subsistema de color; en realidad ASCOPE no
+es una vista con color — es un trazo 1D y necesita su propio toggle de agregación por píxel
+(máximo vs. promedio de bins) y toggle de unidad de eje X (distancia vs. tiempo). Detalle nuevo:
+point-probe por click que sigue actualizando en vivo en ese punto hasta que el operador haga click
+en otro lado; freeze/unfreeze independiente por ventana; divisor de refresco variable ("cada N
+actualizaciones") y selector de resolución de renderizado, ambos para aliviar carga a alta
+velocidad de antena; Color Composer (solo PPI/RHI) con matriz de presets por tipo de dato,
+herramienta de interpolación RGB lineal entre dos colores para construir un degradado, copiar/
+pegar preset entre tipos de dato, y tres modos de entrada de color (swatches/HSB/RGB). De esto
+último sale un patrón de convención transversal a toda la MMI: **aplicar** (transitorio, sesión
+actual) siempre es una acción separada de **guardar como default** (persistido) — mismo patrón
+que aplica también en DRX/RSP más abajo, así que conviene fijarlo como convención de MMI, no
+resolverlo por separado en cada pantalla.
+
+**DRX/RSP Control & Calibration.** El texto anterior era un párrafo; la estructura real son seis
+sub-vistas: (1) ajuste TX/RX; (2) carpeta de calibración, que resulta ser **dos procedimientos
+distintos** — Zero Check (muestreo de piso de ruido) corre automático en boot y en intervalo de
+fondo fijo, sin acción del operador, aparte del workflow manual de calibración de punto único/TX
+que ya describía el plan; (3) configuración de trigger/timing por tabla; (4) monitor de proceso
+DRX, más amplio de lo que decía el plan (espeja todo parámetro vigente del pipeline de
+adquisición, no solo link/ray-rate); (5) carpeta BiTE del DRX, explícitamente **pull-only, no
+push** — semántica distinta al System Status & BITE Manager del RCP (que es push/evento), no
+deben confundirse en la UI ni en el contrato; (6) carpeta de constantes de la ecuación del radar.
+
+**Vista ORPG-link:** sin precedente en Ravis (es anterior a ORPG/RDA) — se especifica solo desde
+el contrato `RCP↔ORPG`, sin aporte de este pendiente.
+
+!!! success "Resuelto (2026-08-27): gate de autoridad para calibración — D-13"
+    El choque con D-07 (autoridad elevada para calibración vs. toggle único passive/active) se
+    resuelve como **gate de modo mantenimiento**, acotado a las sub-vistas de calibración y
+    constantes de la ecuación del radar, con Zero Check exento por ser automático — ver
+    [D-13](decisiones.md#d-13-gate-de-modo-mantenimiento-para-acciones-de-calibracion-aparte-del-toggle-passiveactive)
+    para el mecanismo completo. Decisión operativa del usuario, no confirmación técnica del
+    product expert — mismo criterio que D-11.
+
+**Acción pendiente explícita, lo que sigue abierto:** confirmar con el product expert antes de
+Fase 3 (cuando estas pantallas entren en construcción) el resto del detalle de Data Views/Color
+Composer y DRX/RSP de arriba como base de diseño, o ajustarlo. El gate de autoridad (D-13) ya no
+es parte de lo pendiente.
+
 ### Vista MMI "Scan Worksheet" y endpoints de soporte (Fase 2)
 
 `mmi/src/views/ScanWorksheetView.vue` (ruta `/scan-worksheet`) + `GET/POST/DELETE
