@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
+import AntennaPositionReadout from '@/components/domain/AntennaPositionReadout.vue'
+import ConnectionStatusBadge from '@/components/domain/ConnectionStatusBadge.vue'
+import ControlAuthorityCard from '@/components/domain/ControlAuthorityCard.vue'
+import JobActionPanel from '@/components/domain/JobActionPanel.vue'
 import { useGateway } from '@/composables/useGateway'
 import type {
   AntennaUnitPowerOnRequest,
@@ -163,14 +166,6 @@ async function runAntennaUnitPowerOn() {
   }
 }
 
-const wsStatusVariant = computed(() => {
-  if (status.value === 'OPEN') return 'default'
-  if (status.value === 'CONNECTING') return 'secondary'
-  return 'destructive'
-})
-
-const controlVariant = computed(() => (control.value?.mode === 'active' ? 'default' : 'secondary'))
-
 function messageLabel(msg: WsMessage): string {
   if (msg.type === 'event') return `${msg.kind} (${msg.actor})`
   if (msg.type === 'antenna') return `az=${msg.position.az_deg.toFixed(1)} el=${msg.position.el_deg.toFixed(1)}`
@@ -210,7 +205,7 @@ onMounted(async () => {
         <CardTitle>Conexión al gateway</CardTitle>
       </CardHeader>
       <CardContent class="flex flex-wrap items-center gap-3">
-        <Badge :variant="wsStatusVariant">WS {{ status }}</Badge>
+        <ConnectionStatusBadge :status="status" />
         <Badge :variant="dsp?.connected ? 'default' : 'secondary'">
           DSP {{ dsp?.connected ? 'conectado' : 'sin conexión' }}
         </Badge>
@@ -222,16 +217,15 @@ onMounted(async () => {
       <CardHeader>
         <CardTitle>Autoridad de control</CardTitle>
       </CardHeader>
-      <CardContent class="flex flex-wrap items-center gap-3">
-        <Badge :variant="controlVariant">{{ control?.mode ?? '...' }}</Badge>
-        <span v-if="control" class="text-sm text-muted-foreground">
-          {{ control.actor }} desde {{ new Date(control.since_wall).toLocaleTimeString() }}
-        </span>
-        <Separator orientation="vertical" class="h-6" />
-        <Input v-model="actor" placeholder="actor" class="w-40" />
-        <Button :disabled="!control || busy" @click="toggleControl">
-          {{ control?.mode === 'active' ? 'Ceder control' : 'Tomar control' }}
-        </Button>
+      <CardContent>
+        <ControlAuthorityCard
+          :control="control"
+          editable
+          :actor="actor"
+          :busy="busy"
+          @update:actor="actor = $event"
+          @toggle="toggleControl"
+        />
       </CardContent>
     </Card>
 
@@ -239,14 +233,8 @@ onMounted(async () => {
       <CardHeader>
         <CardTitle>Antena</CardTitle>
       </CardHeader>
-      <CardContent class="flex flex-wrap items-center gap-4 text-sm">
-        <template v-if="antenna">
-          <span>az: {{ antenna.az_deg.toFixed(2) }}°</span>
-          <span>el: {{ antenna.el_deg.toFixed(2) }}°</span>
-          <Badge v-if="!antenna.az_valid || !antenna.el_valid" variant="destructive">encoder inválido</Badge>
-          <Badge v-if="antenna.degraded" variant="secondary">degradado</Badge>
-        </template>
-        <span v-else class="text-muted-foreground">sin posición todavía</span>
+      <CardContent>
+        <AntennaPositionReadout :antenna="antenna" />
       </CardContent>
     </Card>
 
@@ -255,101 +243,86 @@ onMounted(async () => {
         <CardTitle>Encendido</CardTitle>
       </CardHeader>
       <CardContent class="flex flex-col gap-4">
-        <div class="flex flex-wrap items-center gap-2">
-          <Button :disabled="!isActive || generalBusy" @click="runGeneralPowerOn">General power-on</Button>
-          <Button
-            v-if="generalBusy"
-            variant="destructive"
-            :disabled="!generalJobId"
-            @click="cancelGeneralPowerOn"
-            >Cancelar</Button
-          >
-          <span v-if="generalBusy" class="text-sm text-muted-foreground">en curso...</span>
-          <span v-if="generalError" class="text-sm text-destructive">{{ generalError }}</span>
-          <Badge v-if="generalResult" :variant="generalResult.outcome === 'success' ? 'default' : 'destructive'">
-            {{ generalResult.outcome }}
-          </Badge>
-        </div>
-        <ul v-if="generalResult" class="flex flex-col gap-0.5 text-xs text-muted-foreground">
-          <li v-for="s in generalResult.steps" :key="s.signal_id">
-            {{ s.ok ? '✓' : '✗' }} {{ s.signal_id }} — {{ s.detail }}
-          </li>
-        </ul>
+        <JobActionPanel
+          run-label="General power-on"
+          :busy="generalBusy"
+          :job-id="generalJobId"
+          :result="generalResult"
+          :error="generalError"
+          :run-disabled="!isActive"
+          busy-text="en curso..."
+          @run="runGeneralPowerOn"
+          @cancel="cancelGeneralPowerOn"
+        />
 
         <Separator />
 
-        <div class="flex flex-wrap items-center gap-2">
-          <Input
-            v-model.number="txWarmupTimeoutS"
-            type="number"
-            placeholder="warmup_timeout_s (sin valor confirmado, ingrese uno)"
-            class="w-72"
-          />
-          <Button :disabled="!isActive || txBusy || txWarmupTimeoutS === undefined" @click="runTransmitterPowerOn">
-            Transmisor power-on
-          </Button>
-          <Button v-if="txBusy" variant="destructive" :disabled="!txJobId" @click="cancelTransmitterPowerOn"
-            >Cancelar</Button
-          >
-          <span v-if="txBusy" class="text-sm text-muted-foreground">en curso...</span>
-          <span v-if="txError" class="text-sm text-destructive">{{ txError }}</span>
-          <Badge v-if="txResult" :variant="txResult.outcome === 'success' ? 'default' : 'destructive'">
-            {{ txResult.outcome }}
-          </Badge>
-        </div>
-        <ul v-if="txResult" class="flex flex-col gap-0.5 text-xs text-muted-foreground">
-          <li v-for="s in txResult.steps" :key="s.signal_id">{{ s.ok ? '✓' : '✗' }} {{ s.signal_id }} — {{ s.detail }}</li>
-        </ul>
+        <JobActionPanel
+          run-label="Transmisor power-on"
+          :busy="txBusy"
+          :job-id="txJobId"
+          :result="txResult"
+          :error="txError"
+          :run-disabled="!isActive || txWarmupTimeoutS === undefined"
+          busy-text="en curso..."
+          @run="runTransmitterPowerOn"
+          @cancel="cancelTransmitterPowerOn"
+        >
+          <template #params>
+            <Input
+              v-model.number="txWarmupTimeoutS"
+              type="number"
+              placeholder="warmup_timeout_s (sin valor confirmado, ingrese uno)"
+              class="w-72"
+            />
+          </template>
+        </JobActionPanel>
 
         <Separator />
 
-        <div class="flex flex-wrap items-center gap-2">
-          <Input
-            v-model.number="rxConfirmTimeoutS"
-            type="number"
-            placeholder="confirm_timeout_s (sin valor confirmado, ingrese uno)"
-            class="w-72"
-          />
-          <Button :disabled="!isActive || rxBusy || rxConfirmTimeoutS === undefined" @click="runReceiverPowerOn">
-            Receptor power-on
-          </Button>
-          <Button v-if="rxBusy" variant="destructive" :disabled="!rxJobId" @click="cancelReceiverPowerOn"
-            >Cancelar</Button
-          >
-          <span v-if="rxBusy" class="text-sm text-muted-foreground">en curso...</span>
-          <span v-if="rxError" class="text-sm text-destructive">{{ rxError }}</span>
-          <Badge v-if="rxResult" :variant="rxResult.outcome === 'success' ? 'default' : 'destructive'">
-            {{ rxResult.outcome }}
-          </Badge>
-        </div>
-        <ul v-if="rxResult" class="flex flex-col gap-0.5 text-xs text-muted-foreground">
-          <li v-for="s in rxResult.steps" :key="s.signal_id">{{ s.ok ? '✓' : '✗' }} {{ s.signal_id }} — {{ s.detail }}</li>
-        </ul>
+        <JobActionPanel
+          run-label="Receptor power-on"
+          :busy="rxBusy"
+          :job-id="rxJobId"
+          :result="rxResult"
+          :error="rxError"
+          :run-disabled="!isActive || rxConfirmTimeoutS === undefined"
+          busy-text="en curso..."
+          @run="runReceiverPowerOn"
+          @cancel="cancelReceiverPowerOn"
+        >
+          <template #params>
+            <Input
+              v-model.number="rxConfirmTimeoutS"
+              type="number"
+              placeholder="confirm_timeout_s (sin valor confirmado, ingrese uno)"
+              class="w-72"
+            />
+          </template>
+        </JobActionPanel>
 
         <Separator />
 
-        <div class="flex flex-wrap items-center gap-2">
-          <Input
-            v-model.number="auConfirmTimeoutS"
-            type="number"
-            placeholder="confirm_timeout_s (sin valor confirmado, ingrese uno)"
-            class="w-72"
-          />
-          <Button :disabled="!isActive || auBusy || auConfirmTimeoutS === undefined" @click="runAntennaUnitPowerOn">
-            Unidad de antena power-on
-          </Button>
-          <Button v-if="auBusy" variant="destructive" :disabled="!auJobId" @click="cancelAntennaUnitPowerOn"
-            >Cancelar</Button
-          >
-          <span v-if="auBusy" class="text-sm text-muted-foreground">en curso...</span>
-          <span v-if="auError" class="text-sm text-destructive">{{ auError }}</span>
-          <Badge v-if="auResult" :variant="auResult.outcome === 'success' ? 'default' : 'destructive'">
-            {{ auResult.outcome }}
-          </Badge>
-        </div>
-        <ul v-if="auResult" class="flex flex-col gap-0.5 text-xs text-muted-foreground">
-          <li v-for="s in auResult.steps" :key="s.signal_id">{{ s.ok ? '✓' : '✗' }} {{ s.signal_id }} — {{ s.detail }}</li>
-        </ul>
+        <JobActionPanel
+          run-label="Unidad de antena power-on"
+          :busy="auBusy"
+          :job-id="auJobId"
+          :result="auResult"
+          :error="auError"
+          :run-disabled="!isActive || auConfirmTimeoutS === undefined"
+          busy-text="en curso..."
+          @run="runAntennaUnitPowerOn"
+          @cancel="cancelAntennaUnitPowerOn"
+        >
+          <template #params>
+            <Input
+              v-model.number="auConfirmTimeoutS"
+              type="number"
+              placeholder="confirm_timeout_s (sin valor confirmado, ingrese uno)"
+              class="w-72"
+            />
+          </template>
+        </JobActionPanel>
       </CardContent>
     </Card>
 

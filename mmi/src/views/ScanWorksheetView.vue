@@ -4,17 +4,18 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { useGateway } from '@/composables/useGateway'
+import AxisPositioningFields, {
+  type PartialAxisPositioningParams,
+} from '@/components/domain/AxisPositioningFields.vue'
+import JobActionPanel from '@/components/domain/JobActionPanel.vue'
+import { GATEWAY_HTTP, useGateway } from '@/composables/useGateway'
 import {
   MOMENT_IDS,
-  type AxisPositioningParams,
   type MomentId,
   type ScanCut,
   type ScanCutExecutionRequest,
   type ScanCutResult,
 } from '@/types/scan'
-
-const GATEWAY_HTTP = 'http://127.0.0.1:8000'
 
 const { control, runControlJob, cancelControlJob } = useGateway()
 const isActive = computed(() => control.value?.mode === 'active')
@@ -132,14 +133,18 @@ async function removeCut(index: number) {
 // volt->grados/s ni velocidad de barrido confirmadas (PEND-RCP-07/09), el
 // operador tiene que traerlas.
 const execIndex = ref<number | undefined>(undefined)
-const azGainVPerDeg = ref<number | undefined>(undefined)
-const azMaxVoltage = ref<number | undefined>(undefined)
-const azToleranceDeg = ref<number | undefined>(undefined)
-const azTimeoutS = ref<number | undefined>(undefined)
-const elGainVPerDeg = ref<number | undefined>(undefined)
-const elMaxVoltage = ref<number | undefined>(undefined)
-const elToleranceDeg = ref<number | undefined>(undefined)
-const elTimeoutS = ref<number | undefined>(undefined)
+const azFields = ref<PartialAxisPositioningParams>({
+  gain_v_per_deg: undefined,
+  max_voltage: undefined,
+  tolerance_deg: undefined,
+  timeout_s: undefined,
+})
+const elFields = ref<PartialAxisPositioningParams>({
+  gain_v_per_deg: undefined,
+  max_voltage: undefined,
+  tolerance_deg: undefined,
+  timeout_s: undefined,
+})
 const sweepVoltageMagnitude = ref<number | undefined>(undefined)
 const sweepToleranceDeg = ref<number | undefined>(undefined)
 const sweepTimeoutS = ref<number | undefined>(undefined)
@@ -148,17 +153,20 @@ const execJobId = ref<string | null>(null)
 const execResult = ref<ScanCutResult | null>(null)
 const execError = ref<string | null>(null)
 
+function axisFieldsReady(fields: PartialAxisPositioningParams): boolean {
+  return (
+    fields.gain_v_per_deg !== undefined &&
+    fields.max_voltage !== undefined &&
+    fields.tolerance_deg !== undefined &&
+    fields.timeout_s !== undefined
+  )
+}
+
 const execReady = computed(
   () =>
     execIndex.value !== undefined &&
-    azGainVPerDeg.value !== undefined &&
-    azMaxVoltage.value !== undefined &&
-    azToleranceDeg.value !== undefined &&
-    azTimeoutS.value !== undefined &&
-    elGainVPerDeg.value !== undefined &&
-    elMaxVoltage.value !== undefined &&
-    elToleranceDeg.value !== undefined &&
-    elTimeoutS.value !== undefined &&
+    axisFieldsReady(azFields.value) &&
+    axisFieldsReady(elFields.value) &&
     sweepVoltageMagnitude.value !== undefined &&
     sweepToleranceDeg.value !== undefined &&
     sweepTimeoutS.value !== undefined,
@@ -170,17 +178,17 @@ async function executeCut() {
   execError.value = null
   execJobId.value = null
   try {
-    const azimuth_positioning: AxisPositioningParams = {
-      gain_v_per_deg: azGainVPerDeg.value as number,
-      max_voltage: azMaxVoltage.value as number,
-      tolerance_deg: azToleranceDeg.value as number,
-      timeout_s: azTimeoutS.value as number,
+    const azimuth_positioning = {
+      gain_v_per_deg: azFields.value.gain_v_per_deg as number,
+      max_voltage: azFields.value.max_voltage as number,
+      tolerance_deg: azFields.value.tolerance_deg as number,
+      timeout_s: azFields.value.timeout_s as number,
     }
-    const elevation_positioning: AxisPositioningParams = {
-      gain_v_per_deg: elGainVPerDeg.value as number,
-      max_voltage: elMaxVoltage.value as number,
-      tolerance_deg: elToleranceDeg.value as number,
-      timeout_s: elTimeoutS.value as number,
+    const elevation_positioning = {
+      gain_v_per_deg: elFields.value.gain_v_per_deg as number,
+      max_voltage: elFields.value.max_voltage as number,
+      tolerance_deg: elFields.value.tolerance_deg as number,
+      timeout_s: elFields.value.timeout_s as number,
     }
     const req: ScanCutExecutionRequest = {
       azimuth_positioning,
@@ -364,44 +372,8 @@ onMounted(() => {
         </label>
 
         <div class="grid grid-cols-2 gap-4 sm:grid-cols-2">
-          <div class="flex flex-col gap-2">
-            <span class="text-xs font-medium text-muted-foreground">azimuth_positioning (sin confirmar)</span>
-            <label class="flex flex-col gap-1 text-xs">
-              gain_v_per_deg
-              <Input v-model.number="azGainVPerDeg" type="number" step="0.01" />
-            </label>
-            <label class="flex flex-col gap-1 text-xs">
-              max_voltage
-              <Input v-model.number="azMaxVoltage" type="number" step="0.1" />
-            </label>
-            <label class="flex flex-col gap-1 text-xs">
-              tolerance_deg
-              <Input v-model.number="azToleranceDeg" type="number" step="0.1" />
-            </label>
-            <label class="flex flex-col gap-1 text-xs">
-              timeout_s
-              <Input v-model.number="azTimeoutS" type="number" step="1" />
-            </label>
-          </div>
-          <div class="flex flex-col gap-2">
-            <span class="text-xs font-medium text-muted-foreground">elevation_positioning (sin confirmar)</span>
-            <label class="flex flex-col gap-1 text-xs">
-              gain_v_per_deg
-              <Input v-model.number="elGainVPerDeg" type="number" step="0.01" />
-            </label>
-            <label class="flex flex-col gap-1 text-xs">
-              max_voltage
-              <Input v-model.number="elMaxVoltage" type="number" step="0.1" />
-            </label>
-            <label class="flex flex-col gap-1 text-xs">
-              tolerance_deg
-              <Input v-model.number="elToleranceDeg" type="number" step="0.1" />
-            </label>
-            <label class="flex flex-col gap-1 text-xs">
-              timeout_s
-              <Input v-model.number="elTimeoutS" type="number" step="1" />
-            </label>
-          </div>
+          <AxisPositioningFields v-model="azFields" axis-label="azimuth_positioning (sin confirmar)" />
+          <AxisPositioningFields v-model="elFields" axis-label="elevation_positioning (sin confirmar)" />
         </div>
 
         <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -419,20 +391,17 @@ onMounted(() => {
           </label>
         </div>
 
-        <div class="flex flex-wrap items-center gap-2">
-          <Button :disabled="!isActive || execBusy || !execReady" @click="executeCut">
-            {{ execBusy ? 'Ejecutando...' : 'Ejecutar' }}
-          </Button>
-          <Button v-if="execBusy" variant="destructive" :disabled="!execJobId" @click="cancelExecution">Cancelar</Button>
-          <span v-if="execBusy" class="text-sm text-muted-foreground">en curso...</span>
-          <span v-if="execError" class="text-sm text-destructive">{{ execError }}</span>
-          <Badge v-if="execResult" :variant="execResult.outcome === 'success' ? 'default' : 'destructive'">
-            {{ execResult.outcome }}
-          </Badge>
-        </div>
-        <ul v-if="execResult" class="flex flex-col gap-0.5 text-xs text-muted-foreground">
-          <li v-for="(s, i) in execResult.steps" :key="i">{{ s.ok ? '✓' : '✗' }} {{ s.signal_id }} — {{ s.detail }}</li>
-        </ul>
+        <JobActionPanel
+          run-label="Ejecutar"
+          running-label="Ejecutando..."
+          :busy="execBusy"
+          :job-id="execJobId"
+          :result="execResult"
+          :error="execError"
+          :run-disabled="!isActive || !execReady"
+          @run="executeCut"
+          @cancel="cancelExecution"
+        />
       </CardContent>
     </Card>
   </div>

@@ -14,7 +14,9 @@
     "lint": "run-s \"lint:*\"",
     "lint:oxlint": "oxlint . --fix",
     "lint:eslint": "eslint . --fix --cache",
-    "format": "prettier --write --experimental-cli src/"
+    "format": "prettier --write --experimental-cli src/",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build"
   },
   "dependencies": {
     "@lucide/vue": "^1.32.0",
@@ -56,7 +58,11 @@
     "vite-plugin-vue-devtools": "^8.1.5",
     "vitest": "^4.1.10",
     "vue-eslint-parser": "^10.4.1",
-    "vue-tsc": "^3.3.7"
+    "vue-tsc": "^3.3.7",
+    "storybook": "^10.5.10",
+    "@storybook/vue3-vite": "^10.5.10",
+    "@storybook/addon-docs": "^10.5.10",
+    "eslint-plugin-storybook": "^10.5.10"
   },
   "engines": {
     "node": "^22.18.0 || >=24.12.0"

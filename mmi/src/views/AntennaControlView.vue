@@ -4,6 +4,12 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import AntennaPositionReadout from '@/components/domain/AntennaPositionReadout.vue'
+import AxisPositioningFields, {
+  type PartialAxisPositioningParams,
+} from '@/components/domain/AxisPositioningFields.vue'
+import AxisSelector from '@/components/domain/AxisSelector.vue'
+import JobActionPanel from '@/components/domain/JobActionPanel.vue'
 import { useGateway } from '@/composables/useGateway'
 import type { AntennaAxis, AntennaMovementRequest, AntennaPositioningRequest, RoutineResult } from '@/types/mmi'
 
@@ -12,6 +18,8 @@ const { control, antenna, runControlJob, cancelControlJob } = useGateway()
 const isActive = computed(() => control.value?.mode === 'active')
 
 // --- Jog (Rutina 5, movimiento continuo) ---------------------------------
+// Panel propio, no JobActionPanel: "Detener" no cancela un job por id, manda
+// un comando nuevo (0V) -- semántica distinta al patrón ejecutar/cancelar.
 const jogAxis = ref<AntennaAxis>('azimuth')
 // Sin valor inicial: no hay ganancia volt->grados/s confirmada (PEND-RCP-07),
 // el operador tiene que traer el voltaje, no esta vista.
@@ -47,10 +55,12 @@ function stop() {
 // --- Posicionar (Rutina 6, control proporcional a un angulo) -------------
 const posAxis = ref<AntennaAxis>('azimuth')
 const targetDeg = ref<number | undefined>(undefined)
-const gainVPerDeg = ref<number | undefined>(undefined)
-const maxVoltage = ref<number | undefined>(undefined)
-const toleranceDeg = ref<number | undefined>(undefined)
-const timeoutS = ref<number | undefined>(undefined)
+const posFields = ref<PartialAxisPositioningParams>({
+  gain_v_per_deg: undefined,
+  max_voltage: undefined,
+  tolerance_deg: undefined,
+  timeout_s: undefined,
+})
 const posBusy = ref(false)
 const posJobId = ref<string | null>(null)
 const posResult = ref<RoutineResult | null>(null)
@@ -59,10 +69,10 @@ const posError = ref<string | null>(null)
 const posReady = computed(
   () =>
     targetDeg.value !== undefined &&
-    gainVPerDeg.value !== undefined &&
-    maxVoltage.value !== undefined &&
-    toleranceDeg.value !== undefined &&
-    timeoutS.value !== undefined,
+    posFields.value.gain_v_per_deg !== undefined &&
+    posFields.value.max_voltage !== undefined &&
+    posFields.value.tolerance_deg !== undefined &&
+    posFields.value.timeout_s !== undefined,
 )
 
 async function runPositioning() {
@@ -74,10 +84,10 @@ async function runPositioning() {
     const req: AntennaPositioningRequest = {
       axis: posAxis.value,
       target_deg: targetDeg.value as number,
-      gain_v_per_deg: gainVPerDeg.value as number,
-      max_voltage: maxVoltage.value as number,
-      tolerance_deg: toleranceDeg.value as number,
-      timeout_s: timeoutS.value as number,
+      gain_v_per_deg: posFields.value.gain_v_per_deg as number,
+      max_voltage: posFields.value.max_voltage as number,
+      tolerance_deg: posFields.value.tolerance_deg as number,
+      timeout_s: posFields.value.timeout_s as number,
     }
     posResult.value = await runControlJob<RoutineResult>('/api/control/antenna-positioning', req, (id) => {
       posJobId.value = id
@@ -114,14 +124,8 @@ async function cancelPositioning() {
       <CardHeader>
         <CardTitle>Posición en vivo</CardTitle>
       </CardHeader>
-      <CardContent class="flex flex-wrap items-center gap-4 text-sm">
-        <template v-if="antenna">
-          <span>az: {{ antenna.az_deg.toFixed(2) }}° ({{ antenna.az_rate_deg_s.toFixed(3) }}°/s)</span>
-          <span>el: {{ antenna.el_deg.toFixed(2) }}° ({{ antenna.el_rate_deg_s.toFixed(3) }}°/s)</span>
-          <Badge v-if="!antenna.az_valid || !antenna.el_valid" variant="destructive">encoder inválido</Badge>
-          <Badge v-if="antenna.degraded" variant="secondary">degradado</Badge>
-        </template>
-        <span v-else class="text-muted-foreground">sin posición todavía</span>
+      <CardContent>
+        <AntennaPositionReadout :antenna="antenna" show-rates />
       </CardContent>
     </Card>
 
@@ -130,9 +134,8 @@ async function cancelPositioning() {
         <CardTitle>Jog — movimiento continuo (Rutina 5)</CardTitle>
       </CardHeader>
       <CardContent class="flex flex-col gap-3">
-        <div class="flex flex-wrap items-center gap-3 text-sm">
-          <label class="flex items-center gap-1"><input v-model="jogAxis" type="radio" value="azimuth"> azimut</label>
-          <label class="flex items-center gap-1"><input v-model="jogAxis" type="radio" value="elevation"> elevación</label>
+        <div class="flex flex-wrap items-center gap-3">
+          <AxisSelector v-model="jogAxis" />
           <Input
             v-model.number="jogVoltage"
             type="number"
@@ -161,49 +164,30 @@ async function cancelPositioning() {
         <CardTitle>Posicionar — control proporcional a un ángulo (Rutina 6)</CardTitle>
       </CardHeader>
       <CardContent class="flex flex-col gap-3">
-        <div class="flex flex-wrap items-center gap-3 text-sm">
-          <label class="flex items-center gap-1"><input v-model="posAxis" type="radio" value="azimuth"> azimut</label>
-          <label class="flex items-center gap-1"><input v-model="posAxis" type="radio" value="elevation"> elevación</label>
-        </div>
+        <AxisSelector v-model="posAxis" />
         <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <label class="flex flex-col gap-1 text-xs">
             target_deg
             <Input v-model.number="targetDeg" type="number" step="0.1" />
           </label>
-          <label class="flex flex-col gap-1 text-xs">
-            gain_v_per_deg (sin confirmar)
-            <Input v-model.number="gainVPerDeg" type="number" step="0.01" />
-          </label>
-          <label class="flex flex-col gap-1 text-xs">
-            max_voltage (sin confirmar)
-            <Input v-model.number="maxVoltage" type="number" step="0.1" />
-          </label>
-          <label class="flex flex-col gap-1 text-xs">
-            tolerance_deg (sin confirmar)
-            <Input v-model.number="toleranceDeg" type="number" step="0.1" />
-          </label>
-          <label class="flex flex-col gap-1 text-xs">
-            timeout_s (sin confirmar)
-            <Input v-model.number="timeoutS" type="number" step="1" />
-          </label>
         </div>
+        <AxisPositioningFields v-model="posFields" />
         <p class="text-xs text-muted-foreground">
           Puede tardar hasta timeout_s segundos en completarse -- el botón queda deshabilitado
           mientras se sondea el resultado.
         </p>
-        <div class="flex flex-wrap items-center gap-2">
-          <Button :disabled="!isActive || posBusy || !posReady" @click="runPositioning">
-            {{ posBusy ? 'Posicionando...' : 'Posicionar' }}
-          </Button>
-          <Button v-if="posBusy" variant="destructive" :disabled="!posJobId" @click="cancelPositioning">Cancelar</Button>
-          <span v-if="posError" class="text-sm text-destructive">{{ posError }}</span>
-          <Badge v-if="posResult" :variant="posResult.outcome === 'success' ? 'default' : 'destructive'">
-            {{ posResult.outcome }}
-          </Badge>
-        </div>
-        <ul v-if="posResult" class="flex flex-col gap-0.5 text-xs text-muted-foreground">
-          <li v-for="s in posResult.steps" :key="s.signal_id">{{ s.ok ? '✓' : '✗' }} {{ s.signal_id }} — {{ s.detail }}</li>
-        </ul>
+        <JobActionPanel
+          run-label="Posicionar"
+          running-label="Posicionando..."
+          cancel-label="Cancelar"
+          :busy="posBusy"
+          :job-id="posJobId"
+          :result="posResult"
+          :error="posError"
+          :run-disabled="!isActive || !posReady"
+          @run="runPositioning"
+          @cancel="cancelPositioning"
+        />
       </CardContent>
     </Card>
   </div>

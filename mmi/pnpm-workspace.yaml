@@ -1,2 +1,13 @@
 allowBuilds:
+  # esbuild's postinstall fetches the platform-specific native binary it needs to run at all
+  # (vite/vitest/storybook all depend on it transitively) -- required, not optional, and it's a
+  # standard, widely-trusted toolchain dependency, not new supply-chain surface.
+  esbuild: true
   vue-demi: set this to true or false
+
+overrides:
+  # @storybook/vue3-vite 10.5.x depends on vue-component-meta@^3.2.7, which pnpm resolves to
+  # 3.3.11 by default; that release itself depends on @vue/language-core@3.3.11, a version that
+  # was never published (only 3.3.10 exists) -- an upstream broken publish, not a version we
+  # chose. Pin to the last resolvable release until upstream fixes it.
+  vue-component-meta: '3.3.10'

@@ -22,7 +22,7 @@ export interface SessionInfo {
   started_at_wall: string
 }
 
-const GATEWAY_HTTP = 'http://127.0.0.1:8000'
+export const GATEWAY_HTTP = 'http://127.0.0.1:8000'
 const GATEWAY_WS = 'ws://127.0.0.1:8000/ws'
 
 const MAX_LOG = 200

@@ -2,6 +2,7 @@
 import { computed, onMounted } from 'vue'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import FaultBadgeRow from '@/components/domain/FaultBadgeRow.vue'
 import { useGateway } from '@/composables/useGateway'
 
 const { biteFaults, fetchStatus } = useGateway()
@@ -49,9 +50,8 @@ onMounted(() => {
             Sin fallas activas.
           </p>
           <ul v-else class="flex flex-col gap-1 text-sm">
-            <li v-for="f in s.faults" :key="f.signal_id" class="flex flex-wrap items-center gap-2">
-              <span class="font-medium">{{ f.signal_id }}</span>
-              <span class="text-muted-foreground">{{ f.detail }}</span>
+            <li v-for="f in s.faults" :key="f.signal_id">
+              <FaultBadgeRow :fault="f" />
             </li>
           </ul>
         </CardContent>
