@@ -383,6 +383,45 @@ Fase 3 (cuando estas pantallas entren en construcción) el resto del detalle de 
 Composer y DRX/RSP de arriba como base de diseño, o ajustarlo. El gate de autoridad (D-13) ya no
 es parte de lo pendiente.
 
+### PEND-RCP-12 · ORPG no tolera la geometría del radial: la filtra por lista blanca
+
+El RCP posee la emulación RDA WSR-88D (ICD 2620002) y el feed por radial a ORPG. Una lectura del
+árbol de fuentes real de ORPG build 24 (paquete CODE del ROC, `rpg_b24_0r1_20_pub_src`), hecha en
+agosto de 2026 desde el proyecto `lamula-drx` para su pendiente P-01, encontró que **ORPG no
+valida la geometría del radial contra una banda de tolerancia, sino contra listas cerradas de
+valores**, y descarta el dato cuando no encajan:
+
+- `src/cpc004/tsk009/combine_radials.c:427-431` — la recombinación azimutal de super-res admite
+  `surv_bin_size` en `{250, 1000}` y `dop_bin_size` **solo 250**. Si no encaja, descarta los dos
+  radiales del split-cut con un aviso de nivel `GL_INFO`, fácil de perder en el log.
+- `src/cpc023/tsk002/qia_process.c:707` y `src/cpc004/tsk011/dpp_format.c:547` — `Verify_gm_hd()`
+  exige `bin_size == 250` exacto para **todo** moment dual-pol, y rechaza el campo con `GL_ERROR`
+  si no. En la misma condición valida `data_word_size`, que admite solo 8 ó 16.
+- `include/basedata.h:1013-1017` — topes duros de 1840 gates de reflectividad y 1200 de Doppler y
+  dual-pol.
+
+El campo de espaciado del Message 31 es entero de 16 bits **en metros**
+(`include/generic_basedata.h:202`), así que no hay forma de declarar una fracción de metro: se
+declara un valor de la lista o se pierde el producto.
+
+**Lo que esto abre para el RCP:** si ORPG valida así el espaciado, es razonable esperar que valide
+igual el resto de la geometría del radial — conteo de gates, rango al primer gate, resolución
+azimutal, tamaño de palabra de dato. `data_word_size` ya está confirmado. El requisito del feed no
+es «parecerse a NEXRAD», es **declarar valores legales de NEXRAD en todos los campos de geometría
+del Message 31**, y eso puede imponer restricciones al encoder Level-II y, aguas arriba, al
+formato del stream de momentos que llega del DSP.
+
+**Condición de cierre:** enumerar los campos de geometría del Message 31 con la lista de valores
+que ORPG acepta para cada uno, contrastarla contra lo que el RCP puede emitir con el stream que le
+da el DSP, y anotar cada divergencia como decisión o como pendiente propio.
+
+**Procedencia y salvedad:** las citas vienen de `lamula-drx/research/p-01-RESULTADO.md` y
+`p-01-RESULTADO-barrido.md`. El árbol de ORPG no está en la máquina de desarrollo, así que no son
+reverificables desde aquí; el barrido sí reverificó las cuatro citas decisivas del primer resultado
+y coinciden. La cobertura fue por grep dirigido, no lectura exhaustiva: **quedan sin revisar** la
+composición geográfica entre radares, VAD/VWP y el remuestreo final a rejilla Level-III, que es
+justo donde más daño haría una asunción cableada.
+
 ### Vista MMI "Scan Worksheet" y endpoints de soporte (Fase 2)
 
 `mmi/src/views/ScanWorksheetView.vue` (ruta `/scan-worksheet`) + `GET/POST/DELETE
