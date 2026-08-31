@@ -1,0 +1,49 @@
+# Procedencia del contrato DSP↔RCP vendorizado.
+#
+# Este fichero es el pin: fija de dónde salieron los ficheros de
+# `contract/vendor/` y con qué hash. El contrato lo posee el proyecto LAMULA
+# DSP (plan del DSP §6); aquí sólo se consume. Nada de `contract/vendor/` ni de
+# `mmi/src/contracts/` se edita a mano: si hace falta un cambio de formato, se
+# pide en el proyecto DSP, allí se sube `version_minor` y se regenera con
+# `make gen`, y aquí se re-vendoriza actualizando este pin.
+#
+# `tools/check_vendored_contract.py` falla si un fichero vendorizado no coincide
+# con el hash anotado, de modo que una edición local silenciosa no pasa el CI.
+#
+# El mismo patrón lo usa el proyecto DSP para consumir el contrato DRx↔DSP, que
+# a su vez posee el proyecto DRx. Tres repos, un solo idioma de vendorizado.
+
+[upstream]
+project = "lamula-dsp"
+repo_path = "../lamula-dsp"
+schema = "contract/schema/dsp_rcp_v0_1.toml"
+generator = "tools/gen_contract.py"
+commit = "8d7c7ba"
+commit_date = "2026-08-31"
+
+[contract]
+name = "dsp_rcp"
+version_major = 0
+version_minor = 1
+magic = 0x4C4D4453
+endianness = "little"
+
+# SHA-256 de cada fichero tal y como se copió. `path` es relativo a la raíz del
+# repositorio; `source` es la ruta en el repositorio de origen.
+[[file]]
+path = "contract/vendor/dsp_rcp_v0_1.py"
+source = "contract/generated/dsp_rcp_v0_1.py"
+sha256 = "d4ced7570d9f038858d2661d6ec89db355e928fc5b382695b91e7d3129128cdd"
+role = "Codificación de cable para el backend. La usa src/adapters/dsp/."
+
+[[file]]
+path = "mmi/src/contracts/dsp_rcp_v0_1.ts"
+source = "contract/generated/dsp_rcp_v0_1.ts"
+sha256 = "6678574ffb346f86cfbf3c1aaaf01debed5a014d4a1012f08a31c18a26a9e0d5"
+role = "Codificación de cable para la MMI. Vive dentro de mmi/src para que Vite la resuelva."
+
+# El esquema no se vendoriza —aquí no se genera código— pero se anota su hash
+# para detectar que el origen cambió sin que nadie re-vendorizara.
+[[watch]]
+source = "contract/schema/dsp_rcp_v0_1.toml"
+sha256 = "6f9fb23184e37d388a82a1f9a4bf765a7e6fa99abe8b9b8dbf2ec514a1abb860"

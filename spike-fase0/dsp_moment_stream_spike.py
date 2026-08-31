@@ -1,42 +1,40 @@
-"""Spike -- stub de stream de momentos RCP<->DSP (PEND-RCP-05).
+"""Emisor/consumidor sintetico del stream de momentos RCP<->DSP.
 
-No hay, al momento de escribir esto, implementacion de referencia ni
-simulador del lado DSP equivalente a `radar_emulator` para el HAL. El
-contrato ya esta congelado como esquema (`src/core/contracts/dsp.py`) pero
-sin validar contra nada real. Este script es un stub propio -- no una
-implementacion del formato real del proyecto DSP, que sigue sin acordarse --
-para no bloquear la ingestion DSP/DRX de Fase 1 mientras tanto.
+Nacio como stub con framing inventado en este repo, porque el proyecto DSP no
+tenia contrato. Ya lo tiene: `DSP<->RCP v0.1`, vendorizado en `contract/vendor/`
+y anclado por hash. Este script se porto a ese formato, asi que lo que ejercita
+ahora es el contrato acordado y no una invencion local.
 
-Trae ambos lados:
+Lo que sigue sin ser: una implementacion de referencia del proyecto DSP. Es un
+generador de volumenes sinteticos para no bloquear el trabajo de Fase 1/2 del
+RCP. Valida formato y framing; NO valida cadencia, contrapresion con radiales de
+3680 celdas a PRF alta, ni reconexion. Para eso hace falta el simulador de senal
+del proyecto DSP, que no existe todavia.
 
     python3 spike-fase0/dsp_moment_stream_spike.py --role rcp --port 15551 &
     python3 spike-fase0/dsp_moment_stream_spike.py --role dsp --port 15551
-
-`--role dsp` genera un volumen sintetico (dos elevaciones, pocos radiales
-cada una, momentos UZ y V) y lo manda por TCP como JSON de `RadialMoments`
-(model_dump_json), cada mensaje precedido por un largo de 4 bytes
-big-endian -- framing propio de este stub, no un protocolo acordado con DSP.
-`--role rcp` lo recibe y valida cada radial contra el esquema Pydantic ya
-congelado, mas el framing de volumen/elevacion (RadialStatus).
-
-En cuanto exista una implementacion de referencia real del lado DSP, este
-script se descarta o se adapta al formato real -- ver PEND-RCP-05 en
-docs/alcance/pendientes.md.
 """
 
 import argparse
+import pathlib
 import socket
 import struct
 import sys
+import time
 
-sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parent.parent / "src"))
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "src"))
+sys.path.insert(0, str(ROOT))
 
-from core.contracts.dsp import MomentId, MomentProfile, RadialMoments, RadialStatus
+from adapters.dsp.wire import decode_moment_ray, frame, parse_frame_header  # noqa: E402
+from contract.vendor import dsp_rcp_v0_1 as wire  # noqa: E402
+from core.contracts.dsp import MomentId, RadialStatus  # noqa: E402
 
 TIMEOUT_S = 10.0
 ELEVATIONS_DEG = [0.5, 1.5]
 RADIALS_PER_ELEVATION = 4
 GATES = 8
+AZIMUTH_WIDTH_DEG = 360.0 / RADIALS_PER_ELEVATION
 
 
 def check(condition, msg, failures):
@@ -45,10 +43,6 @@ def check(condition, msg, failures):
     if not condition:
         failures.append(msg)
     return condition
-
-
-def send_frame(sock, body: bytes):
-    sock.sendall(struct.pack(">I", len(body)) + body)
 
 
 def recv_exact(sock, size):
@@ -61,69 +55,105 @@ def recv_exact(sock, size):
     return buf
 
 
-def recv_frame(sock):
-    (length,) = struct.unpack(">I", recv_exact(sock, 4))
-    return recv_exact(sock, length)
+def recv_message(sock):
+    """Cabecera comun de 12 B, luego `payload_len` bytes. Devuelve (tipo, cuerpo)."""
+    header = parse_frame_header(recv_exact(sock, wire.Header.SIZE))
+    return header.msg_type, recv_exact(sock, header.payload_len)
 
 
 def synthetic_volume():
-    t_us = 0
+    """Volumen sintetico como cuerpos de `moment_ray` ya empaquetados."""
+    base_utc_ns = int(time.time() * 1e9)
+    base_mono_ns = time.monotonic_ns()
+
     for elev_n, elev_deg in enumerate(ELEVATIONS_DEG):
         for radial_n in range(RADIALS_PER_ELEVATION):
-            if elev_n == 0 and radial_n == 0:
-                status = RadialStatus.START_OF_VOLUME
-            elif radial_n == 0:
-                status = RadialStatus.START_OF_ELEVATION
-            elif elev_n == len(ELEVATIONS_DEG) - 1 and radial_n == RADIALS_PER_ELEVATION - 1:
-                status = RadialStatus.END_OF_VOLUME
-            elif radial_n == RADIALS_PER_ELEVATION - 1:
-                status = RadialStatus.END_OF_ELEVATION
-            else:
-                status = RadialStatus.INTERMEDIATE
+            flags = 0
+            if radial_n == 0:
+                flags |= wire.RayFlag.SWEEP_START
+                if elev_n == 0:
+                    flags |= wire.RayFlag.VOLUME_START
+            if radial_n == RADIALS_PER_ELEVATION - 1:
+                flags |= wire.RayFlag.SWEEP_END
+                if elev_n == len(ELEVATIONS_DEG) - 1:
+                    flags |= wire.RayFlag.VOLUME_END
 
-            azimuth_deg = radial_n * (360.0 / RADIALS_PER_ELEVATION)
-            t_us += 1000
-            yield RadialMoments(
-                azimuth_deg=azimuth_deg,
-                elevation_deg=elev_deg,
-                azimuth_resolution_deg=360.0 / RADIALS_PER_ELEVATION,
-                elevation_number=elev_n,
-                volume_number=0,
-                radial_status=status,
-                capture_t_us=t_us,
-                moments={
-                    MomentId.UZ: MomentProfile(
-                        first_gate_range_m=0.0,
-                        gate_spacing_m=250.0,
-                        values=[10.0 + g for g in range(GATES)],
-                    ),
-                    MomentId.V: MomentProfile(
-                        first_gate_range_m=0.0,
-                        gate_spacing_m=250.0,
-                        values=[0.5 * g for g in range(GATES)],
-                    ),
-                },
+            az_start = radial_n * AZIMUTH_WIDTH_DEG
+            offset_ns = (elev_n * RADIALS_PER_ELEVATION + radial_n) * 1_000_000
+
+            header = wire.MomentRay(
+                seq=elev_n * RADIALS_PER_ELEVATION + radial_n,
+                acq_time_utc_ns=base_utc_ns + offset_ns,
+                acq_monotonic_ns=base_mono_ns + offset_ns,
+                volume_seq=0,
+                sweep_seq=elev_n,
+                ray_index=radial_n,
+                n_gates=GATES,
+                n_pulses=64,
+                bins_valid=GATES,
+                n_moments=2,
+                sweep_mode=wire.SweepMode.PPI,
+                prf_mode=wire.DealiasMode.NONE,
+                ray_flags=flags,
+                pad0=0,
+                az_start_deg=az_start,
+                az_end_deg=az_start + AZIMUTH_WIDTH_DEG,
+                el_start_deg=elev_deg,
+                el_end_deg=elev_deg,
+                fixed_angle_deg=elev_deg,
+                start_range_m=125.0,
+                gate_spacing_m=250.0,
+                prf_hz=600.0,
+                nyquist_velocity=8.3,
+                unambiguous_range_m=249_827.0,
+                noise_floor_dbm=-113.0,
+                radar_constant_db=68.5,
             )
+
+            payload = b""
+            for kind, values in (
+                (wire.MomentKind.UZ, [10.0 + g for g in range(GATES)]),
+                (wire.MomentKind.V, [0.5 * g for g in range(GATES)]),
+            ):
+                payload += wire.MomentField(
+                    kind=kind,
+                    data_type=wire.DataType.F32,
+                    flags=0,
+                    pad0=0,
+                    n_gates=GATES,
+                    scale=1.0,
+                    offset=0.0,
+                ).pack()
+                payload += struct.pack(f"<{GATES}f", *values)
+
+            yield header.pack() + payload
 
 
 def run_dsp(host, port):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.settimeout(TIMEOUT_S)
     sock.connect((host, port))
-    print(f"DSP (stub): conectado a {host}:{port}")
+    print(f"DSP (sintetico): conectado a {host}:{port}")
 
     n = 0
-    for radial in synthetic_volume():
-        send_frame(sock, radial.model_dump_json().encode("utf-8"))
+    for body in synthetic_volume():
+        sock.sendall(frame(wire.MsgType.MOMENT_RAY, body))
         n += 1
+
+    # Un status por el mismo enlace: el consumidor tiene que tolerarlo.
+    status = wire.Status(uptime_s=1, phase=wire.Phase.RUNNING)
+    sock.sendall(frame(wire.MsgType.STATUS, status.pack()))
     sock.close()
-    print(f"DSP (stub): {n} radiales enviados, conexion cerrada.")
+    print(f"DSP (sintetico): {n} radiales + 1 status enviados, conexion cerrada.")
 
 
 def run_rcp(host, port):
     failures = []
+    expected = len(ELEVATIONS_DEG) * RADIALS_PER_ELEVATION
+
     srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    srv.settimeout(TIMEOUT_S)
     srv.bind((host, port))
     srv.listen(1)
     print(f"RCP (consumidor): escuchando en {host}:{port}, esperando DSP...")
@@ -132,40 +162,66 @@ def run_rcp(host, port):
     conn.settimeout(TIMEOUT_S)
     print(f"RCP (consumidor): conexion aceptada de {addr}")
 
-    radials = []
+    radials, others = [], 0
     try:
         while True:
-            try:
-                body = recv_frame(conn)
-            except ConnectionError:
-                break
-            radial = RadialMoments.model_validate_json(body)
-            radials.append(radial)
+            msg_type, body = recv_message(conn)
+            if msg_type == wire.MsgType.MOMENT_RAY:
+                radials.append(decode_moment_ray(body))
+            else:
+                others += 1
+    except (ConnectionError, TimeoutError, socket.timeout):
+        pass
     finally:
         conn.close()
         srv.close()
 
-    check(len(radials) > 0, "al menos un radial recibido", failures)
-    check(radials[0].radial_status == RadialStatus.START_OF_VOLUME, "primer radial es start_of_volume", failures)
-    check(radials[-1].radial_status == RadialStatus.END_OF_VOLUME, "ultimo radial es end_of_volume", failures)
-    check(
-        all(MomentId.UZ in r.moments and MomentId.V in r.moments for r in radials),
-        "todos los radiales traen UZ y V",
-        failures,
-    )
-    check(
-        all(len(r.moments[MomentId.UZ].values) == GATES for r in radials),
-        f"perfil UZ de cada radial tiene {GATES} gates",
-        failures,
-    )
+    print()
+    check(len(radials) == expected, f"{expected} radiales decodificados", failures)
+    check(others == 1, "el status por el mismo enlace no rompe el consumidor", failures)
+    if radials:
+        check(
+            radials[0].radial_status is RadialStatus.START_OF_VOLUME,
+            "el primer radial abre volumen",
+            failures,
+        )
+        check(
+            radials[-1].radial_status is RadialStatus.END_OF_VOLUME,
+            "el ultimo radial cierra volumen",
+            failures,
+        )
+        check(
+            all(
+                set(r.moments) == {MomentId.UZ, MomentId.V}
+                and len(r.moments[MomentId.UZ].values) == GATES
+                for r in radials
+            ),
+            f"todos traen UZ y V con {GATES} celdas",
+            failures,
+        )
+        check(
+            all(r.acq_time_utc.tzinfo is not None for r in radials),
+            "la hora de pared llega con zona, medida en el emisor",
+            failures,
+        )
+        check(
+            all(
+                b.acq_monotonic_us > a.acq_monotonic_us
+                for a, b in zip(radials, radials[1:])
+            ),
+            "el reloj monotono crece radial a radial",
+            failures,
+        )
 
     print()
     if failures:
         print(f"{len(failures)} FALLA(S):")
         for f in failures:
             print(f" - {f}")
-        sys.exit(1)
-    print(f"OK: {len(radials)} radiales recibidos y validados contra RadialMoments (stub, no DSP real).")
+        return 1
+    print("OK: formato de cable DSP<->RCP v0.1 ejercitado de extremo a extremo.")
+    print("    Emisor sintetico de este repo, NO una implementacion de referencia del DSP.")
+    return 0
 
 
 def main():
@@ -175,11 +231,11 @@ def main():
     ap.add_argument("--port", type=int, default=15551)
     args = ap.parse_args()
 
-    if args.role == "rcp":
-        run_rcp(args.host, args.port)
-    else:
+    if args.role == "dsp":
         run_dsp(args.host, args.port)
+        return 0
+    return run_rcp(args.host, args.port)
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

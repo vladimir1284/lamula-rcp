@@ -12,7 +12,7 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Annotated
 
-from pydantic import Field
+from pydantic import AwareDatetime, Field
 
 # Microsegundos de un reloj monotono sin origen absoluto (arranque del
 # proceso que lo produce). Nunca comparar valores de dos procesos distintos.
@@ -31,3 +31,11 @@ class SignalQuality(StrEnum):
     OK = "ok"
     OUT_OF_RANGE = "range"
     FAULT = "fault"
+
+
+# Instante absoluto en UTC, con tzinfo obligatorio. Es la otra mitad de la regla
+# de los dos relojes: lo que un operador lee y lo que un fichero Level-II o el
+# feed a ORPG necesitan interpretar como momento real. Un `datetime` ingenuo
+# (sin tzinfo) se rechaza a proposito — la ambiguedad de zona en observacion
+# meteorologica archivada no se recupera despues.
+UtcInstant = Annotated[AwareDatetime, Field()]

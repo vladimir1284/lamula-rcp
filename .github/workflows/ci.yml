@@ -1,0 +1,28 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+
+      # `--no-install-project` porque el pyproject.toml no elige build-backend
+      # a proposito (PEND-RCP-03): sin el, uv intentaria construir el paquete.
+      # Los imports los resuelve el `pythonpath` de pytest, no una instalacion.
+      - name: Entorno de Python
+        run: uv sync --no-install-project --group dev
+
+      # `check_vendored_contract.py` solo avisa —no falla— cuando el repositorio
+      # del DSP no esta montado al lado, que es siempre el caso en CI. Lo que si
+      # comprueba aqui es que las copias vendorizadas siguen coincidiendo con su
+      # ancla por hash: es la barrera contra que un formateador las reescriba.
+      - name: Gates
+        run: make check

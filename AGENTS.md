@@ -31,6 +31,10 @@ correctamente los diez unit IDs de la semilla RD100S y que el receptor UDP decod
   de diagnóstico y el scheduling soft-real-time pueden usar reloj monótono. No mezclar los dos
   sentidos bajo un solo campo `timestamp`. **Esto es una asunción de diseño, no está en el plan
   original explícitamente — confirmar con el equipo antes de congelarlo en el contrato RCP↔ORPG.**
+  *Del lado DSP ya está cerrado (2026-08-30):* el contrato de cable `DSP↔RCP v0.1` trae los dos
+  instantes por separado, `acq_time_utc_ns` y `acq_monotonic_ns`, así que la hora de pared la mide
+  el DSP y no se sella al recibir. Ver [docs/interfaces/dsp.md](docs/interfaces/dsp.md). Sigue
+  abierto para `RCP↔ORPG`.
 - **El RCP↔ORPG es el ICD 2620002 fijo, no un esquema propio.** No lo reinterpretes por
   conveniencia; cualquier ambigüedad se discute con el proyecto LAMULA ORPG, no se resuelve
   localmente.
@@ -38,6 +42,13 @@ correctamente los diez unit IDs de la semilla RD100S y que el receptor UDP decod
   deliberadamente configurable para cualquier radar). No repliques aquí la abstracción
   "configuración JSON sin nada cableado" solo por simetría con el emulador — el plan fija radar
   único, operador único, red air-gapped.
+- **El contrato RCP↔DSP lo posee el proyecto DSP; aquí se consume, no se decide.** El código de
+  cable vive vendorizado en `contract/vendor/` y `mmi/src/contracts/`, anclado por SHA-256 en
+  `contract/vendor/UPSTREAM.toml`. **Nada vendorizado se edita a mano** — ni siquiera para
+  formatear: `make check` lo comprueba. Un cambio de formato se pide en el proyecto DSP y aquí se
+  re-vendoriza subiendo el ancla.
+- **El core nunca ve bytes del DSP.** `src/adapters/dsp/wire.py` es el único sitio que traduce
+  cable a `RadialMoments`; misma regla que ya rige para Modbus.
 - Marca `// PEND-nn` en cada punto donde uses un valor provisional, igual que `radar_emulator`.
 
 ## Cuando encuentres una contradicción

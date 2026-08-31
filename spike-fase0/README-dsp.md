@@ -1,5 +1,12 @@
 # Spike — stub de stream de momentos RCP↔DSP
 
+> **Actualizado (2026-08-30).** El proyecto DSP congeló el contrato de cable `DSP↔RCP v0.1`, ya
+> vendorizado en `contract/vendor/` y anclado por hash. El script se portó a ese formato: sigue
+> siendo un emisor sintético de este repo, pero ya no inventa el framing. `src/adapters/dsp/`
+> habla el mismo formato y los tests viven en `tests/test_dsp_wire.py`. Lo de abajo describe la
+> versión anterior, con framing propio, y se conserva como registro.
+> Ver [`docs/interfaces/dsp.md`](../docs/interfaces/dsp.md).
+
 Cubre [PEND-RCP-05](../docs/alcance/pendientes.md#pend-rcp-05-el-dsp-externo-no-tiene-aun-una-interfaz-de-referencia-ejecutable):
 el contrato RCP↔DSP ya está congelado como esquema Pydantic
 (`src/core/contracts/dsp.py`), pero no existe implementación de referencia ni simulador del lado

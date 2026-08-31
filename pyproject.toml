@@ -15,9 +15,10 @@ dependencies = [
 # sin resolver todavia. Este archivo solo fija la dependencia de contratos y
 # el layout de import para pytest; no elige build-backend.
 [tool.pytest.ini_options]
-pythonpath = ["src"]
+pythonpath = ["src", "."]
 
 [dependency-groups]
 dev = [
     "mkdocs-material>=9,<10",
+    "pytest>=8",
 ]

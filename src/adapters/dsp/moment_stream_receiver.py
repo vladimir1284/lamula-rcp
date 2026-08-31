@@ -1,37 +1,55 @@
-"""Adaptador RCP<->DSP -- lado receptor del stream de momentos (Fase 1, esqueleto).
+"""Adaptador RCP<->DSP -- lado receptor del stream de momentos.
 
-Escucha TCP y decodifica el mismo framing que
-`spike-fase0/dsp_moment_stream_spike.py --role dsp` emite: JSON de
-`RadialMoments` precedido por un largo de 4 bytes big-endian. Es el
-framing propio de ese stub, no un protocolo real acordado con el proyecto
-DSP (PEND-RCP-05, `src/core/contracts/dsp.py`) -- se descarta o se adapta
-en cuanto exista una implementacion de referencia real del lado DSP.
+Ya no decodifica el framing inventado por `spike-fase0/dsp_moment_stream_spike.py`
+(JSON con largo de 4 bytes big-endian). Habla el formato de cable real del
+proyecto LAMULA DSP, `DSP<->RCP v0.1`, vendorizado en `contract/vendor/` y
+anclado por hash: cabecera comun de 12 B, luego `payload_len` bytes con el
+mensaje completo. La traduccion a `RadialMoments` la hace `wire.py`; aqui solo
+vive el transporte y el estado de la conexion.
 
-Decision 2026-08-19: solo se mantienen contadores/estado resumido
-(`radials_received`, ultimo volumen/elevacion/status), no se exponen los
-momentos completos hacia la MMI todavia -- ver
-`core/contracts/mmi.DspStreamStatus`. Streaming de momentos reales
-(reflectividad, velocidad) a la MMI queda para cuando se diseñe la vista
-PPI (Fase 2/3); resolverlo antes seria inventar una forma de PPI sin
-acuerdo del equipo, que es justo lo que el contrato ya congelado evita.
+Decision 2026-08-19, que sigue en pie: solo se mantienen contadores y estado
+resumido, no se exponen los momentos completos hacia la MMI todavia -- ver
+`core/contracts/mmi.DspStreamStatus`. El streaming de momentos reales a la MMI
+espera al diseno de la vista PPI (Fase 2/3).
+
+Lo que si cambia respecto a la version del stub: ahora llegan mas tipos de
+mensaje que radiales. Un `status`, un `bite_event` o un `config_ack` no son un
+error de trama, asi que no se cierra la conexion al verlos; se cuentan aparte y
+se ignoran hasta que haya quien los consuma. Una trama mal formada, en cambio,
+si es un fallo: se registra y se corta, porque despues de un largo erroneo el
+flujo esta desincronizado y seguir leyendo produce basura plausible.
 """
 
 from __future__ import annotations
 
 import asyncio
-import struct
+import logging
 
+from contract.vendor import dsp_rcp_v0_1 as wire
 from core.contracts.dsp import RadialMoments
+
+from .wire import WireFormatError, decode_moment_ray, parse_frame_header
+
+logger = logging.getLogger(__name__)
+
+#: Tope de tamano de mensaje. Un radial de 3680 celdas con los 14 momentos ronda
+#: los 207 kB; 4 MB deja margen de sobra y evita que un `payload_len` corrupto
+#: haga reservar memoria sin limite antes de que falle nada.
+MAX_MESSAGE_BYTES = 4 * 1024 * 1024
 
 
 class MomentStreamReceiver:
-    """Un solo emisor esperado a la vez -- si el emisor se desconecta y
-    reconecta, `connected` vuelve a `True` con la siguiente conexion
-    aceptada; los contadores no se resetean entre conexiones."""
+    """Un solo emisor esperado a la vez.
+
+    Si el emisor se desconecta y reconecta, `connected` vuelve a `True` con la
+    siguiente conexion aceptada; los contadores no se resetean entre conexiones.
+    """
 
     def __init__(self) -> None:
         self.connected = False
         self.radials_received = 0
+        self.other_messages_received = 0
+        self.frame_errors = 0
         self._latest: RadialMoments | None = None
         self._server: asyncio.Server | None = None
 
@@ -39,17 +57,38 @@ class MomentStreamReceiver:
     def latest(self) -> RadialMoments | None:
         return self._latest
 
-    async def _handle_client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+    async def _read_message(self, reader: asyncio.StreamReader) -> tuple[int, bytes]:
+        raw_header = await reader.readexactly(wire.Header.SIZE)
+        header = parse_frame_header(raw_header)
+        if header.payload_len > MAX_MESSAGE_BYTES:
+            raise WireFormatError(
+                f"payload_len {header.payload_len} supera el tope de"
+                f" {MAX_MESSAGE_BYTES} B; el flujo esta corrupto"
+            )
+        body = await reader.readexactly(header.payload_len)
+        return header.msg_type, body
+
+    async def _handle_client(
+        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    ) -> None:
         self.connected = True
         try:
             while True:
-                header = await reader.readexactly(4)
-                (length,) = struct.unpack(">I", header)
-                body = await reader.readexactly(length)
-                self._latest = RadialMoments.model_validate_json(body)
-                self.radials_received += 1
+                msg_type, body = await self._read_message(reader)
+                if msg_type == wire.MsgType.MOMENT_RAY:
+                    self._latest = decode_moment_ray(body)
+                    self.radials_received += 1
+                else:
+                    # status, bite_event, config_ack, capabilities... son
+                    # legitimos por este mismo enlace; todavia no hay consumidor.
+                    self.other_messages_received += 1
         except (asyncio.IncompleteReadError, ConnectionError):
-            pass  # emisor cerro la conexion (fin de volumen en el stub) -- no es un fallo
+            pass  # el emisor cerro -- no es un fallo
+        except WireFormatError:
+            # Tras un largo o un magic malo el flujo esta desincronizado: seguir
+            # leyendo produciria radiales que parecen validos y no lo son.
+            self.frame_errors += 1
+            logger.exception("trama invalida del DSP; se cierra la conexion")
         finally:
             self.connected = False
             writer.close()

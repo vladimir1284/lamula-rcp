@@ -93,9 +93,22 @@ bloqueada por esto igual que Fase 0 lo estaría sin `radar_emulator`.
 **Parcialmente resuelto (2026-08-19):** se construyó un stub propio
 (`spike-fase0/dsp_moment_stream_spike.py`) que emite/consume un volumen sintético contra el
 esquema ya congelado (`src/core/contracts/dsp.py`) — ver `spike-fase0/RESULTADO-dsp.md`. El
-framing/formato de transporte es invención de este repo, no un acuerdo con el proyecto DSP; sigue
-sin resolver el acceso a una implementación de referencia real del lado DSP para validar contra
-algo no inventado localmente.
+framing/formato de transporte era invención de este repo, no un acuerdo con el proyecto DSP.
+
+**Resuelto en formato (2026-08-30):** el proyecto DSP congeló el contrato de cable
+`DSP↔RCP v0.1` y aquí está vendorizado y anclado por hash en `contract/vendor/`, con adaptador
+(`src/adapters/dsp/wire.py`) y tests contra tramas construidas con el módulo generado del propio
+proyecto DSP. El framing inventado por el stub ya no se usa en `src/`. Ver
+[la página de interfaz](../interfaces/dsp.md).
+
+Dos cosas del contrato se decidieron a raíz de las reglas de este repo, no en el DSP: la
+separación de relojes (el cable trae ahora hora de pared **y** monótono, en vez de solo monótono)
+y los tres campos que el Msg 31 del ICD 2620002 exige y solo el DSP conoce.
+
+**Sigue abierto:** no hay emisor de referencia del lado DSP corriendo. Lo verificado es el
+**formato**, no la cadencia, ni la contrapresión con radiales de 3680 celdas a PRF alta, ni el
+comportamiento en reconexión. Hace falta el simulador de señal del proyecto DSP, que aún no
+existe.
 
 ### PEND-RCP-06 · Secuencia y confirmación de la rutina "general radar power-on" (Fase 2)
 
