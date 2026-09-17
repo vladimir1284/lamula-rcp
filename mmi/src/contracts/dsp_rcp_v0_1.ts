@@ -1,7 +1,7 @@
 // GENERADO por tools/gen_contract.py a partir de
 // contract/schema/dsp_rcp_v0_1.toml. NO EDITAR A MANO.
 //
-// Contrato DSP↔RCP v0.1 — lado MMI.
+// Contrato DSP↔RCP v1.3 — lado MMI.
 //
 // Little-endian, empaquetado. Los enteros de 64 bits se exponen como
 // bigint: no caben en el double de `number` sin perder enteros a partir
@@ -10,8 +10,8 @@
 /* eslint-disable */
 
 export const MAGIC = 0x4C4D4453;
-export const VERSION_MAJOR = 0;
-export const VERSION_MINOR = 1;
+export const VERSION_MAJOR = 1;
+export const VERSION_MINOR = 3;
 
 const LE = true;
 
@@ -793,8 +793,8 @@ export interface Config {
   estimator: number;
   /** Filtrado de interferencia de banda estrecha: 0 no, 1 sí. */
   rfiFilter: number;
-  /** Recuperación de trip múltiple: 0 no, 1 sí. */
-  rangeDealias: number;
+  /** Método de recuperación/detección de trip múltiple. Ver la enumeración `range_dealias_mode`. */
+  rangeDealiasMode: number;
   /** Numerador de la razón dual-PRF; 0 si no aplica. */
   prfRatioNum: number;
   /** Denominador de la razón dual-PRF; 0 si no aplica. */
@@ -825,13 +825,19 @@ export interface Config {
   zdrOffsetDb: number;
   /** Fase diferencial del sistema a restar, grados. */
   phidpOffsetDeg: number;
+  /** Aislamiento cruzado de la antena, dB. Satura ldr_db (lamula_polarimetry::ldr_db); sin efecto salvo LDR. */
+  antennaIsolationDb: number;
   /** Longitud de onda, metros. Escala la velocidad. */
   wavelengthM: number;
+  /** Modo del segundo canal de recepción cuando n_rx_channels > 1. Ver la enumeración. Sin efecto con canal único. */
+  polarizationMode: number;
   /** Relleno explícito; vale 0. */
   pad0: number;
+  /** Bins iniciales de un canal de burst (drx_dsp::channel::TX_BURST_0/1) que llevan señal real; el resto del canal es ruido/silencio. 0 si la instalación no tiene canal de burst (transmisor coherente sin monitor de burst). */
+  burstWindowBins: number;
 }
 
-export const CONFIG_SIZE = 80;
+export const CONFIG_SIZE = 84;
 
 export const CONFIG_OFFSETS = {
   seq: 0,
@@ -843,7 +849,7 @@ export const CONFIG_OFFSETS = {
   sweepMode: 14,
   estimator: 15,
   rfiFilter: 16,
-  rangeDealias: 17,
+  rangeDealiasMode: 17,
   prfRatioNum: 18,
   prfRatioDen: 19,
   startRangeM: 20,
@@ -859,8 +865,11 @@ export const CONFIG_OFFSETS = {
   receiverGainDb: 60,
   zdrOffsetDb: 64,
   phidpOffsetDeg: 68,
-  wavelengthM: 72,
-  pad0: 76,
+  antennaIsolationDb: 72,
+  wavelengthM: 76,
+  polarizationMode: 80,
+  pad0: 81,
+  burstWindowBins: 82,
 } as const;
 
 export function decodeConfig(view: DataView, base = 0): Config {
@@ -874,7 +883,7 @@ export function decodeConfig(view: DataView, base = 0): Config {
     sweepMode: view.getUint8(base + 14),
     estimator: view.getUint8(base + 15),
     rfiFilter: view.getUint8(base + 16),
-    rangeDealias: view.getUint8(base + 17),
+    rangeDealiasMode: view.getUint8(base + 17),
     prfRatioNum: view.getUint8(base + 18),
     prfRatioDen: view.getUint8(base + 19),
     startRangeM: view.getFloat32(base + 20, LE),
@@ -890,8 +899,11 @@ export function decodeConfig(view: DataView, base = 0): Config {
     receiverGainDb: view.getFloat32(base + 60, LE),
     zdrOffsetDb: view.getFloat32(base + 64, LE),
     phidpOffsetDeg: view.getFloat32(base + 68, LE),
-    wavelengthM: view.getFloat32(base + 72, LE),
-    pad0: view.getUint32(base + 76, LE),
+    antennaIsolationDb: view.getFloat32(base + 72, LE),
+    wavelengthM: view.getFloat32(base + 76, LE),
+    polarizationMode: view.getUint8(base + 80),
+    pad0: view.getUint8(base + 81),
+    burstWindowBins: view.getUint16(base + 82, LE),
   };
 }
 
@@ -906,7 +918,7 @@ export function encodeConfig(value: Config, view?: DataView, base = 0): DataView
   dv.setUint8(base + 14, value.sweepMode);
   dv.setUint8(base + 15, value.estimator);
   dv.setUint8(base + 16, value.rfiFilter);
-  dv.setUint8(base + 17, value.rangeDealias);
+  dv.setUint8(base + 17, value.rangeDealiasMode);
   dv.setUint8(base + 18, value.prfRatioNum);
   dv.setUint8(base + 19, value.prfRatioDen);
   dv.setFloat32(base + 20, value.startRangeM, LE);
@@ -922,8 +934,11 @@ export function encodeConfig(value: Config, view?: DataView, base = 0): DataView
   dv.setFloat32(base + 60, value.receiverGainDb, LE);
   dv.setFloat32(base + 64, value.zdrOffsetDb, LE);
   dv.setFloat32(base + 68, value.phidpOffsetDeg, LE);
-  dv.setFloat32(base + 72, value.wavelengthM, LE);
-  dv.setUint32(base + 76, value.pad0, LE);
+  dv.setFloat32(base + 72, value.antennaIsolationDb, LE);
+  dv.setFloat32(base + 76, value.wavelengthM, LE);
+  dv.setUint8(base + 80, value.polarizationMode);
+  dv.setUint8(base + 81, value.pad0);
+  dv.setUint16(base + 82, value.burstWindowBins, LE);
   return dv;
 }
 
@@ -1132,6 +1147,8 @@ export const Command = {
   REQUEST_CAPABILITIES: 5,
   /** Pone a cero los contadores de telemetría. */
   RESET_COUNTERS: 6,
+  /** Pide una traza de espectro de FI (spectrum_frame) oportunista sobre el flujo vivo. Sin ráfaga en curso no hay traza que mandar. */
+  REQUEST_SPECTRUM: 7,
 } as const;
 
 /**
@@ -1160,6 +1177,35 @@ export const DealiasMode = {
   DUAL_PRF: 1,
   /** Periodo escalonado dentro del radial. */
   STAGGERED_PRT: 2,
+} as const;
+
+/**
+ * Método de recuperación/detección de segundo trip
+ * (`docs/algorithms/roadmap.md` §"Decisiones cerradas" ítem "`range_dealias`
+ * sin SZ"). v0.2 lo declaraba con un solo bit booleano; v0.3 lo convierte en
+ * enumeración para poder distinguir la vía SZ(8/64) (klistrón) de la vía
+ * histórica de fase aleatoria (magnetrón) sin cambiar tamaño ni posición del
+ * campo — `0`/`1` conservan el significado que ya tenían.
+ */
+export const RangeDealiasMode = {
+  /** Sin recuperación de trip múltiple; sólo se procesa el primer trip. */
+  NONE: 0,
+  /** Detección y marcado cross-radial (`crates/service::ray`); recuperación real sólo en instalación magnetrón, vía la fase de burst aleatoria pulso a pulso (`lamula_range_dealias`). */
+  RANDOM_PHASE: 1,
+  /** Recuperación por codificación de fase SZ(8/64) (`docs/algorithms/sz-second-trip-recovery.md`, `crates/sz864`); exige transmisor con fase programable pulso a pulso (klistrón/TWT/estado sólido) y `capability_flag::sz864`. Sin cablear en `crates/service::ray` todavía. */
+  SZ_8_64: 2,
+} as const;
+
+/**
+ * Modo del segundo canal de recepción, cuando `n_rx_channels > 1`
+ * (`docs/algorithms/roadmap.md` §"Decisiones cerradas"). Sin efecto con canal
+ * único: no hay segundo canal con que elegir modo.
+ */
+export const PolarizationMode = {
+  /** STAR: H y V transmitidos y recibidos a la vez. Da ZDR/ΦDP/KDP/ρHV; no LDR. */
+  SIMULTANEOUS: 0,
+  /** H/V alternante radial a radial. Da LDR; PRF efectiva por canal a la mitad. */
+  ALTERNATING: 1,
 } as const;
 
 /**
@@ -1220,7 +1266,7 @@ export const CapabilityFlag = {
   DUAL_PRF: 4,
   /** Dealiasing por PRT escalonado disponible. */
   STAGGERED_PRT: 8,
-  /** Recuperación de trip múltiple disponible. */
+  /** Recuperación/detección de trip múltiple por fase aleatoria (magnetrón) disponible. Ver `range_dealias_mode::random_phase`. */
   RANGE_DEALIAS: 16,
   /** Filtrado de interferencia de banda estrecha disponible. */
   RFI_FILTER: 32,
@@ -1228,6 +1274,8 @@ export const CapabilityFlag = {
   SPECTRUM_FEED: 64,
   /** Volcado de series temporales crudas disponible. */
   IQ_ARCHIVE: 128,
+  /** Recuperación de trip múltiple por codificación de fase SZ(8/64) disponible (exige klistrón/TWT/estado sólido con fase programable). Ver `range_dealias_mode::sz_8_64`. */
+  SZ864: 256,
 } as const;
 
 /**

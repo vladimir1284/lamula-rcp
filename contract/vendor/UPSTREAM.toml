@@ -18,13 +18,13 @@ project = "lamula-dsp"
 repo_path = "../lamula-dsp"
 schema = "contract/schema/dsp_rcp_v0_1.toml"
 generator = "tools/gen_contract.py"
-commit = "8d7c7ba"
-commit_date = "2026-08-31"
+commit = "6a09656"
+commit_date = "2026-09-16"
 
 [contract]
 name = "dsp_rcp"
-version_major = 0
-version_minor = 1
+version_major = 1
+version_minor = 3
 magic = 0x4C4D4453
 endianness = "little"
 
@@ -33,17 +33,17 @@ endianness = "little"
 [[file]]
 path = "contract/vendor/dsp_rcp_v0_1.py"
 source = "contract/generated/dsp_rcp_v0_1.py"
-sha256 = "d4ced7570d9f038858d2661d6ec89db355e928fc5b382695b91e7d3129128cdd"
+sha256 = "2364c5609337560827a65363d63a03f0b9de268c53185b271c6e51d43a9746d4"
 role = "Codificación de cable para el backend. La usa src/adapters/dsp/."
 
 [[file]]
 path = "mmi/src/contracts/dsp_rcp_v0_1.ts"
 source = "contract/generated/dsp_rcp_v0_1.ts"
-sha256 = "6678574ffb346f86cfbf3c1aaaf01debed5a014d4a1012f08a31c18a26a9e0d5"
+sha256 = "856b5d5a8f3d4a562880888aa52b9d1f3fb254f32a6c4c6dfad65a92d433b530"
 role = "Codificación de cable para la MMI. Vive dentro de mmi/src para que Vite la resuelva."
 
 # El esquema no se vendoriza —aquí no se genera código— pero se anota su hash
 # para detectar que el origen cambió sin que nadie re-vendorizara.
 [[watch]]
 source = "contract/schema/dsp_rcp_v0_1.toml"
-sha256 = "6f9fb23184e37d388a82a1f9a4bf765a7e6fa99abe8b9b8dbf2ec514a1abb860"
+sha256 = "9a9ce78e55f54e25feb59b52aa36f97afd39c4b958748581ca510b09015069c7"
