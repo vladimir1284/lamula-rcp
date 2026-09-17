@@ -435,6 +435,45 @@ y coinciden. La cobertura fue por grep dirigido, no lectura exhaustiva: **quedan
 composición geográfica entre radares, VAD/VWP y el remuestreo final a rejilla Level-III, que es
 justo donde más daño haría una asunción cableada.
 
+### PEND-RCP-13 · Ningún plan conecta este repo con la ZedBoard real del proyecto DRx { #pend-rcp-13 }
+
+**Estado:** abierto, identificado 2026-09-17 · **Dueño:** los tres equipos (DRx + DSP + RCP), no
+tiene dueño único hoy · **Bloquea:** poder probar `adapters/dsp/moment_stream_receiver.py` y todo
+lo que cuelga de él (Level-II, feed a ORPG, MMI) contra tráfico real generado en el PL de la
+ZedBoard del proyecto DRx, en vez de contra el stub propio o `radar_emulator`.
+
+Relacionado con [PEND-RCP-05](#pend-rcp-05-el-dsp-externo-no-tiene-aun-una-interfaz-de-referencia-ejecutable)
+pero no lo mismo: PEND-RCP-05 pide que exista **algún**
+emisor DSP real corriendo (aunque sea contra el simulador sintético del propio DSP); este pendiente
+pide que, aguas arriba de ese DSP, la fuente sea la **ZedBoard real** del proyecto DRx con
+`vector_source` (datos generados en el PL, sin ADC ni JESD204B — ese frontal real sigue sin
+mitigación, es el pendiente [P-03](https://lamula-drx-docs.pages.dev/alcance/pendientes/#p-03) de
+ese proyecto, y esto no lo sustituye). Cerrar PEND-RCP-05 no cierra este.
+
+Revisión de integración cruzada (2026-09-17): ninguno de los tres planes llega hasta aquí.
+
+- El plan de este repo (`docs/referencia/project-plan.md` §8.3) fija M4 como «simulator acceptance»
+  — validación **contra simuladores propios**; hardware real queda para «field commissioning»
+  después del mes 8, sin fecha ni plan operativo.
+- El plan del DSP (`lamula-dsp/docs/dsp-plan.md` §8.2) valida su M1 contra su propio simulador
+  sintético de I/Q, no contra un DRx real.
+- El plan del DRx (`lamula-drx/docs/implementacion/fases.md#z4`) fija su hito ZM4 como rayos
+  consumidos por **un stub de DSP**, no por el DSP ni el RCP reales — ver P-10 de ese proyecto.
+
+**Lo que sí se podría probar hoy** si ese hito existiera: todo lo que este repo ya ejerce contra
+`radar_emulator` (las seis rutinas de control, el Scan Worksheet, BITE, autoridad de control) más
+la ingesta real de momentos (`wire.py`) contra cadencia y contrapresión de hardware de verdad —
+justo lo que PEND-RCP-05 marca como no verificado con el stub actual — y, más allá de lo que
+`radar_emulator` puede simular, el camino completo I/Q real (generado en el PL) → DDC/gating real
+en FPGA → DSP real → RCP real → Level-II/ORPG.
+
+**Condición de cierre:** un hito conjunto entre los tres proyectos que sustituya, en este orden, el
+stub interno de este repo → el simulador sintético del DSP → el stub del ZM4 del DRx, por la cadena
+real completa. No requiere la ZU9 ni el frontal analógico (eso sigue siendo P-03 del DRx, sin
+mitigación). Hoy no hay dueño de ese hito ni semana asignada en ninguno de los tres calendarios (28
+semanas DRx, 34 DSP, 34 RCP). Ver también la nota correspondiente en
+`lamula-dsp/docs/algorithms/roadmap.md`.
+
 ### Vista MMI "Scan Worksheet" y endpoints de soporte (Fase 2)
 
 `mmi/src/views/ScanWorksheetView.vue` (ruta `/scan-worksheet`) + `GET/POST/DELETE
