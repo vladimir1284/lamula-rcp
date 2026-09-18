@@ -458,7 +458,7 @@ Revisión de integración cruzada (2026-09-17): ninguno de los tres planes llega
 - El plan del DSP (`lamula-dsp/docs/dsp-plan.md` §8.2) valida su M1 contra su propio simulador
   sintético de I/Q, no contra un DRx real.
 - El plan del DRx (`lamula-drx/docs/implementacion/fases.md#z4`) fija su hito ZM4 como rayos
-  consumidos por **un stub de DSP**, no por el DSP ni el RCP reales — ver P-10 de ese proyecto.
+  consumidos por **un stub de DSP**, no por el DSP ni el RCP reales — ver P-13 de ese proyecto.
 
 **Lo que sí se podría probar hoy** si ese hito existiera: todo lo que este repo ya ejerce contra
 `radar_emulator` (las seis rutinas de control, el Scan Worksheet, BITE, autoridad de control) más
@@ -473,6 +473,52 @@ real completa. No requiere la ZU9 ni el frontal analógico (eso sigue siendo P-0
 mitigación). Hoy no hay dueño de ese hito ni semana asignada en ninguno de los tres calendarios (28
 semanas DRx, 34 DSP, 34 RCP). Ver también la nota correspondiente en
 `lamula-dsp/docs/algorithms/roadmap.md`.
+
+**Plan por fases (2026-09-17)**, del pendiente P-13 de `lamula-drx`; lo que le toca a este repo:
+
+- **Fase A/B** (cadena DRx sola, luego DSP real con vector fijo/manual): no le tocan a este repo.
+- **Fase C — RCP real contra ese DSP real.** `adapters/dsp/wire.py`/`moment_stream_receiver.py`
+  apuntados al DSP real cierra el resto de [PEND-RCP-05](#pend-rcp-05-el-dsp-externo-no-tiene-aun-una-interfaz-de-referencia-ejecutable)
+  (cadencia, contrapresión, reconexión). Level-II y el feed RDA/ORPG quedan ejercitados con
+  radiales de jitter real en vez de sintético — estresa [PEND-RCP-12](#pend-rcp-12-orpg-no-tolera-la-geometria-del-radial-la-filtra-por-lista-blanca).
+  Esta misma fase deja al descubierto [PEND-RCP-14](#pend-rcp-14) (abajo): hoy no hay nada del
+  lado RCP que consuma el `status`/`bite_event` de ese contrato.
+- **Fase D — selección de señal de prueba desde este repo, como función BITE permanente del
+  operador.** Decisión del usuario (2026-09-17): no es herramienta de desarrollo desechable. A
+  este repo le toca el panel de MMI (BITE self-test / inyector de señal) que arma el catálogo de
+  vectores (el mismo que ya existe en `tools/gen_l1_vectors.py::_cases()` del DRx) y dispara el
+  comando — sobre un mensaje `control` de `dsp_rcp` que el DSP debe extender primero, que a su vez
+  depende de que el DRx cierre su propio ADR para el mensaje de cable nuevo. Este repo no puede
+  adelantar esa pieza sin las otras dos.
+- **Fase E** (red/resistencia) y **Fase F, stretch** (sincronizar `radar_emulator` con el emulador
+  SSI del DRx — dos dobles independientes de la misma antena, sin verdad compartida): ver el
+  pendiente P-13 de `lamula-drx` para el detalle; no requieren trabajo propio de este repo todavía.
+
+### PEND-RCP-14 · Este repo no consume el `status`/`bite_event` del contrato DSP↔RCP { #pend-rcp-14 }
+
+**Estado:** abierto, identificado 2026-09-17 (hallazgo de la Fase C de PEND-RCP-13) · **Dueño:**
+este repo · **Bloquea:** que el operador vea en la MMI fallos reales de la cadena DRx/DSP
+(`ssa_underruns`, `dma_overruns`, `ssi_errors`, `ddc_overflows`, `bite_flags`) en vez de solo los
+fallos Modbus de `radar_emulator`.
+
+El contrato `dsp_rcp` (`lamula-dsp/contract/schema/dsp_rcp_v0_1.toml`) define mensajes `status`
+(`up`, periódico) y `bite_event` (`up`) con exactamente ese propósito. `src/core/bite/manager.py`
+de este repo sondea únicamente `*_ok_status`/`*_fault_status`/`*_over_current_status` del catálogo
+Modbus de `radar_emulator` — cero líneas tocan `contract/vendor/dsp_rcp_v0_1.py` para estos dos
+mensajes. `adapters/dsp/wire.py` solo decodifica `moment_ray`; no hay decodificador para `status`
+ni `bite_event` en absoluto.
+
+Consecuencia práctica hoy: un fallo real de la cadena DRx/DSP (un `ddc_overflow` por saturación de
+entrada, un `ssi_error` de encoder, un underrun de la SSA) no llega a la MMI del RCP de ninguna
+forma, ni siquiera cuando exista un DSP real corriendo (PEND-RCP-05) — falta el decodificador y el
+cableado a `BiteManager`, no solo la fuente de datos.
+
+**Condición de cierre:** decodificador de `status`/`bite_event` en `adapters/dsp/`, misma disciplina
+que `wire.py` para `moment_ray` (nunca bytes crudos en `core/`), y una segunda fuente en
+`BiteManager` junto a la de Modbus — con el mismo criterio de fallo-en-alto que ya rige el resto del
+BITE del repo. No depende de que exista un DSP real corriendo primero: se puede construir y probar
+contra tramas `status`/`bite_event` construidas a mano con el módulo vendorizado, igual que
+`wire.py` se probó contra `moment_ray` antes de que existiera un emisor real (PEND-RCP-05).
 
 ### Vista MMI "Scan Worksheet" y endpoints de soporte (Fase 2)
 
