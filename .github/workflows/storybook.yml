@@ -1,0 +1,46 @@
+name: storybook
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'mmi/**'
+      - '.github/workflows/storybook.yml'
+  pull_request:
+    paths:
+      - 'mmi/**'
+      - '.github/workflows/storybook.yml'
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+          cache-dependency-path: 'mmi/pnpm-lock.yaml'
+
+      - name: Install dependencies
+        run: pnpm --prefix mmi install --frozen-lockfile
+
+      - name: Build Storybook
+        run: pnpm --prefix mmi run build-storybook
+
+      - name: Deploy to Cloudflare Pages
+        if: github.event_name != 'pull_request'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy mmi/storybook-static --project-name=lamula-rcp-storybook

@@ -8,7 +8,7 @@
 
 PY ?= .venv/bin/python
 
-.PHONY: check lint test docs mmi-check
+.PHONY: check lint test docs mmi-check storybook
 
 # El ancla del contrato vendorizado: nada de contract/vendor/ ni de
 # mmi/src/contracts/ se edita a mano, ni siquiera para formatear.
@@ -23,5 +23,8 @@ docs:
 
 mmi-check:
 	cd mmi && npx vue-tsc --build
+
+storybook:
+	pnpm --prefix mmi run build-storybook
 
 check: lint test docs

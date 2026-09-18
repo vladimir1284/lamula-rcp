@@ -22,4 +22,9 @@ pnpm run type-check
 pnpm run lint
 pnpm run test:unit
 pnpm run test:e2e     # requiere `pnpm exec playwright install` la primera vez
+pnpm run build-storybook # compila Storybook estático en storybook-static/
 ```
+
+## Storybook CI / Cloudflare Pages
+
+Storybook se compila automáticamente mediante el workflow de GitHub Actions (`.github/workflows/storybook.yml`) en cambios dentro de `mmi/`. En commits a `main`, el sitio estático resultante (`storybook-static`) se despliega automáticamente en Cloudflare Pages en el proyecto `lamula-rcp-storybook`.
