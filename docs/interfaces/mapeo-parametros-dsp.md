@@ -657,10 +657,59 @@ representación en `DSP↔RCP` para que el MMI pueda leerlos y escribirlos:
 | Divisor de PRF | `drx_dsp_v0_1.rs:113-152` | E5 |
 | `trigger_delay_0..3` / `trigger_width_0..3` | `drx_dsp_v0_1.rs:133-147` | E6, en su forma real: **cuatro pares fijos, sin polaridad ni término proporcional al PRT**, no los seis triggers libres del RVP900 |
 
-Dos cosas que conviene fijar al reexponerlos: si son de **solo lectura** para el operador o
-escribibles (afecta a si E5/E6 son formularios o paneles de estado), y **qué unidades cruzan el
-cable** — el DRx los lleva en unidades de reloj, y exponerlos así al MMI traslada al RCP una
-conversión que depende del reloj del DRx.
+**Escritura: decidido (2026-09-19), reparto mixto.** El ancho de pulso y el divisor de PRF son
+**escribibles** —son decisiones operativas normales, y el ancho de pulso ya aparece en el Scan
+Worksheet (C3)—. Los cuatro pares de retardo y anchura de trigger son **de solo lectura**: son
+alineación de puesta en marcha, se miran para diagnosticar y no se tocan en operación. E5 y E6
+quedan, por tanto, como formulario parcial con una sección de estado, no como formulario
+completo.
+
+Esa decisión tiene un flanco que hay que mirar: **F1 (`Pb`, temporizado del burst) desplaza los
+triggers a la vez**, y es su función principal. Con los triggers de solo lectura, F1 se queda sin
+la mitad de sus controles y pasa a ser una vista de verificación, no de ajuste. Si el ajuste del
+temporizado del burst tiene que hacerse desde el MMI y no en puesta en marcha, hay que reabrir
+esto para F1 en concreto.
+
+Sigue abierto **en qué unidades cruzan el cable**: el DRx los lleva en unidades de reloj, y
+exponerlos así al MMI traslada al RCP una conversión que depende del reloj del DRx. Recomendamos
+que el proxy convierta a microsegundos y que el reloj no salga del DSP.
+
+### 16. Tipo de transmisor en el contrato
+
+Consecuencia de la pregunta 5, ya cerrada: **el parque es mixto, magnetrón y klistrón conviven.**
+
+**Qué falta:** un campo de tipo de transmisor en `DSP↔RCP` —y, seguramente, el mismo dato en
+`DRx↔DSP`—, publicado en `capabilities` o en `config`, no deducido.
+
+**Por qué:** hoy es una constante de compilación
+(`lamula-dsp/crates/service/src/ray.rs:267`, `MAGNETRON_TRANSMITTER: bool = true`) cuyo propio
+doc-comment admite ser un placeholder a falta de campo de contrato. De ese valor dependen tres
+comportamientos incompatibles entre sí: la vía de recuperación de segundo trip (fase aleatoria
+frente a SZ(8/64)), si la corrección de fase por burst es obligatoria u opcional, y qué controles
+puede ofrecer el MMI sin invitar a un error. Un binario compilado para magnetrón desplegado en
+una instalación de klistrón no falla: produce datos silenciosamente peores.
+
+**Coste:** un `u8` de enumeración y la ramificación en `ray.rs`. Los dos algoritmos ya existen.
+
+---
+
+## Tarea pendiente en este repositorio: re-vendorizar a v1.2
+
+Decidido el 2026-09-19 (pregunta 2). **No es una tarea del proyecto DSP, es nuestra.** Consiste en:
+
+1. Regenerar en `lamula-dsp` con `make gen` a partir de
+   `contract/schema/dsp_rcp_v0_1.toml` (hoy v1.2).
+2. Copiar los tres ficheros generados a sus destinos: `contract/vendor/dsp_rcp_v0_1.py`,
+   `contract/vendor/dsp_rcp_v0_1.rs` y `mmi/src/contracts/dsp_rcp_v0_1.ts`.
+3. Actualizar el pin en `contract/vendor/UPSTREAM.toml`: `commit`, `commit_date`,
+   `version_major` 0 → **1**, `version_minor` 1 → **2**, y los tres SHA-256.
+4. Pasar `tools/check_vendored_contract.py` y `make check`.
+
+**Lo que no es mecánico:** `Config` crece de 80 a 84 bytes y gana `polarization_mode`,
+`antenna_isolation_db` y `burst_window_bins`; `Command` gana `request_spectrum` = 7. Todo lo que
+hoy consume el contrato v0.1 —adaptadores de `src/adapters/dsp/` y lo que la MMI importe de
+`mmi/src/contracts/`— hay que revisarlo, y los tests que fijen tamaños o desplazamientos van a
+fallar. Cuéntese como cambio de código con su verificación, no como actualización de un fichero.
 
 ---
 
@@ -673,11 +722,10 @@ conversión que depende del reloj del DRx.
    parámetros reexpuestos son de solo lectura o escribibles, en qué unidades cruzan, y quién
    valida las combinaciones inválidas.
 
-2. **¿Se re-vendoriza `DSP↔RCP` a v1.2 antes de empezar familia E, o se espera a una v2 que
-   incluya los huecos de este documento?** El pin actual (v0.1, 80 B, `version_major` 0) es
-   incompatible con el DSP de hoy (v1.2, 84 B, `version_major` 1). Cualquier UI construida
-   contra el pin actual nace rota; cualquier UI construida contra v1.2 se rehace si la v2
-   llega pronto.
+2. ~~**¿Se re-vendoriza `DSP↔RCP` a v1.2 antes de empezar familia E?**~~
+   **Cerrado (2026-09-19): se re-vendoriza ya a v1.2.** No se espera a una v2 que incluya los
+   huecos de este documento. Es prerrequisito: con el pin actual el RCP no puede hablar con el
+   DSP ni siquiera para recibir momentos. Ver "Tarea pendiente: re-vendorizar" más abajo.
 
 3. **¿La familia E se acota a lo que el `Config` sabe llevar, o el DSP ensancha el esquema?**
    Es la pregunta de alcance que gobierna todo lo demás. Diseñar 29 campos y diseñar 130 son
@@ -689,14 +737,20 @@ conversión que depende del reloj del DRx.
    realmente constante?** No hace falta exponerlos todos. Pero los doc-comments dicen que son
    placeholders, y un placeholder que nadie decide se convierte en constante por omisión.
 
-5. **`MAGNETRON_TRANSMITTER` está fijado a `true` en `ray.rs:267`. ¿Nuestra instalación es de
-   magnetrón o de klistrón?** Las dos respuestas aparecen en la documentación del DSP: la
-   constante dice magnetrón, y la nota de hardware del 2026-09-04 habla de "el excitador de
-   klistrón" y promueve SZ(8/64) a compromiso real de Stage 1 "sólo para instalación klistrón"
-   (`roadmap.md:712-718`). No pueden ser las dos: la corrección de fase por burst es
-   prerrequisito duro en una y opcional en la otra, y la recuperación de segundo trip usa
-   mecanismos incompatibles. Si conviven las dos configuraciones, hace falta el campo de
-   contrato del punto 7.
+5. ~~**¿Nuestra instalación es de magnetrón o de klistrón?**~~
+   **Cerrado (2026-09-19): conviven las dos configuraciones.** No es una constante de
+   instalación: el parque es mixto. Consecuencias, y ninguna es cosmética:
+
+   - **`MAGNETRON_TRANSMITTER: bool = true` (`lamula-dsp/crates/service/src/ray.rs:267`) deja
+     de ser admisible.** Su propio doc-comment ya decía que era constante local a falta de
+     campo de contrato; ahora ese campo es obligatorio. Ver la entrada 16 de "Falta".
+   - **La recuperación de segundo trip depende del tipo de transmisor**: fase aleatoria en
+     magnetrón (ya cableada en el dealiasing de rango), SZ(8/64) en klistrón
+     (`crates/sz864`). El DSP tiene que elegir la vía según el campo, no según la compilación.
+   - **La corrección de fase por burst es prerrequisito duro en magnetrón y opcional en
+     klistrón.** El MMI no puede ofrecer apagarla en una instalación de magnetrón.
+   - **El MMI tiene que mostrar de qué instalación se trata** y adaptar qué opciones ofrece.
+     Un control de SZ(8/64) visible frente a un magnetrón es una invitación a un fallo.
 
 6. **¿Hay equivalente previsto para `Clutter Microsuppression`, `Max power mismatch across
    octants`, `High power rejection threshold`, `Maximum KEY phase error` y el "filtro
@@ -715,13 +769,17 @@ conversión que depende del reloj del DRx.
    de fallo que no se detecta hasta que ya está archivado en Level-II. Un bit en
    `capability_flags` o en `status` lo cierra.
 
-9. **¿Cuál es la ruta prevista para el resto de mensajes de subida?** `status`, `capabilities`,
-   `config_ack`, `bite_event` y `spectrum_frame` llegan por el mismo socket y aquí se cuentan y
-   se descartan (`src/adapters/dsp/moment_stream_receiver.py:81-84`). Además, hoy el DSP marca
-   hacia el RCP y el RCP escucha (`src/adapters/gateway/__main__.py:28`); el plano de control
-   necesita escribir en sentido contrario. ¿Comparte socket con el flujo de momentos, o el
-   control tiene el suyo? Esa decisión no está registrada en ningún código ni documento que
-   haya encontrado.
+9. ~~**¿Comparte el plano de control socket con el flujo de momentos?**~~
+   **Cerrado (2026-09-19): socket propio para control, separado del flujo de momentos.** Los
+   momentos son un caudal continuo en un sentido; el control es esporádico, bidireccional y
+   necesita confirmación. Evita el bloqueo de cabeza de línea —un `config_ack` esperando
+   detrás de un lote de radiales justo cuando el operador espera respuesta— y desacopla las
+   caídas. Queda por concretar con el equipo DSP: **qué mensajes viajan por cuál**. Hoy
+   `status`, `capabilities`, `config_ack`, `bite_event` y `spectrum_frame` llegan por el socket
+   de momentos y se descartan sin leer
+   (`src/adapters/dsp/moment_stream_receiver.py:81-84`); la propuesta natural es que
+   `config_ack` y `bite_event` pasen al socket de control con el resto del plano de mandatos, y
+   que `spectrum_frame`, que es un volcado de datos, se quede con los momentos.
 
 10. **Corrección de documentación, no de formato:** el enum `polarization_mode` describe
     `alternating` como "radial a radial" (`…toml:480`) cuando todo el cableo asume pulso a

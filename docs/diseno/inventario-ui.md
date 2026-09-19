@@ -944,6 +944,13 @@ no expone. Dos cosas de ahí afectan directamente al diseño de esta familia:
   podrá tocar son **cuatro pares fijos de retardo y anchura, sin polaridad y sin término
   proporcional al PRT** — no los seis triggers libres del RVP900. `TriggerTimingTable` se diseña
   con esa forma, no con la del manual.
+- **Reparto de escritura decidido (2026-09-19): mixto.** Ancho de pulso y divisor de PRF son
+  escribibles; los cuatro pares de trigger son **de solo lectura** (alineación de puesta en
+  marcha). E5 y E6 son formulario parcial con sección de estado, no formulario completo. Ojo al
+  efecto sobre **F1**, cuya función principal es desplazar los triggers: con ellos de solo
+  lectura, F1 pasa a ser vista de verificación y no de ajuste.
+- **El hardware no es uniforme: magnetrón y klistrón conviven.** Varias vistas de esta familia y
+  de la F tienen que condicionar qué ofrecen al tipo de transmisor. Ver E8.
 - **Buena parte de esta familia no se puede construir todavía.** El documento de mapeo dice qué
   existe hoy; diséñense los patrones y no se dé por hecho que hay dato detrás de cada campo.
 
@@ -1160,9 +1167,16 @@ gráfico; conviene diseñarla junto con F5 (modo de test de AFC), que es donde s
 | Canal B | `Chan B` (mismas opciones), `Output power level` (dBm) + `Peak` sí/no, `Apply pulse-to-pulse phase modulation` |
 | Chirp | `FM Chirp manual spectrum flattener` (%/MHz) |
 
-**Nota de proyecto:** el klystron excitador de nuestro radar admite fase programable pulso a
-pulso, así que la opción `SZ(8/64)` es viable a nivel de hardware y no debe descartarse del
-diseño como "no aplicable".
+**Nota de proyecto (actualizada 2026-09-19): el parque es mixto — conviven instalaciones de
+magnetrón y de klistrón.** El excitador de klistrón admite fase programable pulso a pulso, así
+que `SZ(8/64)` es viable ahí y no debe descartarse; en magnetrón no aplica, y la vía de segundo
+trip es la recuperación por fase aleatoria. Para el diseño eso significa que **esta vista es
+dependiente del tipo de transmisor**: el MMI tiene que saber contra qué instalación está y no
+ofrecer `SZ(8/64)` frente a un magnetrón. Lo mismo con la corrección de fase por burst, que en
+magnetrón es obligatoria y no se puede ofrecer apagada. Hace falta, por tanto, un patrón de
+**control condicionado por capacidad del hardware**, y no solo aquí: es el mismo problema que el
+layout dinámico del Scan Worksheet (C3), donde el legacy ya adapta la pantalla a lo que el radar
+soporta.
 
 **Componentes:** `ChannelConfigCard` (×2), `ModulationSelector`, `PhaseAngleField` (grados ↔ hex).
 
