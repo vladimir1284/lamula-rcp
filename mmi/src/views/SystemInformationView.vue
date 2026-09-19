@@ -8,9 +8,7 @@ const { control, sessionInfo } = useGateway()
 </script>
 
 <template>
-  <div class="mx-auto flex max-w-3xl flex-col gap-4 p-6">
-    <h1 class="text-2xl font-semibold">System Information</h1>
-
+  <div class="flex h-full min-h-0 flex-col gap-4 overflow-auto p-3">
     <Card>
       <CardHeader>
         <CardTitle>RCP</CardTitle>

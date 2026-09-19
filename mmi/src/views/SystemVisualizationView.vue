@@ -34,9 +34,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="mx-auto flex max-w-3xl flex-col gap-4 p-6">
-    <h1 class="text-2xl font-semibold">System Visualization</h1>
-
+  <div class="flex h-full min-h-0 flex-col gap-4 overflow-auto p-3">
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <Card v-for="s in subsystemFaults" :key="s.key">
         <CardHeader class="flex flex-row items-center justify-between space-y-0">

@@ -42,6 +42,43 @@
     --radius-md: calc(var(--radius) - 2px);
     --radius-lg: var(--radius);
     --radius-xl: calc(var(--radius) + 4px);
+
+    /* Indicator state scale (docs/diseno/inventario-ui.md §Requisitos transversales #1).
+       `stale` is deliberately NOT a hue — see .is-stale below. */
+    --color-state-ok: var(--state-ok);
+    --color-state-warn: var(--state-warn);
+    --color-state-fault: var(--state-fault);
+    --color-state-disabled: var(--state-disabled);
+    --color-state-simulated: var(--state-simulated);
+
+    /* Reflectivity (dBZ) — perceptually-uniform multi-hue sequential, low→high. */
+    --color-data-reflectivity-1: var(--data-reflectivity-1);
+    --color-data-reflectivity-2: var(--data-reflectivity-2);
+    --color-data-reflectivity-3: var(--data-reflectivity-3);
+    --color-data-reflectivity-4: var(--data-reflectivity-4);
+    --color-data-reflectivity-5: var(--data-reflectivity-5);
+    --color-data-reflectivity-6: var(--data-reflectivity-6);
+    --color-data-reflectivity-7: var(--data-reflectivity-7);
+    --color-data-reflectivity-8: var(--data-reflectivity-8);
+
+    /* Velocity (m/s) — diverging, signed, centred on zero. */
+    --color-data-velocity-away-5: var(--data-velocity-away-5);
+    --color-data-velocity-away-4: var(--data-velocity-away-4);
+    --color-data-velocity-away-3: var(--data-velocity-away-3);
+    --color-data-velocity-away-2: var(--data-velocity-away-2);
+    --color-data-velocity-away-1: var(--data-velocity-away-1);
+    --color-data-velocity-zero: var(--data-velocity-zero);
+    --color-data-velocity-toward-1: var(--data-velocity-toward-1);
+    --color-data-velocity-toward-2: var(--data-velocity-toward-2);
+    --color-data-velocity-toward-3: var(--data-velocity-toward-3);
+    --color-data-velocity-toward-4: var(--data-velocity-toward-4);
+    --color-data-velocity-toward-5: var(--data-velocity-toward-5);
+
+    /* Spectrum width — sequential, unsigned, low→high. */
+    --color-data-width-1: var(--data-width-1);
+    --color-data-width-2: var(--data-width-2);
+    --color-data-width-3: var(--data-width-3);
+    --color-data-width-4: var(--data-width-4);
 }
 
 :root {
@@ -77,6 +114,44 @@
     --sidebar-accent-foreground: oklch(0.205 0 0);
     --sidebar-border: oklch(0.922 0 0);
     --sidebar-ring: oklch(0.708 0 0);
+
+    /* State scale — mode-invariant hex, validated for WCAG contrast against both
+       surfaces (docs/diseno/inventario-ui.md, "Cerrado: paletas de datos"). */
+    --state-ok: #0ca30c;
+    --state-warn: #fab219;
+    --state-fault: #d03b3b;
+    --state-disabled: #898781;
+    --state-simulated: #4a3aa7;
+
+    /* Data palettes render on the data-view scope canvas (ASCOPE/PPI/RHI/spectrum),
+       which stays dark regardless of app theme — radar-scope convention, same as
+       legacy Ravis/RVP900. Values below are validated against that dark canvas,
+       not against --background, and are therefore defined once, not per mode. */
+    --data-reflectivity-1: oklch(0.32 0.13 255); /* noise floor */
+    --data-reflectivity-2: oklch(0.46 0.15 195);
+    --data-reflectivity-3: oklch(0.62 0.17 145);
+    --data-reflectivity-4: oklch(0.76 0.15 95);
+    --data-reflectivity-5: oklch(0.65 0.19 62);
+    --data-reflectivity-6: oklch(0.42 0.24 355);
+    --data-reflectivity-7: oklch(0.40 0.24 315);
+    --data-reflectivity-8: oklch(0.93 0.05 340); /* clip, off-scale */
+
+    --data-velocity-away-1: oklch(0.58 0.03 255);
+    --data-velocity-away-2: oklch(0.58 0.08 255);
+    --data-velocity-away-3: oklch(0.58 0.13 255);
+    --data-velocity-away-4: oklch(0.58 0.18 255);
+    --data-velocity-away-5: oklch(0.58 0.22 255);
+    --data-velocity-zero: oklch(0.50 0 0);
+    --data-velocity-toward-1: oklch(0.58 0.03 25);
+    --data-velocity-toward-2: oklch(0.58 0.08 25);
+    --data-velocity-toward-3: oklch(0.58 0.13 25);
+    --data-velocity-toward-4: oklch(0.58 0.18 25);
+    --data-velocity-toward-5: oklch(0.58 0.22 25);
+
+    --data-width-1: oklch(0.32 0.09 290);
+    --data-width-2: oklch(0.46 0.16 290);
+    --data-width-3: oklch(0.64 0.19 290);
+    --data-width-4: oklch(0.78 0.12 290);
 }
 
 .dark {
@@ -111,6 +186,8 @@
     --sidebar-accent-foreground: oklch(0.985 0 0);
     --sidebar-border: oklch(1 0 0 / 10%);
     --sidebar-ring: oklch(0.556 0 0);
+
+    --state-simulated: #9085e9;
 }
 
 @layer base {
@@ -121,4 +198,56 @@
     @apply bg-background text-foreground;
     @apply font-sans;
     }
+
+  /* AppShell (A1) es un layout a pantalla completa (`h-full` en cascada) --
+     sin esto la cadena html/body/#app no tiene alto de donde heredar y el
+     mosaico colapsa a la altura de su contenido en vez de llenar la
+     ventana. */
+  html, body, #app {
+    height: 100%;
+  }
+
+  /* Stale (docs/diseno/inventario-ui.md §1): the most dangerous state to lose,
+     so it is never a hue swap — it overlays whatever the last-known state color
+     was with a hatch, so a stale "ok" green stays visibly green AND visibly
+     stale, instead of silently reading as a fresh "ok". Always pair with a
+     text/icon label; this alone is not sufficient encoding. */
+  .is-stale {
+    position: relative;
+    opacity: 0.55;
+  }
+  .is-stale::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image: repeating-linear-gradient(
+      45deg,
+      currentColor 0,
+      currentColor 1px,
+      transparent 1px,
+      transparent 6px
+    );
+    opacity: 0.5;
+    mix-blend-mode: difference;
+  }
+
+  /* Nominal vs actual (docs/diseno/inventario-ui.md §2): one pattern, reused
+     everywhere a requested value and a live hardware value can differ. */
+  .value-nominal {
+    @apply text-muted-foreground;
+    font-variant-numeric: tabular-nums;
+    border-bottom: 1px dashed var(--muted-foreground);
+  }
+  .value-actual {
+    @apply text-foreground;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+  }
+  .value-diverged {
+    @apply text-state-warn;
+    outline: 1px solid var(--state-warn);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
 }
