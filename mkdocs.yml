@@ -50,6 +50,7 @@ nav:
       - Pendientes: alcance/pendientes.md
   - Interfaces:
       - RCP↔DSP: interfaces/dsp.md
+      - Mapeo de parámetros DSP: interfaces/mapeo-parametros-dsp.md
   - Operación:
       - Rutinas de control: operacion/rutinas-control.md
   - Diseño:
