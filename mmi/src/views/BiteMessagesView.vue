@@ -31,9 +31,15 @@ const history = computed<BiteEventMessage[]>(() =>
   messages.value.filter((m): m is BiteEventMessage => m.type === 'bite_event'),
 )
 
+// "activas" = signal_id sigue en biteFaults AHORA, no "esta fila es una
+// transición de tipo fault" -- una falla que ya se resolvió deja una fila
+// `fault` en el historial, y esa fila no debe contar como activa sólo
+// porque su `transition` diga 'fault' (bug real, atrapado viendo esta
+// vista en Storybook con datos de ejemplo: ant.servo_ok_status se resolvió
+// pero su fila de fault seguía apareciendo con "Mostrar resueltas" apagado).
 const rows = computed(() =>
   [...history.value]
-    .filter((m) => showResolved.value || m.transition === 'fault')
+    .filter((m) => showResolved.value || biteFaults.value.has(m.signal_id))
     .sort((a, b) => b.at_wall.localeCompare(a.at_wall)),
 )
 
