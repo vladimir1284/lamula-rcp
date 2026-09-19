@@ -231,7 +231,7 @@ mensaje nuevo (declarado alcance Stage 2). Añado un hecho verificado que esa p�
 | Parámetro del inventario | Categoría | Campo en nuestro contrato | Ubicación | Nota |
 | --- | --- | --- | --- | --- |
 | `Pulse Repetition Frequency` (Hz, 50–20000) | Difiere | `prf_hz` (f32, Hz) | `…toml:311` | El campo existe. **Los límites no**: sólo se valida que sea finito y positivo, más la coherencia PRF × extensión de rango (`validate.rs:77-93`), que es un proxy físico de la decisión D-09 del DRx, no su texto (el propio módulo lo advierte, `validate.rs:78-87`) |
-| `Transmit pulse width` (índice) | Falta | — | — | **No existe en `DSP↔RCP`.** Sí existe en `DRx↔DSP` como `pulse_width_idx` (`lamula-dsp/contract/vendor/drx_dsp_v0_1.rs:121`), pero este repositorio **no tiene adaptador DRx** — no hay `src/adapters/drx/`. Es un hueco de ruta, no sólo de campo. Ver pregunta 1 |
+| `Transmit pulse width` (índice) | Falta | — | — | **No existe en `DSP↔RCP`.** Sí existe en `DRx↔DSP` como `pulse_width_idx` (`lamula-dsp/contract/vendor/drx_dsp_v0_1.rs:121`). Con el DSP haciendo de proxy (decisión del 2026-09-19) la ruta está resuelta y esto es hueco de campo: hay que añadirlo a `DSP↔RCP`. Ver entrada 15 de "Falta" |
 | `Use external pretrigger` | No aplica | — | — | Generación y temporizado de triggers pertenecen al FPGA/DRx (`dsp-plan.md` §3.2) |
 | `PreTrigger active on rising edge` | No aplica | — | — | Ídem |
 | `PreTrigger is synchronous with IFD AQ clock` | No aplica | — | — | Ídem, y además no hay IFD |
@@ -467,6 +467,34 @@ Consolidado y ordenado por importancia operativa. Ésta es la lista que hay que 
 proyecto LAMULA DSP. Cada entrada dice qué se pide y por qué, con la evidencia de que el
 algoritmo ya existe cuando así es — esos son los baratos.
 
+!!! note "Decisión de arquitectura (2026-09-19): el DSP hace de proxy"
+
+    La pregunta 1 de este documento —cómo llega el RCP a los parámetros que hoy posee el
+    contrato `DRx↔DSP`— está resuelta: **el DSP actúa de proxy.** El RCP no habla DRx
+    directamente y no habrá `src/adapters/drx/`; el RCP habla un único protocolo, `DSP↔RCP`,
+    y el DSP retransmite hacia el DRx lo que corresponda.
+
+    Lo que esa decisión cambia en este mapeo:
+
+    - **Las vistas E5 y E6 siguen dentro de alcance.** Estaban pendientes de esta respuesta.
+    - **Lo que era "hueco de ruta" pasa a ser "hueco de campo"**, y por tanto entra en esta
+      lista: `pulse_width_idx`, el modo de celda, el divisor de PRF y los cuatro pares
+      `trigger_delay_N`/`trigger_width_N` existen en `DRx↔DSP`
+      (`lamula-dsp/contract/vendor/drx_dsp_v0_1.rs:113-152`) y ahora necesitan representación
+      en `DSP↔RCP`. Es la entrada 15 de abajo.
+    - **No convierte en accesible lo que el DRx tampoco tiene.** El blanking por sector no
+      existe en el `Config` del DRx, así que sigue siendo hueco del contrato DRx y el proxy no
+      lo arregla. Lo mismo con todo lo marcado "No aplica" por pertenecer al FPGA: proxy
+      significa camino, no funcionalidad nueva.
+    - **Refuerza la pregunta 9** (ruta de los mensajes de subida y sentido de la conexión): si
+      el DSP retransmite mandatos hacia el DRx, el plano de control `RCP → DSP` deja de ser
+      opcional y se vuelve el camino único. Hay que decidir si comparte socket con el flujo de
+      momentos.
+    - **El DSP gana responsabilidad de validación.** Al ser el único que ve los dos contratos,
+      es quien puede rechazar una combinación inválida antes de que llegue al DRx, y quien
+      debe reportar al RCP por qué la rechazó. Sin eso, el MMI no puede explicar un fallo de
+      configuración al operador.
+
 ### 1. Telemetría de AFC y burst en `status` (o mensaje propio)
 
 **Qué falta:** frecuencia medida del burst, potencia del burst, valor de control del AFC,
@@ -617,17 +645,33 @@ configurable; `PhiDP – Negate`; corrección de Z0 basada en ruido o en potenci
 blanking de triggers por sector (probablemente hueco del contrato DRx); y el juego
 *saved*/*factory* de configuración con su diff.
 
+### 15. Parámetros del DRx que el proxy tiene que reexponer
+
+Consecuencia directa de la decisión de arriba. Existen ya en `DRx↔DSP` y hay que darles
+representación en `DSP↔RCP` para que el MMI pueda leerlos y escribirlos:
+
+| Parámetro | Origen en `DRx↔DSP` | Vista que lo necesita |
+| --- | --- | --- |
+| `pulse_width_idx` | `drx_dsp_v0_1.rs:121` | E5, E6, y el selector de ancho de pulso que E6 y F1–F3 comparten |
+| Modo de celda | `drx_dsp_v0_1.rs:113-152` | E6 |
+| Divisor de PRF | `drx_dsp_v0_1.rs:113-152` | E5 |
+| `trigger_delay_0..3` / `trigger_width_0..3` | `drx_dsp_v0_1.rs:133-147` | E6, en su forma real: **cuatro pares fijos, sin polaridad ni término proporcional al PRT**, no los seis triggers libres del RVP900 |
+
+Dos cosas que conviene fijar al reexponerlos: si son de **solo lectura** para el operador o
+escribibles (afecta a si E5/E6 son formularios o paneles de estado), y **qué unidades cruzan el
+cable** — el DRx los lleva en unidades de reloj, y exponerlos así al MMI traslada al RCP una
+conversión que depende del reloj del DRx.
+
 ---
 
 ## Preguntas para el equipo DSP
 
-1. **¿Cómo llega el RCP a los parámetros que posee el contrato `DRx↔DSP`?** Ancho de pulso
-   (`pulse_width_idx`), modo de celda, divisor de PRF y los cuatro pares de trigger existen en
-   `DRx↔DSP` (`lamula-dsp/contract/vendor/drx_dsp_v0_1.rs:113-152`), pero este repositorio no
-   tiene adaptador DRx y el plan no describe ninguna ruta. Las tres opciones que veo:
-   (a) el DSP hace de proxy y `DSP↔RCP` gana los campos; (b) el RCP habla DRx directamente;
-   (c) esos parámetros son de puesta en marcha y nunca los toca el operador. Son tres
-   proyectos distintos y la respuesta cambia el alcance de las vistas E5 y E6 enteras.
+1. ~~**¿Cómo llega el RCP a los parámetros que posee el contrato `DRx↔DSP`?**~~
+   **Cerrado (2026-09-19): opción (a), el DSP hace de proxy y `DSP↔RCP` gana los campos.** El
+   RCP habla un solo protocolo y no tendrá adaptador DRx. Ver la nota al comienzo de "Falta en
+   el contrato" y la entrada 15. Queda dentro de esa decisión, para el equipo DSP: si los
+   parámetros reexpuestos son de solo lectura o escribibles, en qué unidades cruzan, y quién
+   valida las combinaciones inválidas.
 
 2. **¿Se re-vendoriza `DSP↔RCP` a v1.2 antes de empezar familia E, o se espera a una v2 que
    incluya los huecos de este documento?** El pin actual (v0.1, 80 B, `version_major` 0) es

@@ -934,6 +934,19 @@ falta configurar en un DSP de radar meteorológico*; nuestro DSP es propio y el 
 fija `interfaces/dsp.md`. **El equipo de diseño debe tratar esta lista como el volumen y la
 naturaleza de los campos, no como el contrato final.**
 
+**El mapeo campo a campo ya está hecho: ver
+[Mapeo de parámetros DSP](../interfaces/mapeo-parametros-dsp.md).** De sus 209 filas, sólo 10
+tienen equivalente literal en el contrato de hoy y 82 son funcionalidad que el contrato todavía
+no expone. Dos cosas de ahí afectan directamente al diseño de esta familia:
+
+- **El DSP hace de proxy hacia el DRx (decisión del 2026-09-19).** El RCP habla un solo
+  protocolo. Las vistas E5 y E6 siguen en alcance, pero los parámetros de trigger que el MMI
+  podrá tocar son **cuatro pares fijos de retardo y anchura, sin polaridad y sin término
+  proporcional al PRT** — no los seis triggers libres del RVP900. `TriggerTimingTable` se diseña
+  con esa forma, no con la del manual.
+- **Buena parte de esta familia no se puede construir todavía.** El documento de mapeo dice qué
+  existe hoy; diséñense los patrones y no se dé por hecho que hay dato detrás de cada campo.
+
 Patrones comunes a toda la familia E, heredados del comportamiento del TTY y que hay que
 resolver una sola vez:
 
