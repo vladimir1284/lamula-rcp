@@ -99,6 +99,13 @@ en español.
 4. **Densidad alta.** El DRX Process Monitor tiene ~25 campos; `Vp` tiene 19 filas × 6 columnas;
    `Mt<n>` tiene 6 triggers × 3 campos. Un diseño con tarjetas aireadas no cabe. Hay que definir
    explícitamente una escala de densidad y un componente de tabla de parámetros compacto.
+   **El puesto está confirmado (2026-09-19): escritorio de 1920×1080 o más, ratón y teclado, sin
+   pantalla táctil.** Eso fija el presupuesto de espacio: con el mosaico de cuatro paneles, cada
+   vista tiene que ser legible en aproximadamente 960×480 px. Ese es el ancho de referencia
+   estrecho contra el que hay que diseñar; el ancho amplio es el panel a pantalla completa. Al no
+   haber táctil, las áreas de pulsación pueden seguir la convención de escritorio en vez del
+   mínimo de 44 px, lo que es precisamente lo que hace viable la densidad que estos datos
+   necesitan.
 5. **Acción destructiva vs acción reversible.** El legacy distingue "Set" (envía, volátil) de
    "Save" (persiste en NVRAM/LCU) en al menos cinco pantallas distintas, y el RVP900 añade
    `F`/`S`/`R` (factory/save/restore). El patrón visual de esta distinción debe ser único y
@@ -2112,8 +2119,9 @@ diseño:
    cablee esta lista.**
 8. **Paletas de datos (D6).** ¿Se parte de paletas perceptualmente uniformes, o hay que reproducir
    una paleta institucional concreta por compatibilidad con lo que el personal ya lee?
-9. **Densidad y tamaño de pantalla.** Asumido escritorio ≥1920×1080, ratón y teclado, sin táctil.
-   Si el puesto real es otro (pantalla de 4K en pared, panel táctil en cabina), cambia todo.
+9. ~~**Densidad y tamaño de pantalla.**~~ **Cerrado (2026-09-19): escritorio ≥1920×1080, ratón y
+   teclado, sin táctil**, tal y como se había asumido. Ancho de referencia estrecho ≈960×480 px
+   (un panel de cuatro), ancho amplio = panel a pantalla completa.
 10. **Rango de idioma.** Etiquetas en inglés según lo decidido; queda por ver si el personal
     operativo local lo prefiere así en las pantallas de operación diaria (A, B, C) aunque las de
     mantenimiento (E, F, G) se queden en inglés por fuerza.
