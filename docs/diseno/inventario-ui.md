@@ -404,10 +404,29 @@ pasivo/activo, pero la idea de "el mímico dice quién manda" se conserva.
 
 **Notas de diseño.** Es un diagrama, no una lista de tarjetas: la topología (qué está conectado
 con qué, por dónde va la radiación) es información operativa real. Hay que decidir si es SVG
-estático con estados, o un layout generado. **Y hay que resolver la alarma sonora**: existe en el
-legacy y es una decisión de producto, no solo visual.
+estático con estados, o un layout generado.
 
-**Componentes:** `MimicDiagram`, `SubsystemNode`, `MimicLink`, `CommandLamp`, `SoundToggle`.
+**Alarma sonora: confirmada (2026-09-19).** El aviso acústico del legacy se mantiene. Es una
+pieza de diseño por derecho propio, no un `beep`, y hay que resolverla entera:
+
+- **Qué suena.** Solo `fault`, o también `warn`. Recomendamos dos timbres distinguibles y nada
+  para `info`: una alarma que suena por todo se silencia el primer día y deja de proteger.
+- **Escalado.** Si un fallo sigue sin atender, ¿el sonido se repite, sube, cambia? Definir el
+  intervalo de repetición.
+- **Silenciado vs reconocimiento.** Son dos cosas distintas y el legacy solo tiene la primera.
+  *Silenciar* calla el sonido pero deja la condición activa y visible; *reconocer* es el
+  `Confirm Error` de B8, que baja el semáforo. El diseño debe dejar clarísimo que silenciar no
+  arregla nada, y **volver a sonar ante una condición nueva aunque esté silenciado**.
+- **Estado permanente visible.** Si el sonido está desactivado, tiene que verse desde la barra
+  global: un radar con la alarma muda y nadie enterado es un modo de fallo real.
+- **Accesibilidad.** El sonido acompaña a la señal visual, nunca la sustituye — turnos con
+  auriculares, sala ruidosa, o personal con pérdida auditiva.
+- **Restricción técnica.** Los navegadores no reproducen audio sin interacción previa del
+  usuario. Hay que preverlo en el arranque del puesto: una acción explícita de "activar audio"
+  al iniciar sesión, y un indicador si el navegador lo está bloqueando.
+
+**Componentes:** `MimicDiagram`, `SubsystemNode`, `MimicLink`, `CommandLamp`, `AudibleAlarm`,
+`AlarmSilenceControl`, `AudioBlockedNotice`.
 
 ## B2 — Subsystem Detail
 
@@ -859,10 +878,25 @@ era demasiado fácil destruir una tabla por accidente.
 
 Además existen colores reservados para "sin dato" y para el fondo.
 
-**Nota de diseño importante:** las paletas de radar no son decorativas, son el instrumento de
-medida. Interpolación lineal en RGB produce bandas perceptualmente desiguales. Vale la pena que
-el diseño proponga paletas perceptualmente uniformes por defecto (y que se mantenga el editor
-para quien necesite reproducir una paleta institucional concreta).
+**Decisión tomada (2026-09-19): se parte de paletas perceptualmente uniformes.** Las paletas de
+radar no son decorativas, son el instrumento de medida; una rampa con bandas perceptualmente
+desiguales hace que el operador lea gradientes que no existen. Lo que implica:
+
+- **Las paletas por defecto de cada tipo de dato se construyen en un espacio perceptual**
+  (OKLCH o similar), no interpolando RGB. Rampa secuencial para reflectividad y ancho espectral;
+  **rampa divergente centrada en cero para velocidad**, que es un dato con signo y donde el punto
+  de cambio de sentido debe verse solo.
+- **La interpolación del Color Composer deja de ser lineal en RGB.** Es la herramienta con la que
+  el usuario construye tramos de paleta: si interpola en RGB, deshace la decisión anterior en dos
+  clics. Interpolar en el mismo espacio perceptual.
+- **Distinguibles con deficiencia de visión cromática**, al menos para deuteranopía y
+  protanopía — y no confundibles con los colores de estado (`ok`/`warn`/`fault`), que comparten
+  pantalla con ellas.
+- **El editor se mantiene** para quien necesite reproducir una paleta institucional concreta por
+  compatibilidad con lo que el personal ya sabe leer, pero eso es el caso excepcional, no el
+  punto de partida.
+- **Sigue habiendo colores reservados** para "sin dato" y fondo, que deben quedar fuera de la
+  rampa y no poder confundirse con ningún valor medido.
 
 **Componentes:** `ColorScaleLegend`, `ColorTableEditor`, `ColorSwatchGrid`, `ColorChooser`,
 `PresetMatrix`, `InterpolateAction`, `ConfirmDangerDialog`.
@@ -1857,6 +1891,9 @@ condiciona el ancho disponible de todos los demás.
 | `SeverityChip` / `SeverityFilterBar` | nuevo | `level`, `counts` | info / warn / error, activo/inactivo | A5, B8 |
 | `MessageDetailPanel` | nuevo | `message` | vacío / con contenido enriquecido | B8 |
 | `TrafficLight` | nuevo | `level`, `acknowledged` | verde / amarillo / rojo; **una advertencia no baja un error previo** | A1, B8 |
+| `AudibleAlarm` | nuevo | `level`, `muted`, `repeatEvery` | sonando / silenciado / desactivado; **vuelve a sonar ante condición nueva aunque esté silenciado** | B1, A1 |
+| `AlarmSilenceControl` | nuevo | `muted`, `activeConditions` | silenciar ≠ reconocer; el estado silenciado es visible desde la barra global | B1, A1 |
+| `AudioBlockedNotice` | nuevo | `blocked` | el navegador bloquea audio sin interacción previa del usuario | A1 |
 | `FindBar` | nuevo | `query`, `matches` | | B8, I1 |
 | `FaultBadgeRow` | existe | `fault`, `asBadge`, `showTimestamp` | | B1, B8 |
 | `HistoricalModeBanner` | nuevo | `source`, `capturedAt` | | B9, G6 |
@@ -1930,6 +1967,8 @@ condiciona el ancho disponible de todos los demás.
 | `OverviewInset` | nuevo | `full`, `viewport` | | D3 |
 | `ColorScaleLegend` | nuevo | `palette`, `dataType`, `unit` | | D3, D4, D6 |
 | `ColorTableEditor` + `ColorSwatchGrid` + `ColorChooser` | nuevo | `presets`, `dataType` | preset modificado / guardado / por defecto | D6 |
+| `PerceptualRamp` | nuevo | `stops`, `space`, `kind` | secuencial o divergente centrada en cero; interpola en espacio perceptual, no en RGB | D3, D4, D6 |
+| `ColorVisionCheck` | nuevo | `palette` | valida la paleta contra deuteranopía y protanopía, y contra los colores de estado | D6 |
 | `OverlayLayerList` | nuevo | `layers` | 6 capas con visibilidad y color | D7 |
 | `CursorReadout` | nuevo | `distance`, `az`, `el`, `height?`, `value`, `unit` | fijado / siguiendo / actualizándose con cada dato | D2–D4 |
 | `FreezeToggle` | nuevo | `frozen` | congela **solo esta vista** | D2–D4 |
@@ -1988,7 +2027,7 @@ condiciona el ancho disponible de todos los demás.
 | `FieldHelpPopover` / `HelpPanel` | nuevo | `term`, `content` | transversal |
 | `InfoTree` / `KeyValueTable` | nuevo | `nodes` | A7, D8 |
 
-**Total: ~127 componentes**, de los cuales 8 existen hoy y ~15 son primitivos de shadcn-vue.
+**Total: ~132 componentes**, de los cuales 8 existen hoy y ~15 son primitivos de shadcn-vue.
 El resto hay que diseñarlos.
 
 ---
@@ -2036,9 +2075,11 @@ dato), y cada uno se congela independientemente.
 
 No es un plan de proyecto; es el orden en que el diseño rinde más:
 
-1. **Fundamentos** — sistema de color con los ocho ejes de estado, escala de densidad,
-   tipografía numérica (tabular, obligatorio), patrón de `Set`/`Save`, patrón de acción
-   bloqueada, ayuda contextual. Sin esto, todo lo demás se rehace.
+1. **Fundamentos** — sistema de color con los ocho ejes de estado **y las paletas de dato
+   perceptualmente uniformes, comprobando que unas y otras no se confunden en pantalla**; escala
+   de densidad; tipografía numérica (tabular, obligatorio); patrón de `Set`/`Save`; patrón de
+   acción bloqueada; ayuda contextual; y el comportamiento de la alarma sonora junto a su
+   equivalente visual. Sin esto, todo lo demás se rehace.
 2. **Shell y mosaico** — `AppShell`, `GlobalStatusBar`, `PanelMosaic`, `PanelFrame`, presets, y
    **los dos anchos de referencia** (panel a un cuarto de pantalla y a pantalla completa) contra
    los que se diseñará cada vista. Va antes que cualquier vista concreta.
@@ -2102,8 +2143,8 @@ diseño:
    Queda por concretar, ya dentro del diseño: los dos anchos de referencia por vista, el
    encabezado común de panel, y la gestión de presets (crear, renombrar, restablecer, preset que
    referencia una vista no aplicable).
-2. **La alarma sonora** existe en Ravis (B1, *Options → Sound*). ¿La mantenemos? ¿Con qué
-   escalado? Es decisión de producto.
+2. ~~**La alarma sonora.**~~ **Cerrado (2026-09-19): va.** Queda por concretar en diseño qué
+   niveles suenan, el escalado, y la separación entre silenciar y reconocer. Ver B1.
 3. ~~**E3 (matriz de umbrales): ¿solo lectura o editable?**~~ **Cerrado (2026-09-19): solo
    lectura de momento.** Si el contrato RCP↔DSP acaba exponiendo escritura de umbrales, se
    reabre y entonces hace falta el editor de expresiones `TCF`.
@@ -2117,8 +2158,9 @@ diseño:
    documenta el volumen y la naturaleza del problema. El contrato real lo fija el proyecto DSP
    (`interfaces/dsp.md`), y el mapeo campo a campo está sin hacer. **Diséñense los patrones, no se
    cablee esta lista.**
-8. **Paletas de datos (D6).** ¿Se parte de paletas perceptualmente uniformes, o hay que reproducir
-   una paleta institucional concreta por compatibilidad con lo que el personal ya lee?
+8. ~~**Paletas de datos (D6).**~~ **Cerrado (2026-09-19): perceptualmente uniformes.** El editor
+   se mantiene para reproducir una paleta institucional si hace falta, pero no es el punto de
+   partida. Ver D6.
 9. ~~**Densidad y tamaño de pantalla.**~~ **Cerrado (2026-09-19): escritorio ≥1920×1080, ratón y
    teclado, sin táctil**, tal y como se había asumido. Ancho de referencia estrecho ≈960×480 px
    (un panel de cuatro), ancho amplio = panel a pantalla completa.
