@@ -8,9 +8,12 @@
 import { computed, onMounted } from 'vue'
 import AppShell from '@/components/shell/AppShell.vue'
 import AntennaControlView from '@/views/AntennaControlView.vue'
+import AscopeView from '@/views/AscopeView.vue'
 import BiteMessagesView from '@/views/BiteMessagesView.vue'
 import ControlCenterView from '@/views/ControlCenterView.vue'
 import EventLogView from '@/views/EventLogView.vue'
+import PpiView from '@/views/PpiView.vue'
+import RhiView from '@/views/RhiView.vue'
 import ScanWorksheetView from '@/views/ScanWorksheetView.vue'
 import SystemInformationView from '@/views/SystemInformationView.vue'
 import SystemStatusView from '@/views/SystemStatusView.vue'
@@ -34,9 +37,9 @@ const viewCatalog: ViewOption[] = [
   { id: 'control-routines', label: 'C4 Control Routine Runner', available: true },
   { id: 'event-log', label: 'A5 Event Log', available: true },
   { id: 'system-information', label: 'A7 System Information', available: true },
-  { id: 'ascope', label: 'D2 ASCOPE', available: false },
-  { id: 'ppi', label: 'D3 PPI', available: false },
-  { id: 'rhi', label: 'D4 RHI', available: false },
+  { id: 'ascope', label: 'D2 ASCOPE', available: true },
+  { id: 'ppi', label: 'D3 PPI', available: true },
+  { id: 'rhi', label: 'D4 RHI', available: true },
   { id: 'sun-position', label: 'H1 Sun Position', available: false },
   { id: 'itsg-control', label: 'I2 ITSG Control', available: false },
   { id: 'calibration-log', label: 'G8 Calibration Log', available: false },
@@ -171,5 +174,8 @@ onMounted(() => {
     <template #control-routines><ControlCenterView /></template>
     <template #event-log><EventLogView /></template>
     <template #system-information><SystemInformationView /></template>
+    <template #ascope="{ panel }"><AscopeView :frozen="panel.frozen" /></template>
+    <template #ppi="{ panel }"><PpiView :frozen="panel.frozen" /></template>
+    <template #rhi="{ panel }"><RhiView :frozen="panel.frozen" /></template>
   </AppShell>
 </template>
