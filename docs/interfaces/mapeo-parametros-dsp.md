@@ -36,7 +36,7 @@ relativas a la raíz del repositorio correspondiente, indicado con el prefijo `l
     | | Versión | `Config` | `Command` | Procedencia |
     | --- | --- | --- | --- | --- |
     | Vendorizado en este repo | **v0.1** | 26 campos, 80 B | 7 mandatos (0–6) | `contract/vendor/UPSTREAM.toml:39-40`, commit `8d7c7ba` del 2026-08-31 |
-    | Cabeza de `lamula-dsp` | **v1.2** | 29 campos, 84 B | 8 mandatos (0–7) | `lamula-dsp/contract/schema/dsp_rcp_v0_1.toml:50-51`, commit `a92ca7d` |
+    | Cabeza de `lamula-dsp` | **v1.3** | 29 campos, 84 B | 8 mandatos (0–7) | `lamula-dsp/contract/schema/dsp_rcp_v0_1.toml:50-51`, commit `4a226af` |
 
     Los cuatro cambios intermedios, en orden (`git log` de `lamula-dsp` sobre el esquema):
 
@@ -45,12 +45,15 @@ relativas a la raíz del repositorio correspondiente, indicado con el prefijo `l
        **ruptura**, `version_major` 0 → 1.
     3. `f1e577e` — `burst_window_bins` (u16), v1.0 → v1.1. Aditivo sobre relleno.
     4. `beb78b6` — mandato `request_spectrum` = 7, v1.1 → v1.2. Aditivo.
+    5. `4a226af` — `header_flag::SIMULATED_SOURCE` en el byte de banderas de la cabecera,
+       v1.2 → v1.3. Aditivo sobre un byte ya reservado; ver la pregunta 8.
 
     Consecuencia práctica: **el `Config` vendorizado aquí no puede hablar con el DSP de hoy**
     — `version_major` 0 frente a 1, y 80 B frente a 84. Cualquier trabajo de familia E contra
     el pin actual nace roto. Re-vendorizar es prerrequisito, no limpieza.
 
-Este mapeo se hace **contra v1.2** (el contrato que el DSP posee hoy), y se marca en la nota de
+Este mapeo se hizo **contra v1.2** y sigue vigente contra **v1.3**, que sólo añade una bandera de
+cabecera. Se marca en la nota de
 cada fila cuando el campo no existe todavía en el pin v0.1 de este repositorio.
 
 ### Estado del lado RCP, para que el mapeo no se lea con optimismo
@@ -693,12 +696,12 @@ una instalación de klistrón no falla: produce datos silenciosamente peores.
 
 ---
 
-## Tarea pendiente en este repositorio: re-vendorizar a v1.2
+## Tarea pendiente en este repositorio: re-vendorizar a v1.3
 
 Decidido el 2026-09-19 (pregunta 2). **No es una tarea del proyecto DSP, es nuestra.** Consiste en:
 
 1. Regenerar en `lamula-dsp` con `make gen` a partir de
-   `contract/schema/dsp_rcp_v0_1.toml` (hoy v1.2).
+   `contract/schema/dsp_rcp_v0_1.toml` (hoy v1.3).
 2. Copiar los tres ficheros generados a sus destinos: `contract/vendor/dsp_rcp_v0_1.py`,
    `contract/vendor/dsp_rcp_v0_1.rs` y `mmi/src/contracts/dsp_rcp_v0_1.ts`.
 3. Actualizar el pin en `contract/vendor/UPSTREAM.toml`: `commit`, `commit_date`,
@@ -706,7 +709,9 @@ Decidido el 2026-09-19 (pregunta 2). **No es una tarea del proyecto DSP, es nues
 4. Pasar `tools/check_vendored_contract.py` y `make check`.
 
 **Lo que no es mecánico:** `Config` crece de 80 a 84 bytes y gana `polarization_mode`,
-`antenna_isolation_db` y `burst_window_bins`; `Command` gana `request_spectrum` = 7. Todo lo que
+`antenna_isolation_db` y `burst_window_bins`; `Command` gana `request_spectrum` = 7; y la
+cabecera gana `header_flag::SIMULATED_SOURCE`, que **hay que leer**, no sólo tolerar — un lector
+que siga exigiendo `flags == 0` rechazará toda trama de un despliegue simulado. Todo lo que
 hoy consume el contrato v0.1 —adaptadores de `src/adapters/dsp/` y lo que la MMI importe de
 `mmi/src/contracts/`— hay que revisarlo, y los tests que fijen tamaños o desplazamientos van a
 fallar. Cuéntese como cambio de código con su verificación, no como actualización de un fichero.
@@ -722,8 +727,8 @@ fallar. Cuéntese como cambio de código con su verificación, no como actualiza
    parámetros reexpuestos son de solo lectura o escribibles, en qué unidades cruzan, y quién
    valida las combinaciones inválidas.
 
-2. ~~**¿Se re-vendoriza `DSP↔RCP` a v1.2 antes de empezar familia E?**~~
-   **Cerrado (2026-09-19): se re-vendoriza ya a v1.2.** No se espera a una v2 que incluya los
+2. ~~**¿Se re-vendoriza `DSP↔RCP` antes de empezar familia E?**~~
+   **Cerrado (2026-09-19): se re-vendoriza ya, y el destino es v1.3.** No se espera a una v2 que incluya los
    huecos de este documento. Es prerrequisito: con el pin actual el RCP no puede hablar con el
    DSP ni siquiera para recibir momentos. Ver "Tarea pendiente: re-vendorizar" más abajo.
 
@@ -763,11 +768,20 @@ fallar. Cuéntese como cambio de código con su verificación, no como actualiza
    depende si `Minimum freerunning ray holdoff` aplica. `RadialAssembler` cierra por metadatos
    de rayo, pero no he encontrado documentado qué pasa cuando no llega trigger.
 
-8. **¿Debe el contrato declarar si el DSP está corriendo contra el simulador o contra hardware
-   real?** Hoy se elige por variable de entorno (`LAMULA_DSP_DRX_ADDR`, `config.rs:50`) y el
-   RCP no tiene forma de saberlo. Publicar dato simulado como si fuera observación es el tipo
-   de fallo que no se detecta hasta que ya está archivado en Level-II. Un bit en
-   `capability_flags` o en `status` lo cierra.
+8. ~~**¿Debe el contrato declarar si el DSP corre contra el simulador o contra hardware real?**~~
+   **Cerrado (2026-09-19): sí, y ya está implementado en el DSP** — contrato `DSP↔RCP`
+   **v1.2 → v1.3**, aditivo. Quedó en el **byte de banderas de la cabecera común**, que estaba
+   reservado, como `header_flag::SIMULATED_SOURCE` (bit 0), y no en `capabilities` ni en
+   `status`: así viaja **con cada trama, incluido cada `moment_ray`**, sobrevive a una
+   reconexión del RCP a mitad de adquisición y no exige petición previa. El DSP lo lee de una
+   variable de entorno obligatoria (`LAMULA_DSP_SIMULATED_SOURCE`) y lo estampa en todos los
+   mensajes `up`.
+
+   **Lo que falta es de este lado.** El RCP tiene que: leer el byte de banderas en vez de
+   ignorarlo, **negarse a archivar en Level-II una trama marcada como simulada** —o archivarla
+   con marca inequívoca, según decida el proyecto ORPG—, y encender el estado `simulated` que
+   el inventario de UI ya exige en la barra global (`EnvironmentBadge`, vista A1). Nada de eso
+   existe hoy, y llega con la re-vendorización.
 
 9. ~~**¿Comparte el plano de control socket con el flujo de momentos?**~~
    **Cerrado (2026-09-19): socket propio para control, separado del flujo de momentos.** Los
