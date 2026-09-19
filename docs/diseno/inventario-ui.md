@@ -125,15 +125,15 @@ en español.
 | ID | Vista | Familia | Prio | Acceso | Origen legacy | Estado en `mmi/` |
 |----|-------|---------|------|--------|---------------|------------------|
 | A1 | App Shell | Shell | P0 | OP | RAVIS §5 | parcial (`App.vue`) |
-| A2 | Connection / Login | Shell | P0 | OP | RAVIS §6.1 | no |
+| A2 | Connection / Login | Shell | P0 | OP | RAVIS §6.1 | sí (`ConnectionView`) |
 | A3 | Control Authority | Shell | P0 | OP | RAVIS §6.2 | sí (`ControlAuthorityCard`) |
 | A4 | Maintenance Unlock | Shell | P1 | MANT | RAVIS §7.4 | no |
-| A5 | Event Log | Shell | P0 | OP | RAVIS §5.3 | no |
-| A6 | Alarm / Indicator Bar | Shell | P0 | OP | RAVIS §6.3 | parcial (`ConnectionStatusBadge`) |
-| A7 | System Information | Shell | P1 | OP | RAVIS §13 | sí (vista vacía) |
+| A5 | Event Log | Shell | P0 | OP | RAVIS §5.3 | sí (`EventLogView`) |
+| A6 | Alarm / Indicator Bar | Shell | P0 | OP | RAVIS §6.3 | parcial (`IndicatorBar`) |
+| A7 | System Information | Shell | P1 | OP | RAVIS §13 | parcial (vista) |
 | A8 | About / Versions | Shell | P2 | OP | RAVIS §5.2 | no |
 | B1 | System Visualization (mímico) | Estado | P0 | OP | RAVIS §7.1 | sí (vista) |
-| B2 | Subsystem Detail | Estado | P0 | OP | RAVIS §7.1.5 | no |
+| B2 | Subsystem Detail | Estado | P0 | OP | RAVIS §7.1.5 | sí (`SubsystemDetailView`) |
 | B3 | Analog Instruments | Estado | P2 | OP | RAVIS §7.1.6 | no |
 | B4 | State Trend Plot (XY) | Estado | P1 | OP | RAVIS §7.1.4 | no |
 | B5 | RCP Process Monitor | Estado | P1 | MANT | RAVIS §7.1.9 | no |
@@ -145,13 +145,13 @@ en español.
 | C1 | Antenna Control | Control | P0 | OP | RAVIS §7.2 | sí (vista) |
 | C2 | Step Control Setup | Control | P1 | OP | RAVIS §7.2.1 | no |
 | C3 | Scan Worksheet | Control | P0 | OP | RAVIS §7.3 | sí (vista) |
-| C4 | Control Routine Runner | Control | P0 | OP | propio del RCP | parcial (`JobActionPanel`) |
+| C4 | Control Routine Runner | Control | P0 | OP | propio del RCP | sí (vista) |
 | C5 | Sector Blanking Editor | Control | P1 | MANT | RAVIS §7.4.3 / RVP `Mt` | no |
 | C6 | Scan Schedule Indicator | Control | P2 | OP | RAVIS §6.3 (SI/SR) | no |
 | D1 | Data View Container | Datos | P0 | OP | RAVIS §8.2 | no |
-| D2 | ASCOPE | Datos | P0 | OP | RAVIS §8.3 | no |
-| D3 | PPI | Datos | P0 | OP | RAVIS §8.4 | no |
-| D4 | RHI | Datos | P0 | OP | RAVIS §8.5 | no |
+| D2 | ASCOPE | Datos | P0 | OP | RAVIS §8.3 | sí (`AscopeView`) |
+| D3 | PPI | Datos | P0 | OP | RAVIS §8.4 | sí (`PpiView`) |
+| D4 | RHI | Datos | P0 | OP | RAVIS §8.5 | sí (`RhiView`) |
 | D5 | Range-bin Spectrum | Datos | P2 | MANT | RAVIS §8.3.1.2.3 | no |
 | D6 | Color Management + Composer | Datos | P1 | OP | RAVIS §8.6 | no |
 | D7 | Overlay Manager | Datos | P2 | OP | RAVIS §8.4.4 | no |
@@ -192,7 +192,11 @@ en español.
 | I6 | Export / Snapshot | Utilidades | P1 | OP | RAVIS (todas) | no |
 | I7 | Help / Docs | Utilidades | P2 | OP | RAVIS §5.2 | no |
 
-**63 vistas. 6 existen hoy en `mmi/src/views/`**, todas en estado esqueleto.
+**63 vistas. 13 existen hoy en `mmi/src/views/`** (P0: A2, A5, B1, B2, B8,
+B10, C1, C3, C4, D2-D4; P1: A7), la mayoría cableadas a `useGateway()` real,
+no esqueleto. Cada vista documenta en su propio fichero (comentario de
+cabecera) qué parte del origen legacy no tiene respaldo real todavía y por
+qué -- ese detalle no se repite acá.
 
 ---
 
