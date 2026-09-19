@@ -21,11 +21,42 @@ las dos interfaces legacy. Las capturas están para documentar *qué informació
 existen, no *cómo deben verse*. El resultado se llevará a Storybook sobre la base que ya existe
 en `mmi/` (Vue 3 + shadcn-vue + Tailwind).
 
-**El paradigma de ventanas queda deliberadamente abierto.** Ravis es MDI (ventanas flotantes
-sobre un Control Center); el RVP900 es un TTY de una sola pantalla. Ninguno de los dos es la
-respuesta. En cada vista se documenta el requisito real de simultaneidad (columna *Concurrencia*)
-para que el equipo de diseño elija: rutas, workspace acoplable, shell + paneles, o lo que
-resuelva mejor esos requisitos.
+**Paradigma de ventanas: decidido (2026-09-19) — shell fijo + mosaico con presets por tarea.**
+Ravis es MDI (ventanas flotantes sobre un Control Center) y el RVP900 es un TTY de una sola
+pantalla; ninguno de los dos es la respuesta. Lo acordado:
+
+- Una **barra global permanente** (identidad del sitio, autoridad de control, nivel de acceso,
+  indicadores `SI`/`SR`/`SD`/`RD`, relojes, semáforo de alarma). Nunca se tapa ni se navega fuera
+  de ella.
+- Un **área central que se divide en 1 a 4 paneles**; cada panel elige qué vista muestra.
+- **Presets con nombre** que colocan varias vistas de golpe (`Operación`, `Alineación solar`,
+  `Ajuste de filtro`, `Calibración`…). Los presets son la respuesta a los ocho procedimientos
+  concurrentes tabulados más abajo: el técnico no construye el layout a mano cada vez.
+
+Esquema acordado:
+
+```
+┌─ LAMULA RCP ──── ● ACTIVO · MANT ─ SI SR SD RD ─ 14:22Z ─┐
+│ [Operación] [Alineación solar] [Ajuste filtro] [+]       │  ← presets
+├──────────────────────────┬───────────────────────────────┤
+│  PPI                     │  Antenna Control              │
+│                          │   AZ  127.40°   EL  32.10°    │
+├──────────────────────────┼───────────────────────────────┤
+│  Sun Position            │  BiTE                    ● 2  │
+└──────────────────────────┴───────────────────────────────┘
+```
+
+**Lo que esto implica para el diseño**, y que hay que resolver desde el principio:
+
+- Cada vista tiene que funcionar **en un cuarto de pantalla y a pantalla completa**. No hay
+  vistas que solo existan grandes. Definir al menos dos anchos de referencia por vista.
+- Hace falta un **encabezado de panel** común: qué vista es, selector para cambiarla, acciones
+  propias de la vista, maximizar y cerrar.
+- Los presets son estado persistente del usuario, con los mismos problemas que cualquier
+  configuración guardada: crear, renombrar, restablecer, y qué pasa cuando un preset referencia
+  una vista que ya no aplica.
+- **Descartado explícitamente:** arrastrar y acoplar paneles libremente, apilarlos en pestañas y
+  sacarlos a un segundo monitor. Si aparece la necesidad real de un segundo monitor, se reabre.
 
 ## Convenciones de este documento
 
@@ -178,18 +209,18 @@ existan ~60 destinos sin convertir la navegación en un árbol de tres niveles.
 | Navegación | acceso a las 63 vistas, agrupadas por familia |
 | Barra de estado global | autoridad de control, nivel de acceso, indicadores SI/SR/SD/RD (ver A6), reloj UTC + local |
 | Resumen de alarma | semáforo BiTE agregado, clicable hacia B8 |
-| Zona de trabajo | una o varias vistas, según el paradigma que elija diseño |
+| Zona de trabajo | mosaico de 1 a 4 paneles, con barra de presets por tarea |
 | Área de mensajes | últimos eventos (ver A5) |
 
 **Estados:** conectado / desconectado / conectado-sin-datos (`stale`) / pasivo (sin autoridad) /
 mantenimiento desbloqueado / simulado.
 
 **Notas.** Ravis permitía "desenganchar" barras de herramientas y moverlas (§3.3). No replicar
-eso; sí resolver que el técnico quiera ver un plot y un formulario de setup a la vez (ver F1–F3,
-donde el manual describe explícitamente el ciclo `Mb` → `Pb` → `Ps` → `Mb`).
+eso. Lo que sí hay que resolver es el caso del ciclo `Mb` → `Pb` → `Ps` → `Mb` (F1–F3), donde el
+técnico alterna entre un formulario de setup y un plot: es exactamente un preset de dos paneles.
 
-**Componentes:** `AppShell`, `NavGroup`, `GlobalStatusBar`, `SiteIdentity`, `ClockPair`,
-`AlarmSummaryButton`, `EnvironmentBadge`.
+**Componentes:** `AppShell`, `GlobalStatusBar`, `SiteIdentity`, `ClockPair`, `AlarmSummaryButton`,
+`EnvironmentBadge`, `PanelMosaic`, `PanelFrame`, `PanelViewPicker`, `PresetBar`, `PresetManager`.
 
 ## A2 — Connection / Login
 
@@ -720,12 +751,19 @@ número máximo de PPI/RHI/ASCOPE simultáneos dependía de la licencia.
 
 **Menú común:** `Load` (solo demostración), `Screen Shot`, `Help`.
 
-**Requisito de concurrencia real, para el paradigma de ventanas:** el manual describe
-procedimientos que exigen ver **PPI + Antenna Control + Sun Position a la vez** (§10.3.2.1) y
-**ASCOPE + Scan Worksheet + RSP Control a la vez** (§14.2.1). Esto es el argumento más fuerte a
-favor de un espacio de trabajo multipanel.
+**Con el paradigma ya decidido** (shell fijo + mosaico de 1–4 paneles), el "contenedor" del
+legacy se disuelve: el panel del mosaico **es** el contenedor. Lo que hay que conservar de §8.2 es
+que las ventanas auxiliares (paleta, parámetros de scan, overlay) acompañan a su vista de datos y
+no viven sueltas; en el mosaico eso significa panel lateral o *popover* dentro del propio panel,
+no un quinto panel.
 
-**Componentes:** `DataViewContainer`, `ViewToolbar`, `PanelHost`.
+Sigue en pie que **varias vistas de datos pueden coexistir** —dos PPI con tipos de dato distintos,
+o PPI + ASCOPE— y que **cada una se congela por separado**. Con cuatro paneles como máximo, hay
+que decidir qué ocurre al pedir una quinta vista: reemplazar el panel activo es lo más simple y
+lo que recomendamos.
+
+**Componentes:** `PanelFrame`, `ViewToolbar`, `AuxPanelSlot`.
+*(`DataViewContainer` y `PanelHost` desaparecen: los absorbe `PanelMosaic` de A1.)*
 
 ## D2 — ASCOPE
 
@@ -1742,6 +1780,22 @@ Los nombres de props son una propuesta de partida, no un contrato. Los estados l
 que el componente **debe** saber representar; casi todos heredan además los cinco transversales
 (`ok` / `warn` / `fault` / `disabled` / `stale`) y el eje de autoridad de control.
 
+## Shell y mosaico
+
+Consecuencia directa del paradigma decidido. Es el bloque que hay que diseñar primero, porque
+condiciona el ancho disponible de todos los demás.
+
+| Componente | Estado | Props | Estados a cubrir | Usado en |
+|---|---|---|---|---|
+| `AppShell` | nuevo | `statusBar`, `presets`, `mosaic` | conectado / desconectado / simulado / mantenimiento | A1 |
+| `GlobalStatusBar` | nuevo | `authority`, `access`, `indicators`, `clocks`, `alarm` | nunca se oculta ni se tapa | A1 |
+| `PanelMosaic` | nuevo | `layout` (1, 2, 3 o 4 paneles), `panels` | 1/2/3/4 paneles; panel activo | A1, D1 |
+| `PanelFrame` | nuevo | `view`, `title`, `actions`, `maximized` | normal / maximizado / a un cuarto de pantalla / sin vista asignada | A1, D1 |
+| `PanelViewPicker` | nuevo | `views`, `current` | agrupado por familia; marca las vistas ya abiertas en otro panel | A1 |
+| `PresetBar` | nuevo | `presets`, `current`, `dirty` | preset aplicado / modificado sin guardar | A1 |
+| `PresetManager` | nuevo | `presets` | crear, renombrar, restablecer; **preset que referencia una vista no aplicable** | A1 |
+| `AuxPanelSlot` | nuevo | `content`, `placement` | paleta, parámetros de scan y overlay **dentro** del panel de su vista, no como panel propio | D1, D3, D6 |
+
 ## Primitivos
 
 | Componente | Estado | Notas |
@@ -1861,7 +1915,6 @@ que el componente **debe** saber representar; casi todos heredan además los cin
 
 | Componente | Estado | Props | Estados | Usado en |
 |---|---|---|---|---|
-| `DataViewContainer` | nuevo | `title`, `toolbar`, `aux` | | D1 |
 | `ScopePlot` | nuevo | `series`, `xUnit`, `aggregation`, `zoom` | vivo / congelado / sin datos | D2 |
 | `PpiPlot` | nuevo | `rays`, `palette`, `zoom`, `center` | + centro desplazado | D3 |
 | `RhiPlot` | nuevo | `rays`, `palette`, `zoom` | | D4 |
@@ -1928,7 +1981,7 @@ que el componente **debe** saber representar; casi todos heredan además los cin
 | `FieldHelpPopover` / `HelpPanel` | nuevo | `term`, `content` | transversal |
 | `InfoTree` / `KeyValueTable` | nuevo | `nodes` | A7, D8 |
 
-**Total: ~120 componentes**, de los cuales 8 existen hoy y ~15 son primitivos de shadcn-vue.
+**Total: ~127 componentes**, de los cuales 8 existen hoy y ~15 son primitivos de shadcn-vue.
 El resto hay que diseñarlos.
 
 ---
@@ -1952,9 +2005,11 @@ datos envejecidos, en modo simulado. El diseño tiene que decidir qué se repres
 con tipografía, qué con iconografía y qué con texto, sin que cuatro señales compitan por el mismo
 píxel.
 
-# Requisitos de concurrencia (insumo para elegir el paradigma)
+# Requisitos de concurrencia (base de los presets)
 
-Casos documentados en los manuales donde **hacen falta varias vistas a la vez**:
+Casos documentados en los manuales donde **hacen falta varias vistas a la vez**. Con el paradigma
+decidido, **cada fila de esta tabla es candidata a ser un preset del mosaico**; las de cuatro
+vistas son las que fijan el máximo de cuatro paneles:
 
 | Procedimiento | Vistas simultáneas | Fuente |
 |---|---|---|
@@ -1977,11 +2032,14 @@ No es un plan de proyecto; es el orden en que el diseño rinde más:
 1. **Fundamentos** — sistema de color con los ocho ejes de estado, escala de densidad,
    tipografía numérica (tabular, obligatorio), patrón de `Set`/`Save`, patrón de acción
    bloqueada, ayuda contextual. Sin esto, todo lo demás se rehace.
-2. **P0 de operación** — A1, A3, A5, A6, B1, B8, B10, C1, C3, C4.
-3. **P0 de datos** — D1–D4 con D6 (paleta) y D8.
-4. **P1 de mantenimiento** — familia G completa, B7, C5.
-5. **P1 de DSP** — E1–E7, E11, E12 y F1–F3.
-6. **P2** — el resto.
+2. **Shell y mosaico** — `AppShell`, `GlobalStatusBar`, `PanelMosaic`, `PanelFrame`, presets, y
+   **los dos anchos de referencia** (panel a un cuarto de pantalla y a pantalla completa) contra
+   los que se diseñará cada vista. Va antes que cualquier vista concreta.
+3. **P0 de operación** — A1, A3, A5, A6, B1, B8, B10, C1, C3, C4.
+4. **P0 de datos** — D1–D4 con D6 (paleta) y D8.
+5. **P1 de mantenimiento** — familia G completa, B7, C5.
+6. **P1 de DSP** — E1–E7, E11, E12 y F1–F3.
+7. **P2** — el resto.
 
 # Trazabilidad legacy → vista
 
@@ -2032,8 +2090,11 @@ para las ayudas contextuales de los parámetros de C3 y de la familia E.
 Cosas que este inventario **no** resuelve y que hay que cerrar con el equipo antes o durante el
 diseño:
 
-1. **Paradigma de ventanas.** Los requisitos de concurrencia de arriba son el insumo. La decisión
-   es del equipo de diseño, pero condiciona A1 y D1 por completo.
+1. ~~**Paradigma de ventanas.**~~ **Cerrado (2026-09-19): shell fijo + mosaico de 1–4 paneles con
+   presets por tarea.** Descartados el workspace acoplable con segundo monitor y las rutas puras.
+   Queda por concretar, ya dentro del diseño: los dos anchos de referencia por vista, el
+   encabezado común de panel, y la gestión de presets (crear, renombrar, restablecer, preset que
+   referencia una vista no aplicable).
 2. **La alarma sonora** existe en Ravis (B1, *Options → Sound*). ¿La mantenemos? ¿Con qué
    escalado? Es decisión de producto.
 3. ~~**E3 (matriz de umbrales): ¿solo lectura o editable?**~~ **Cerrado (2026-09-19): solo
