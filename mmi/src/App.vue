@@ -16,6 +16,7 @@ import EventLogView from '@/views/EventLogView.vue'
 import PpiView from '@/views/PpiView.vue'
 import RhiView from '@/views/RhiView.vue'
 import ScanWorksheetView from '@/views/ScanWorksheetView.vue'
+import SubsystemDetailView from '@/views/SubsystemDetailView.vue'
 import SystemInformationView from '@/views/SystemInformationView.vue'
 import SystemStatusView from '@/views/SystemStatusView.vue'
 import SystemVisualizationView from '@/views/SystemVisualizationView.vue'
@@ -31,6 +32,7 @@ const { control, dsp, halConnected, alarmWorst, alarmCount, fetchStatus } = useG
 // hacer desaparecer la opción, igual que en AppShell.stories.ts.
 const viewCatalog: ViewOption[] = [
   { id: 'system-visualization', label: 'B1 System Visualization', available: true },
+  { id: 'subsystem-detail', label: 'B2 Subsystem Detail', available: true },
   { id: 'system-status', label: 'B10 System Status', available: true },
   { id: 'bite-messages', label: 'B8 BiTE Messages', available: true },
   { id: 'antenna-control', label: 'C1 Antenna Control', available: true },
@@ -169,6 +171,7 @@ onMounted(() => {
     :initial-preset-id="INITIAL_PRESET_ID"
   >
     <template #system-visualization><SystemVisualizationView /></template>
+    <template #subsystem-detail><SubsystemDetailView /></template>
     <template #system-status><SystemStatusView /></template>
     <template #bite-messages><BiteMessagesView /></template>
     <template #antenna-control><AntennaControlView /></template>
