@@ -52,6 +52,8 @@ nav:
       - RCP↔DSP: interfaces/dsp.md
   - Operación:
       - Rutinas de control: operacion/rutinas-control.md
+  - Diseño:
+      - Inventario de UI: diseno/inventario-ui.md
   - Implementación:
       - Fases: implementacion/fases.md
   - Referencia:
