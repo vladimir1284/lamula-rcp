@@ -50,6 +50,12 @@ const biteFaults = ref<Map<string, BiteFaultSummary>>(new Map())
 // sin que cada vista tenga que llamar fetchStatus() y desempacarlo ella misma.
 const halConnected = shallowRef<boolean | null>(null)
 
+// A2 Connection/Login (docs/diseno/inventario-ui.md): motivo del último
+// cierre/fallo del WS, para mostrar un error legible en vez de solo
+// "CLOSED". `CloseEvent.reason` suele venir vacío en cierres de red (no es
+// un cierre de protocolo), así que esto es best-effort, no garantizado.
+const lastCloseReason = shallowRef<string | null>(null)
+
 // A6/B8: "silenciar/reconocer" (docs/diseno/inventario-ui.md, B8) -- reconocer
 // no borra las fallas activas, sólo apaga el semáforo hasta la PRÓXIMA falla
 // nueva. alarmAckedAt es la marca de tiempo del último reconocimiento; toda
@@ -153,6 +159,15 @@ function ensureConnected() {
   if (ws) return ws
   ws = useWebSocket(GATEWAY_WS, {
     autoReconnect: { retries: -1, delay: 1000 },
+    onConnected() {
+      lastCloseReason.value = null
+    },
+    onDisconnected(_socket, event) {
+      lastCloseReason.value = event.reason || `código ${event.code}`
+    },
+    onError() {
+      lastCloseReason.value = 'error de red'
+    },
     onMessage(_socket, event) {
       const msg = JSON.parse(event.data) as WsMessage
       messages.value.push(msg)
@@ -183,9 +198,10 @@ function ensureConnected() {
 }
 
 export function useGateway() {
-  const { status, send } = ensureConnected()
+  const { status, send, open, close } = ensureConnected()
   return {
     status,
+    lastCloseReason,
     messages,
     control,
     antenna,
@@ -202,5 +218,7 @@ export function useGateway() {
     runControlJob,
     cancelControlJob,
     send,
+    open,
+    close,
   }
 }

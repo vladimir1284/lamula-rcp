@@ -82,6 +82,21 @@ const biteFaults = ref<Map<string, BiteFaultSummary>>(
 )
 
 const halConnected = shallowRef<boolean | null>(true)
+const lastCloseReason = shallowRef<string | null>(null)
+
+// A2 Connection/Login: doble interactivo de open/close para poder ver los
+// 3 estados reales (CONNECTING/OPEN/CLOSED) en Storybook sin un WS real.
+function close() {
+  status.value = 'CLOSED'
+  lastCloseReason.value = 'cerrado por el operador (mock)'
+}
+function open() {
+  status.value = 'CONNECTING'
+  lastCloseReason.value = null
+  setTimeout(() => {
+    status.value = 'OPEN'
+  }, 500)
+}
 
 // Historial mixto (eventos de operador + transiciones BiTE) -- mismo `type`
 // discriminado que consume EventLogView/BiteMessagesView del stream real.
@@ -163,6 +178,7 @@ function send() {
 export function useGateway() {
   return {
     status,
+    lastCloseReason,
     messages,
     control,
     antenna,
@@ -179,5 +195,7 @@ export function useGateway() {
     runControlJob,
     cancelControlJob,
     send,
+    open,
+    close,
   }
 }

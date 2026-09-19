@@ -10,6 +10,7 @@ import AppShell from '@/components/shell/AppShell.vue'
 import AntennaControlView from '@/views/AntennaControlView.vue'
 import AscopeView from '@/views/AscopeView.vue'
 import BiteMessagesView from '@/views/BiteMessagesView.vue'
+import ConnectionView from '@/views/ConnectionView.vue'
 import ControlCenterView from '@/views/ControlCenterView.vue'
 import EventLogView from '@/views/EventLogView.vue'
 import PpiView from '@/views/PpiView.vue'
@@ -35,6 +36,7 @@ const viewCatalog: ViewOption[] = [
   { id: 'antenna-control', label: 'C1 Antenna Control', available: true },
   { id: 'scan-worksheet', label: 'C3 Scan Worksheet', available: true },
   { id: 'control-routines', label: 'C4 Control Routine Runner', available: true },
+  { id: 'connection', label: 'A2 Connection', available: true },
   { id: 'event-log', label: 'A5 Event Log', available: true },
   { id: 'system-information', label: 'A7 System Information', available: true },
   { id: 'ascope', label: 'D2 ASCOPE', available: true },
@@ -172,6 +174,7 @@ onMounted(() => {
     <template #antenna-control><AntennaControlView /></template>
     <template #scan-worksheet><ScanWorksheetView /></template>
     <template #control-routines><ControlCenterView /></template>
+    <template #connection><ConnectionView /></template>
     <template #event-log><EventLogView /></template>
     <template #system-information><SystemInformationView /></template>
     <template #ascope="{ panel }"><AscopeView :frozen="panel.frozen" /></template>
