@@ -117,9 +117,7 @@ async function cancelPositioning() {
 </script>
 
 <template>
-  <div class="mx-auto flex max-w-3xl flex-col gap-4 p-6">
-    <h1 class="text-2xl font-semibold">Antenna Control</h1>
-
+  <div class="flex h-full min-h-0 flex-col gap-4 overflow-auto p-3">
     <Card>
       <CardHeader>
         <CardTitle>Posición en vivo</CardTitle>

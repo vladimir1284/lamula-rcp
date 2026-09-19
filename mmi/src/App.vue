@@ -1,13 +1,175 @@
-<script setup lang="ts"></script>
+<script setup lang="ts">
+// A1 App Shell, cableado real (paso 3, docs/diseno/inventario-ui.md): antes
+// era un nav de rutas planas + RouterView (Fase 2) -- la propia decisión de
+// diseño rechaza ese patrón a favor del mosaico de 1-4 paneles. App.vue es
+// ahora el único punto donde el catálogo de vistas reales se une con
+// AppShell (que no sabe renderizar ninguna vista concreta, ver
+// components/shell/AppShell.vue).
+import { computed, onMounted } from 'vue'
+import AppShell from '@/components/shell/AppShell.vue'
+import AntennaControlView from '@/views/AntennaControlView.vue'
+import BiteMessagesView from '@/views/BiteMessagesView.vue'
+import ControlCenterView from '@/views/ControlCenterView.vue'
+import EventLogView from '@/views/EventLogView.vue'
+import ScanWorksheetView from '@/views/ScanWorksheetView.vue'
+import SystemInformationView from '@/views/SystemInformationView.vue'
+import SystemStatusView from '@/views/SystemStatusView.vue'
+import SystemVisualizationView from '@/views/SystemVisualizationView.vue'
+import { GATEWAY_HTTP, useGateway } from '@/composables/useGateway'
+import type { IndicatorState, MosaicPreset, ViewOption } from '@/types/shell'
+
+const { control, dsp, halConnected, alarmWorst, alarmCount, fetchStatus } = useGateway()
+
+// Catálogo completo de las 63 vistas del inventario está fuera de alcance
+// (D1-D8, E-*, F-*, G-*, H-*, I-* siguen sin construir) -- las que ya
+// existen quedan `available: true`; el resto se deja como placeholder para
+// que el selector de panel (PanelFrame) muestre "no aplicable" en vez de
+// hacer desaparecer la opción, igual que en AppShell.stories.ts.
+const viewCatalog: ViewOption[] = [
+  { id: 'system-visualization', label: 'B1 System Visualization', available: true },
+  { id: 'system-status', label: 'B10 System Status', available: true },
+  { id: 'bite-messages', label: 'B8 BiTE Messages', available: true },
+  { id: 'antenna-control', label: 'C1 Antenna Control', available: true },
+  { id: 'scan-worksheet', label: 'C3 Scan Worksheet', available: true },
+  { id: 'control-routines', label: 'C4 Control Routine Runner', available: true },
+  { id: 'event-log', label: 'A5 Event Log', available: true },
+  { id: 'system-information', label: 'A7 System Information', available: true },
+  { id: 'ascope', label: 'D2 ASCOPE', available: false },
+  { id: 'ppi', label: 'D3 PPI', available: false },
+  { id: 'rhi', label: 'D4 RHI', available: false },
+  { id: 'sun-position', label: 'H1 Sun Position', available: false },
+  { id: 'itsg-control', label: 'I2 ITSG Control', available: false },
+  { id: 'calibration-log', label: 'G8 Calibration Log', available: false },
+  { id: 'rsp-tx-rx-adjust', label: 'G2 TX/RX Adjustment', available: false },
+  { id: 'mb-setup', label: 'E7 Burst Pulse & AFC (Mb)', available: false },
+  { id: 'pb-plot', label: 'F1 Burst Pulse Timing (Pb)', available: false },
+]
+
+// Mismos 8 presets de "Requisitos de concurrencia" que AppShell.stories.ts
+// -- son las filas reales de la tabla del inventario, no inventados para la
+// app. La mayoría todavía apunta a vistas D/E/F/G/H sin construir: eso es
+// correcto, no un error -- refleja cuánto del inventario está hecho hoy.
+const presets: MosaicPreset[] = [
+  {
+    id: 'tx-pulse-sampling',
+    label: 'Muestreo pulso TX',
+    layout: 'triple-left',
+    viewIds: ['scan-worksheet', 'ascope', 'rsp-tx-rx-adjust'],
+    builtin: true,
+  },
+  {
+    id: 'sun-az',
+    label: 'Corrección az. por sol',
+    layout: 'triple-left',
+    viewIds: ['antenna-control', 'ppi', 'sun-position'],
+    builtin: true,
+  },
+  {
+    id: 'sun-el',
+    label: 'Corrección el. por sol',
+    layout: 'quad',
+    viewIds: ['antenna-control', 'scan-worksheet', 'rhi', 'sun-position'],
+    builtin: true,
+  },
+  {
+    id: 'fine-az-el',
+    label: 'Ajuste fino az/el',
+    layout: 'quad',
+    viewIds: ['antenna-control', 'scan-worksheet', 'ascope', 'sun-position'],
+    builtin: true,
+  },
+  {
+    id: 'matched-filter',
+    label: 'Filtro adaptado (Mb↔Pb)',
+    layout: 'split-h',
+    viewIds: ['mb-setup', 'pb-plot'],
+    builtin: true,
+  },
+  {
+    id: 'itsg-adjust',
+    label: 'Ajuste ITSG',
+    layout: 'split-h',
+    viewIds: ['itsg-control', 'ascope'],
+    builtin: true,
+  },
+  {
+    id: 'calibration-log',
+    label: 'Calibración + log',
+    layout: 'split-h',
+    viewIds: ['rsp-tx-rx-adjust', 'calibration-log'],
+    builtin: true,
+  },
+  {
+    id: 'surveillance',
+    label: 'Vigilancia (BiTE)',
+    layout: 'single',
+    viewIds: ['bite-messages'],
+    builtin: true,
+  },
+]
+
+// Preset inicial: 'surveillance' es hoy el único 100% funcional (su único
+// panel es una vista construida). Cualquier otro arrancaría mostrando
+// paneles "no aplicable" -- honesto, pero mala primera impresión. El
+// operador puede cambiar cualquier panel a otra vista real de inmediato, el
+// selector no está restringido al preset activo.
+const INITIAL_PRESET_ID = 'surveillance'
+
+// A6 SI/SR/SD/RD -- el backend no implementa el scheduler RVP900 (SI/SR no
+// tienen fuente real todavía). SD/RD se aproximan con lo que sí existe:
+// hal_connected (conexión gateway<->HAL) y el stream DSP de radiales. No es
+// 1:1 con la semántica legacy, pero es honesto: 'neutral' + detalle explica
+// por qué, en vez de fabricar un estado sin respaldo.
+const indicators = computed<IndicatorState[]>(() => [
+  { id: 'SI', state: 'neutral', detail: 'sin fuente de datos (scheduler RVP900 no implementado)' },
+  { id: 'SR', state: 'neutral', detail: 'sin fuente de datos (scheduler RVP900 no implementado)' },
+  {
+    id: 'SD',
+    state: halConnected.value === null ? 'neutral' : halConnected.value ? 'ok' : 'fault',
+    detail: halConnected.value === null ? 'esperando /api/status' : halConnected.value ? 'HAL conectado' : 'HAL sin conexión',
+  },
+  {
+    id: 'RD',
+    state: dsp.value === null ? 'neutral' : dsp.value.connected ? 'ok' : 'fault',
+    detail: dsp.value ? `${dsp.value.radials_received} radiales recibidos` : 'sin stream DSP',
+  },
+])
+
+// `simulated` (HAL real vs radar_emulator) y `accessLevel` (A4 Maintenance
+// Unlock) no tienen respaldo en el backend todavía -- ningún contrato
+// expone hal_kind ni un modo de mantenimiento (A4 es P1, fuera de este
+// paso). Se fijan en falso/'OP' en vez de fabricar un valor: ver
+// SystemStatusSnapshot en core/contracts/mmi.py.
+
+onMounted(() => {
+  fetchStatus().catch(() => {
+    // WS ya en autoReconnect -- si el snapshot inicial falla, el estado
+    // sigue llegando por bite_event/antenna en cuanto el WS conecte.
+  })
+})
+</script>
 
 <template>
-  <nav class="flex gap-4 border-b p-3 text-sm">
-    <RouterLink to="/" class="hover:underline">Control Center</RouterLink>
-    <RouterLink to="/system-status" class="hover:underline">System Status &amp; BITE</RouterLink>
-    <RouterLink to="/system-visualization" class="hover:underline">System Visualization</RouterLink>
-    <RouterLink to="/scan-worksheet" class="hover:underline">Scan Worksheet</RouterLink>
-    <RouterLink to="/antenna-control" class="hover:underline">Antenna Control</RouterLink>
-    <RouterLink to="/system-information" class="hover:underline">System Information</RouterLink>
-  </nav>
-  <RouterView />
+  <AppShell
+    site-name="RD100S-01"
+    :host="GATEWAY_HTTP"
+    :simulated="false"
+    :control="control"
+    access-level="OP"
+    :indicators="indicators"
+    :alarm-worst="alarmWorst"
+    :alarm-count="alarmCount"
+    :presets="presets"
+    :view-catalog="viewCatalog"
+    :initial-preset-id="INITIAL_PRESET_ID"
+  >
+    <template #system-visualization><SystemVisualizationView /></template>
+    <template #system-status><SystemStatusView /></template>
+    <template #bite-messages><BiteMessagesView /></template>
+    <template #antenna-control><AntennaControlView /></template>
+    <template #scan-worksheet><ScanWorksheetView /></template>
+    <template #control-routines><ControlCenterView /></template>
+    <template #event-log><EventLogView /></template>
+    <template #system-information><SystemInformationView /></template>
+  </AppShell>
 </template>

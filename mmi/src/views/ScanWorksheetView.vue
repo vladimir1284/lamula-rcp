@@ -239,10 +239,12 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="mx-auto flex max-w-3xl flex-col gap-4 p-6">
-    <h1 class="text-2xl font-semibold">Scan Worksheet</h1>
-    <p class="text-sm text-muted-foreground">
-      Cortes de escaneo manuales (PPI/RHI) -- sin scheduler automatico ni ejecucion todavia.
+  <div class="flex h-full min-h-0 flex-col gap-4 overflow-auto p-3">
+    <p class="text-xs text-muted-foreground">
+      Cortes de escaneo manuales (PPI/RHI) -- sin scheduler automatico ni ejecucion todavia. El
+      worksheet completo de 40 parámetros del legacy (thresholds, filtros de clutter,
+      polarización...) queda pendiente del contrato DSP real -- ver commits recientes de mapeo de
+      parámetros en esta rama.
     </p>
 
     <Card>
