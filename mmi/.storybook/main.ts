@@ -3,7 +3,7 @@ import tailwindcss from '@tailwindcss/vite'
 import type { StorybookConfig } from '@storybook/vue3-vite'
 
 const config: StorybookConfig = {
-  stories: ['../src/components/{domain,foundations}/**/*.stories.@(js|ts)'],
+  stories: ['../src/components/{domain,foundations,shell}/**/*.stories.@(js|ts)'],
   addons: ['@storybook/addon-docs'],
   framework: '@storybook/vue3-vite',
   core: {

@@ -199,6 +199,14 @@
     @apply font-sans;
     }
 
+  /* AppShell (A1) es un layout a pantalla completa (`h-full` en cascada) --
+     sin esto la cadena html/body/#app no tiene alto de donde heredar y el
+     mosaico colapsa a la altura de su contenido en vez de llenar la
+     ventana. */
+  html, body, #app {
+    height: 100%;
+  }
+
   /* Stale (docs/diseno/inventario-ui.md §1): the most dangerous state to lose,
      so it is never a hue swap — it overlays whatever the last-known state color
      was with a hatch, so a stale "ok" green stays visibly green AND visibly
