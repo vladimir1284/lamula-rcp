@@ -24,6 +24,8 @@ import type {
   BiteFaultSummary,
   ControlAuthorityState,
   ControlJobStatusResponse,
+  DspInternalStatusSnapshot,
+  DspResetCountersResponse,
   DspStreamStatus,
   MaintenanceState,
   PowerMeasurementLimits,
@@ -413,6 +415,52 @@ async function fetchZeroCheck(): Promise<ZeroCheckSnapshot> {
   }
 }
 
+async function fetchDspInternalStatus(): Promise<DspInternalStatusSnapshot> {
+  await delay(100)
+  return {
+    connected: dsp.value?.connected ?? true,
+    uptime_s: 142850,
+    phase: 1,
+    severity: 0,
+    last_error: 0,
+    n_rx_channels: 2,
+    capability_flags: 511,
+    bite_flags: 0,
+    config_seq: 14,
+    rays_in: dsp.value?.radials_received ?? 48213,
+    rays_out: dsp.value?.radials_received ?? 48213,
+    rays_dropped: 0,
+    queue_depth: 2,
+    bins_ok: 48213000,
+    bins_total: 48213000,
+    trigger_period_cmd_ns: 1000000,
+    trigger_period_meas_ns: 1000002,
+    noise_floor_dbm: [-112.4, -112.1, -112.0, -112.5],
+    dc_offset_i: [0.0012, 0.0018, 0.0010, 0.0015],
+    dc_offset_q: [0.0011, 0.0013, 0.0009, 0.0012],
+    n_gates: 1000,
+    n_pulses: 64,
+    prf_hz: 1000.0,
+    gate_spacing_m: 150.0,
+    sqi_threshold: 0.25,
+    sig_threshold: 3.0,
+    ccor_threshold: 1.0,
+    log_threshold: 2.0,
+    rfi_filter: 0,
+  }
+}
+
+async function resetDspCounters(): Promise<DspResetCountersResponse> {
+  await delay(150)
+  if (dsp.value) {
+    dsp.value = { ...dsp.value, radials_received: 0 }
+  }
+  return {
+    status: 'ok',
+    message: 'Contadores del DSP reiniciados correctamente (mock)',
+  }
+}
+
 async function setPowerLimits(limits: PowerMeasurementLimits): Promise<PowerMeasurementLimits> {
   await delay(80)
   powerLimits.value = { ...limits }
@@ -593,6 +641,8 @@ export function useGateway() {
     saveConfigProfile,
     restoreConfigProfile,
     factoryConfigProfile,
+    fetchDspInternalStatus,
+    resetDspCounters,
     runControlJob,
     cancelControlJob,
     send,

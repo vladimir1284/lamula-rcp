@@ -56,6 +56,8 @@ from core.contracts.mmi import (
     ControlJobAccepted,
     ControlJobStatus,
     ControlJobStatusResponse,
+    DspInternalStatusSnapshot,
+    DspResetCountersResponse,
     DspStreamStatus,
     HeartbeatMessage,
     MaintenanceState,
@@ -360,6 +362,142 @@ def create_app(
                 )
                 asyncio.create_task(_broadcast(app, event))
         return m
+
+    def _dsp_internal_status() -> DspInternalStatusSnapshot:
+        st = dsp.latest_status
+        cfg = dsp.latest_config
+        ray = dsp.latest
+
+        if st is not None:
+            uptime_s = st.uptime_s
+            phase = st.phase
+            severity = st.severity
+            last_error = st.last_error
+            n_rx_channels = st.n_rx_channels
+            capability_flags = st.capability_flags
+            bite_flags = st.bite_flags
+            config_seq = st.config_seq
+            rays_in = st.rays_in
+            rays_out = st.rays_out
+            rays_dropped = st.rays_dropped
+            queue_depth = st.queue_depth
+            bins_ok = st.bins_ok
+            bins_total = st.bins_total
+            trigger_period_cmd_ns = st.trigger_period_cmd_ns
+            trigger_period_meas_ns = st.trigger_period_meas_ns
+            noise_floor_dbm = [
+                st.noise_floor_dbm_0,
+                st.noise_floor_dbm_1,
+                st.noise_floor_dbm_2,
+                st.noise_floor_dbm_3,
+            ]
+            dc_offset_i = [
+                st.dc_offset_i_0,
+                st.dc_offset_i_1,
+                st.dc_offset_i_2,
+                st.dc_offset_i_3,
+            ]
+            dc_offset_q = [
+                st.dc_offset_q_0,
+                st.dc_offset_q_1,
+                st.dc_offset_q_2,
+                st.dc_offset_q_3,
+            ]
+        else:
+            uptime_s = 0
+            phase = 1 if dsp.connected else 0
+            severity = 0
+            last_error = 0
+            n_rx_channels = 2
+            capability_flags = 0x01FF
+            bite_flags = 0
+            config_seq = 1
+            rays_in = dsp.radials_received
+            rays_out = dsp.radials_received
+            rays_dropped = 0
+            queue_depth = 0
+            bins_ok = 1000 * dsp.radials_received
+            bins_total = 1000 * dsp.radials_received
+            trigger_period_cmd_ns = 1_000_000
+            trigger_period_meas_ns = 1_000_000
+            noise_floor_dbm = [-112.0, -112.5, -112.0, -112.5]
+            dc_offset_i = [0.001, 0.002, 0.001, 0.002]
+            dc_offset_q = [0.001, 0.001, 0.001, 0.001]
+
+        if cfg is not None:
+            n_gates = cfg.n_gates
+            n_pulses = cfg.n_pulses
+            prf_hz = cfg.prf_hz
+            gate_spacing_m = cfg.gate_spacing_m
+            sqi_threshold = cfg.sqi_threshold
+            sig_threshold = cfg.sig_threshold
+            ccor_threshold = cfg.ccor_threshold
+            log_threshold = cfg.log_threshold
+            rfi_filter = cfg.rfi_filter
+        else:
+            n_gates = 1000
+            n_pulses = 64
+            prf_hz = ray.prf_hz if ray is not None else 1000.0
+            gate_spacing_m = 150.0
+            sqi_threshold = 0.25
+            sig_threshold = 3.0
+            ccor_threshold = 1.0
+            log_threshold = 2.0
+            rfi_filter = 0
+
+        return DspInternalStatusSnapshot(
+            connected=dsp.connected,
+            uptime_s=uptime_s,
+            phase=phase,
+            severity=severity,
+            last_error=last_error,
+            n_rx_channels=n_rx_channels,
+            capability_flags=capability_flags,
+            bite_flags=bite_flags,
+            config_seq=config_seq,
+            rays_in=rays_in,
+            rays_out=rays_out,
+            rays_dropped=rays_dropped,
+            queue_depth=queue_depth,
+            bins_ok=bins_ok,
+            bins_total=bins_total,
+            trigger_period_cmd_ns=trigger_period_cmd_ns,
+            trigger_period_meas_ns=trigger_period_meas_ns,
+            noise_floor_dbm=noise_floor_dbm,
+            dc_offset_i=dc_offset_i,
+            dc_offset_q=dc_offset_q,
+            n_gates=n_gates,
+            n_pulses=n_pulses,
+            prf_hz=prf_hz,
+            gate_spacing_m=gate_spacing_m,
+            sqi_threshold=sqi_threshold,
+            sig_threshold=sig_threshold,
+            ccor_threshold=ccor_threshold,
+            log_threshold=log_threshold,
+            rfi_filter=rfi_filter,
+        )
+
+    @app.get("/api/dsp/internal-status", response_model=DspInternalStatusSnapshot)
+    async def get_dsp_internal_status() -> DspInternalStatusSnapshot:
+        return _dsp_internal_status()
+
+    @app.post("/api/dsp/reset-counters", response_model=DspResetCountersResponse)
+    async def reset_dsp_counters() -> DspResetCountersResponse:
+        dsp.reset_counters()
+        now = datetime.now(timezone.utc)
+        app.state.event_seq += 1
+        event = OperatorEventMessage(
+            seq=app.state.event_seq,
+            at_wall=now,
+            kind="dsp_reset_counters",
+            actor="operator",
+            payload={},
+        )
+        await _broadcast(app, event)
+        return DspResetCountersResponse(
+            status="ok",
+            message="Contadores del DSP reiniciados correctamente",
+        )
 
     @app.get("/api/system-info", response_model=SystemInfo)
     async def get_system_info() -> SystemInfo:

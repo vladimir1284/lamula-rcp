@@ -298,6 +298,47 @@ class DspStreamStatus(BaseModel):
     last_radial_at_wall: datetime | None = None
 
 
+class DspInternalStatusSnapshot(BaseModel):
+    """Detalle completo del estado interno del DSP (E12 - V/Vz)."""
+
+    connected: bool
+    uptime_s: int
+    phase: int
+    severity: int
+    last_error: int
+    n_rx_channels: int
+    capability_flags: int
+    bite_flags: int
+    config_seq: int
+    rays_in: int
+    rays_out: int
+    rays_dropped: int
+    queue_depth: int
+    bins_ok: int
+    bins_total: int
+    trigger_period_cmd_ns: int
+    trigger_period_meas_ns: int
+    noise_floor_dbm: list[float]
+    dc_offset_i: list[float]
+    dc_offset_q: list[float]
+    n_gates: int
+    n_pulses: int
+    prf_hz: float
+    gate_spacing_m: float
+    sqi_threshold: float
+    sig_threshold: float
+    ccor_threshold: float
+    log_threshold: float
+    rfi_filter: int
+
+
+class DspResetCountersResponse(BaseModel):
+    """Respuesta al reinicio de contadores del DSP (Vz)."""
+
+    status: str
+    message: str
+
+
 class BiteFaultSummary(BaseModel):
     """Una falla activa del System Status & BITE Manager (`core/bite/`), ya
     con hora de pared -- el gateway se la asigna al momento de detectarla

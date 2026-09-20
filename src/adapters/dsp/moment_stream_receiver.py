@@ -29,7 +29,7 @@ from datetime import datetime, timezone
 from contract.vendor import dsp_rcp_v0_1 as wire
 from core.contracts.dsp import RadialMoments
 
-from .wire import WireFormatError, decode_moment_ray, parse_frame_header
+from .wire import WireFormatError, decode_moment_ray, encode_control, parse_frame_header
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +52,10 @@ class MomentStreamReceiver:
         self.other_messages_received = 0
         self.frame_errors = 0
         self._latest: RadialMoments | None = None
+        self._latest_status: wire.Status | None = None
+        self._latest_config: wire.Config | None = None
+        self._writer: asyncio.StreamWriter | None = None
+        self._control_seq = 0
         # Hora de pared del ultimo MOMENT_RAY -- unica forma de que A6 (RD)
         # distinga "conectado pero sin datos hace rato" de "recibiendo de
         # verdad"; `connected` solo refleja el socket TCP, no el flujo.
@@ -63,8 +67,33 @@ class MomentStreamReceiver:
         return self._latest
 
     @property
+    def latest_status(self) -> wire.Status | None:
+        return self._latest_status
+
+    @property
+    def latest_config(self) -> wire.Config | None:
+        return self._latest_config
+
+    @property
     def last_radial_at(self) -> datetime | None:
         return self._last_radial_at
+
+    def reset_counters(self) -> None:
+        """Reinicia contadores de trigger/radiales (Vz)."""
+        self.radials_received = 0
+        self.other_messages_received = 0
+        self.frame_errors = 0
+        if self._latest_status:
+            self._latest_status.rays_in = 0
+            self._latest_status.rays_out = 0
+            self._latest_status.rays_dropped = 0
+        if self.connected and self._writer:
+            try:
+                self._control_seq += 1
+                msg = encode_control(self._control_seq, wire.Command.RESET_COUNTERS)
+                self._writer.write(msg)
+            except Exception:
+                logger.exception("Error enviando mandato RESET_COUNTERS al DSP")
 
     async def _read_message(self, reader: asyncio.StreamReader) -> tuple[int, bytes]:
         raw_header = await reader.readexactly(wire.Header.SIZE)
@@ -81,6 +110,7 @@ class MomentStreamReceiver:
         self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
     ) -> None:
         self.connected = True
+        self._writer = writer
         try:
             while True:
                 msg_type, body = await self._read_message(reader)
@@ -88,8 +118,14 @@ class MomentStreamReceiver:
                     self._latest = decode_moment_ray(body)
                     self.radials_received += 1
                     self._last_radial_at = datetime.now(timezone.utc)
+                elif msg_type == wire.MsgType.STATUS:
+                    self._latest_status = wire.Status.unpack(body)
+                    self.other_messages_received += 1
+                elif msg_type == wire.MsgType.CONFIG:
+                    self._latest_config = wire.Config.unpack(body)
+                    self.other_messages_received += 1
                 else:
-                    # status, bite_event, config_ack, capabilities... son
+                    # bite_event, config_ack, capabilities... son
                     # legitimos por este mismo enlace; todavia no hay consumidor.
                     self.other_messages_received += 1
         except (asyncio.IncompleteReadError, ConnectionError):
@@ -101,6 +137,7 @@ class MomentStreamReceiver:
             logger.exception("trama invalida del DSP; se cierra la conexion")
         finally:
             self.connected = False
+            self._writer = None
             writer.close()
 
     async def start(self, bind_host: str, port: int) -> None:
