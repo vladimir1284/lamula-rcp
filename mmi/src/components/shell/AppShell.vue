@@ -44,7 +44,11 @@ const props = defineProps<{
   initialPresetId?: string
 }>()
 
-defineEmits<{ 'open-alarms': [] }>()
+const emit = defineEmits<{ 'open-alarms': [] }>()
+
+// A1: "resumen de alarma ... clicable hacia B8" -- el inventario lo fija a
+// BiTE Messages, no es un destino configurable por instancia de AppShell.
+const ALARM_TARGET_VIEW_ID = 'bite-messages'
 
 // No usa structuredClone: los props llegan como proxies reactivos de Vue y
 // structuredClone lanza DataCloneError sobre ellos en algunos motores. Los
@@ -92,6 +96,16 @@ function toggleFreeze(index: number) {
   if (p) p.frozen = !p.frozen
 }
 
+// Primer panel no congelado -- congelado significa "no me cambies la
+// vista" (paso 3), así que saltar un panel congelado para abrir B8 es la
+// misma regla aplicada a este caso, no una excepción nueva. Si los 4 están
+// congelados no hay dónde abrir B8 sin romper esa garantía: no-op.
+function openAlarms() {
+  const idx = panels.value.findIndex((p) => !p.frozen)
+  if (idx !== -1) setPanelView(idx, ALARM_TARGET_VIEW_ID)
+  emit('open-alarms')
+}
+
 function renamePreset(id: string, label: string) {
   const p = presets.value.find((x) => x.id === id)
   if (p) p.label = label
@@ -131,7 +145,7 @@ function duplicateCurrent() {
       :indicators="indicators"
       :alarm-worst="alarmWorst"
       :alarm-count="alarmCount"
-      @open-alarms="$emit('open-alarms')"
+      @open-alarms="openAlarms"
     />
     <PresetBar
       :presets="presets"
