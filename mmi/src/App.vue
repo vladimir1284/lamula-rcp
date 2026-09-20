@@ -22,6 +22,7 @@ import MaintenanceUnlockView from '@/views/MaintenanceUnlockView.vue'
 import PowerMonitorView from '@/views/PowerMonitorView.vue'
 import ProcessMonitorView from '@/views/ProcessMonitorView.vue'
 import StateTrendPlotView from '@/views/StateTrendPlotView.vue'
+import DspSetupHubView from '@/views/DspSetupHubView.vue'
 import SystemInformationView from '@/views/SystemInformationView.vue'
 import SectorBlankingView from '@/views/SectorBlankingView.vue'
 import SystemStatusView from '@/views/SystemStatusView.vue'
@@ -65,6 +66,7 @@ const viewCatalog: ViewOption[] = [
   { id: 'maintenance-unlock', label: 'A4 Maintenance Unlock', available: true },
   { id: 'event-log', label: 'A5 Event Log', available: true },
   { id: 'system-information', label: 'A7 System Information', available: true },
+  { id: 'dsp-setup-hub', label: 'E1 DSP Setup Hub', available: true },
   { id: 'ascope', label: 'D2 ASCOPE', available: true },
   { id: 'ppi', label: 'D3 PPI', available: true },
   { id: 'rhi', label: 'D4 RHI', available: true },
@@ -246,6 +248,7 @@ onMounted(() => {
     <template #maintenance-unlock><MaintenanceUnlockView /></template>
     <template #event-log><EventLogView /></template>
     <template #system-information><SystemInformationView /></template>
+    <template #dsp-setup-hub><DspSetupHubView /></template>
     <template #ascope="{ panel }"><AscopeView :frozen="panel.frozen" /></template>
     <template #ppi="{ panel }"><PpiView :frozen="panel.frozen" /></template>
     <template #rhi="{ panel }"><RhiView :frozen="panel.frozen" /></template>
