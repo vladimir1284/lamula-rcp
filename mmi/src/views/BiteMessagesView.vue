@@ -25,6 +25,8 @@ import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import TrafficLight from '@/components/domain/TrafficLight.vue'
 import { useGateway } from '@/composables/useGateway'
+import { providePanelExportData } from '@/composables/usePanelExport'
+import { exportToJson } from '@/lib/exportUtils'
 import type { BiteEventMessage } from '@/types/mmi'
 
 const { biteFaults, messages, alarmWorst, alarmCount, acknowledgeAlarm, fetchStatus } = useGateway()
@@ -37,6 +39,8 @@ const showResolved = ref(false)
 const history = computed<BiteEventMessage[]>(() =>
   messages.value.filter((m): m is BiteEventMessage => m.type === 'bite_event'),
 )
+
+providePanelExportData(() => history.value)
 
 // "Limpiar tabla" es sólo de vista: el ring buffer real (`messages`) es
 // compartido con A5/A6/Control Center, así que no se puede vaciar sin
@@ -96,14 +100,8 @@ function clearTable() {
 
 function downloadHistory() {
   // El catálogo exige exportar todo el historial sin filtrar ("guarda todo, ignorando el filtro")
-  const data = JSON.stringify(history.value, null, 2)
-  const blob = new Blob([data], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `bite_history_${new Date().toISOString().replace(/[:.]/g, '-')}.json`
-  a.click()
-  URL.revokeObjectURL(url)
+  const ts = new Date().toISOString().replace(/[:.]/g, '-')
+  exportToJson(history.value, `bite_history_${ts}.json`)
 }
 
 onMounted(() => {

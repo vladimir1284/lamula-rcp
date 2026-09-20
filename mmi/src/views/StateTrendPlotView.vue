@@ -57,7 +57,7 @@ async function refreshData() {
   try {
     trendStatus.value = await fetchTrendStatus()
     trendSeries.value = await fetchTrendData()
-  } catch (e) {
+  } catch {
     // No pisar el error principal si la reconexión es temporal
   }
 }

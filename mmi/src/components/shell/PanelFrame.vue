@@ -1,17 +1,17 @@
 <script setup lang="ts">
-// Encabezado común de panel (pendiente #1 de las decisiones abiertas: "el
-// encabezado común de panel"). Selector nativo <select> a propósito: ui/ no
-// tiene todavía un primitivo Select de shadcn-vue y añadirlo era alcance
-// fuera de este paso -- la API (viewId/@update:viewId) no cambia el día que
-// se reemplace por uno.
+// Encabezado común de panel (I6 Export / Snapshot integrado como acción
+// de cabecera estándar de panel, disponible en todas las vistas de forma
+// predeterminada).
 //
 // `frozen` cubre "cada uno se congela independientemente" (varios
 // ASCOPE/PPI/RHI a la vez, docs/diseno/inventario-ui.md, Requisitos de
 // concurrencia). Cuando `viewId` no está entre `viewOptions` (o su opción
 // tiene `available:false`) se pinta el hueco "vista no aplicable" en vez del
-// contenido -- ese es el caso de preset que el pendiente #1 deja abierto.
-import { computed } from 'vue'
+// contenido.
+import { computed, ref } from 'vue'
 import { Button } from '@/components/ui/button'
+import ExportMenu from '@/components/domain/ExportMenu.vue'
+import { useInjectPanelExportData } from '@/composables/usePanelExport'
 import type { ViewOption } from '@/types/shell'
 
 const props = withDefaults(
@@ -20,8 +20,9 @@ const props = withDefaults(
     viewOptions: ViewOption[]
     frozen?: boolean
     closable?: boolean
+    exportData?: unknown
   }>(),
-  { frozen: false, closable: false },
+  { frozen: false, closable: false, exportData: undefined },
 )
 
 defineEmits<{
@@ -32,11 +33,24 @@ defineEmits<{
 
 const selected = computed(() => props.viewOptions.find((v) => v.id === props.viewId))
 const isApplicable = computed(() => !!selected.value?.available)
+const panelContentRef = ref<HTMLDivElement | null>(null)
+
+const injectedData = useInjectPanelExportData()
+
+const activeExportData = computed(() => {
+  if (props.exportData !== undefined) return props.exportData
+  if (injectedData !== undefined) return injectedData
+  return {
+    panelId: props.viewId,
+    title: selected.value?.label ?? 'Panel',
+    timestamp: new Date().toISOString(),
+  }
+})
 </script>
 
 <template>
   <div class="flex h-full min-h-0 flex-col overflow-hidden rounded-md border border-border">
-    <div class="flex items-center gap-2 border-b border-border bg-card px-2 py-1">
+    <div class="flex items-center gap-1.5 border-b border-border bg-card px-2 py-1">
       <select
         class="min-w-0 flex-1 rounded-sm border border-border bg-background px-1.5 py-1 text-xs"
         :value="viewId ?? ''"
@@ -46,6 +60,14 @@ const isApplicable = computed(() => !!selected.value?.available)
           {{ opt.label }}{{ opt.available ? '' : ' (no aplicable)' }}
         </option>
       </select>
+      <ExportMenu
+        :target-el="panelContentRef"
+        :filename="viewId ?? 'panel'"
+        :export-data="activeExportData"
+        size="icon-xs"
+        variant="ghost"
+        title="Exportar / Snapshot del panel"
+      />
       <Button
         size="icon-xs"
         variant="ghost"
@@ -60,7 +82,7 @@ const isApplicable = computed(() => !!selected.value?.available)
         ✕
       </Button>
     </div>
-    <div class="min-h-0 flex-1 overflow-auto p-2">
+    <div ref="panelContentRef" class="min-h-0 flex-1 overflow-auto p-2" data-panel-frame>
       <div v-if="!isApplicable" class="flex h-full items-center justify-center text-xs text-muted-foreground">
         Vista no aplicable en este preset
       </div>
