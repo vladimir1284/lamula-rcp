@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -10,10 +10,11 @@ import AxisPositioningFields, {
 } from '@/components/domain/AxisPositioningFields.vue'
 import AxisSelector from '@/components/domain/AxisSelector.vue'
 import JobActionPanel from '@/components/domain/JobActionPanel.vue'
+import StepWidthSetup from '@/components/domain/StepWidthSetup.vue'
 import { useGateway } from '@/composables/useGateway'
-import type { AntennaAxis, AntennaMovementRequest, AntennaPositioningRequest, RoutineResult } from '@/types/mmi'
+import type { AntennaAxis, AntennaMovementRequest, AntennaPositioningRequest, AntennaStepConfig, RoutineResult } from '@/types/mmi'
 
-const { control, antenna, runControlJob, cancelControlJob } = useGateway()
+const { control, antenna, runControlJob, cancelControlJob, fetchStepConfig } = useGateway()
 
 const isActive = computed(() => control.value?.mode === 'active')
 
@@ -66,14 +67,39 @@ const posJobId = ref<string | null>(null)
 const posResult = ref<RoutineResult | null>(null)
 const posError = ref<string | null>(null)
 
-const posReady = computed(
+const stepModalOpen = ref(false)
+const stepConfig = ref<AntennaStepConfig>({ azimuth_step_deg: 1.0, elevation_step_deg: 1.0 })
+
+onMounted(async () => {
+  try {
+    stepConfig.value = await fetchStepConfig()
+  } catch {
+    // fallback a defaults
+  }
+})
+
+function onStepConfigSaved(cfg: AntennaStepConfig) {
+  stepConfig.value = cfg
+}
+
+const posParamsReady = computed(
   () =>
-    targetDeg.value !== undefined &&
     posFields.value.gain_v_per_deg !== undefined &&
     posFields.value.max_voltage !== undefined &&
     posFields.value.tolerance_deg !== undefined &&
     posFields.value.timeout_s !== undefined,
 )
+
+const posReady = computed(
+  () => targetDeg.value !== undefined && posParamsReady.value,
+)
+
+async function stepMove(deltaSign: number) {
+  const currentPos = posAxis.value === 'azimuth' ? (antenna.value?.az_deg ?? 0) : (antenna.value?.el_deg ?? 0)
+  const step = posAxis.value === 'azimuth' ? stepConfig.value.azimuth_step_deg : stepConfig.value.elevation_step_deg
+  targetDeg.value = currentPos + deltaSign * step
+  await runPositioning()
+}
 
 async function runPositioning() {
   if (!posReady.value) return
@@ -162,7 +188,36 @@ async function cancelPositioning() {
         <CardTitle>Posicionar — control proporcional a un ángulo (Rutina 6)</CardTitle>
       </CardHeader>
       <CardContent class="flex flex-col gap-3">
-        <AxisSelector v-model="posAxis" />
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <AxisSelector v-model="posAxis" />
+          <div class="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              :disabled="!isActive || posBusy || !posParamsReady"
+              @click="stepMove(-1)"
+            >
+              −paso ({{ posAxis === 'azimuth' ? stepConfig.azimuth_step_deg : stepConfig.elevation_step_deg }}°)
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              :disabled="!isActive || posBusy || !posParamsReady"
+              @click="stepMove(1)"
+            >
+              +paso ({{ posAxis === 'azimuth' ? stepConfig.azimuth_step_deg : stepConfig.elevation_step_deg }}°)
+            </Button>
+            <Button variant="secondary" size="sm" @click="stepModalOpen = true">
+              Configurar paso
+            </Button>
+          </div>
+        </div>
+
+        <StepWidthSetup
+          v-model:open="stepModalOpen"
+          @saved="onStepConfigSaved"
+        />
+
         <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <label class="flex flex-col gap-1 text-xs">
             target_deg

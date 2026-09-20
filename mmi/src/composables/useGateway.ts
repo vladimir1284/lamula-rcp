@@ -16,15 +16,19 @@ import { useWebSocket } from '@vueuse/core'
 import { computed, ref, shallowRef } from 'vue'
 import type {
   AntennaMessage,
+  AntennaStepConfig,
   BiteFaultSummary,
   ControlAuthorityState,
   ControlJobAccepted,
   ControlJobStatusResponse,
   DspStreamStatus,
   MaintenanceState,
+  ProcessMonitorSnapshot,
   SetControlModeRequest,
   SystemInfo,
   SystemStatusSnapshot,
+  TrendSeries,
+  TrendStatus,
   UnlockMaintenanceRequest,
   WsMessage,
 } from '@/types/mmi'
@@ -158,6 +162,80 @@ async function unlockMaintenance(req: UnlockMaintenanceRequest): Promise<Mainten
   const state = (await res.json()) as MaintenanceState
   maintenance.value = state
   return state
+}
+
+async function fetchStepConfig(): Promise<AntennaStepConfig> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/antenna/step-config`)
+  if (!res.ok) throw new Error(`GET /api/antenna/step-config: HTTP ${res.status}`)
+  return (await res.json()) as AntennaStepConfig
+}
+
+async function setStepConfig(config: AntennaStepConfig): Promise<AntennaStepConfig> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/antenna/step-config`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(config),
+  })
+  if (!res.ok) {
+    const detail = await res.text()
+    throw new Error(`POST /api/antenna/step-config: HTTP ${res.status} — ${detail}`)
+  }
+  return (await res.json()) as AntennaStepConfig
+}
+
+async function fetchProcessMonitor(): Promise<ProcessMonitorSnapshot> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/process-monitor`)
+  if (!res.ok) throw new Error(`GET /api/process-monitor: HTTP ${res.status}`)
+  return (await res.json()) as ProcessMonitorSnapshot
+}
+
+async function fetchTrendChannels(): Promise<string[]> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/trend/channels`)
+  if (!res.ok) throw new Error(`GET /api/trend/channels: HTTP ${res.status}`)
+  return (await res.json()) as string[]
+}
+
+async function fetchTrendStatus(): Promise<TrendStatus> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/trend/status`)
+  if (!res.ok) throw new Error(`GET /api/trend/status: HTTP ${res.status}`)
+  return (await res.json()) as TrendStatus
+}
+
+async function startTrend(signalIds: string[]): Promise<TrendStatus> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/trend/start`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ signal_ids: signalIds }),
+  })
+  if (!res.ok) {
+    const detail = await res.text()
+    throw new Error(`POST /api/trend/start: HTTP ${res.status} — ${detail}`)
+  }
+  return (await res.json()) as TrendStatus
+}
+
+async function stopTrend(): Promise<TrendStatus> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/trend/stop`, { method: 'POST' })
+  if (!res.ok) throw new Error(`POST /api/trend/stop: HTTP ${res.status}`)
+  return (await res.json()) as TrendStatus
+}
+
+async function continueTrend(): Promise<TrendStatus> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/trend/continue`, { method: 'POST' })
+  if (!res.ok) throw new Error(`POST /api/trend/continue: HTTP ${res.status}`)
+  return (await res.json()) as TrendStatus
+}
+
+async function clearTrend(): Promise<TrendStatus> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/trend/clear`, { method: 'POST' })
+  if (!res.ok) throw new Error(`POST /api/trend/clear: HTTP ${res.status}`)
+  return (await res.json()) as TrendStatus
+}
+
+async function fetchTrendData(): Promise<TrendSeries[]> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/trend/data`)
+  if (!res.ok) throw new Error(`GET /api/trend/data: HTTP ${res.status}`)
+  return (await res.json()) as TrendSeries[]
 }
 
 async function lockMaintenance(): Promise<MaintenanceState> {
@@ -320,6 +398,16 @@ export function useGateway() {
     setControlMode,
     unlockMaintenance,
     lockMaintenance,
+    fetchStepConfig,
+    setStepConfig,
+    fetchProcessMonitor,
+    fetchTrendChannels,
+    fetchTrendStatus,
+    startTrend,
+    stopTrend,
+    continueTrend,
+    clearTrend,
+    fetchTrendData,
     runControlJob,
     cancelControlJob,
     send,

@@ -138,6 +138,50 @@ export interface AntennaPositioningRequest {
   timeout_s: number
 }
 
+export interface AntennaStepConfig {
+  azimuth_step_deg: number
+  elevation_step_deg: number
+}
+
+export interface ProcessInfo {
+  pid: number
+  name: string
+  priority: number
+  status: string
+  cpu_percent: number
+  memory_mb: number
+}
+
+export interface RcpTaskInfo {
+  name: string
+  state: 'pending' | 'done' | 'cancelled'
+}
+
+export interface ProcessMonitorSnapshot {
+  process: ProcessInfo
+  tasks: RcpTaskInfo[]
+}
+
+export interface TrendChannelSample {
+  at_wall: string
+  value: number | null
+}
+
+export interface TrendSeries {
+  signal_id: string
+  samples: TrendChannelSample[]
+}
+
+export interface TrendStartRequest {
+  signal_ids: string[]
+}
+
+export interface TrendStatus {
+  running: boolean
+  started_at_wall: string | null
+  signal_ids: string[]
+}
+
 // D-12: los seis POST /api/control/* ya no bloquean hasta que la rutina
 // termina -- devuelven un job (202) y el llamador sondea su estado.
 export type ControlJobStatus = 'running' | 'done'
