@@ -204,10 +204,32 @@ export interface SectorBlankingProfile {
   sectors: BlankingSector[]
 }
 
+export interface ThresholdsConfig {
+  log_threshold_db: number
+  csr_threshold_db: number
+  sqi_threshold: number
+  speckle_remover: boolean
+}
+
+export interface ClutterFilterConfig {
+  doppler_filter_id: number
+  doppler_type_db: string
+  fft_filter_enabled: boolean
+  statistical_filter_enabled: boolean
+}
+
 export interface PowerMeasurementLimits {
   forward_limit_kw: number
   reverse_limit_kw: number
   vswr_limit: number
+}
+
+export interface RcpConfigProfile {
+  power_limits: PowerMeasurementLimits | null
+  antenna_step_config: AntennaStepConfig
+  sector_blanking: SectorBlankingProfile
+  thresholds: ThresholdsConfig
+  clutter_filter: ClutterFilterConfig
 }
 
 export interface PowerMonitorSnapshot {

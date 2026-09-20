@@ -26,6 +26,7 @@ import type {
   PowerMeasurementLimits,
   PowerMonitorSnapshot,
   ProcessMonitorSnapshot,
+  RcpConfigProfile,
   SectorBlankingProfile,
   SetControlModeRequest,
   SystemInfo,
@@ -302,6 +303,58 @@ async function fetchScanWorksheet(): Promise<ScanCut[]> {
   return (await res.json()) as ScanCut[]
 }
 
+async function fetchConfigProfileCurrent(): Promise<RcpConfigProfile> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/config/profile/current`)
+  if (!res.ok) throw new Error(`GET /api/config/profile/current: HTTP ${res.status}`)
+  return (await res.json()) as RcpConfigProfile
+}
+
+async function fetchConfigProfileSaved(): Promise<RcpConfigProfile> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/config/profile/saved`)
+  if (!res.ok) throw new Error(`GET /api/config/profile/saved: HTTP ${res.status}`)
+  return (await res.json()) as RcpConfigProfile
+}
+
+async function setConfigProfile(profile: RcpConfigProfile): Promise<RcpConfigProfile> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/config/profile/set`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(profile),
+  })
+  if (!res.ok) {
+    const detail = await res.text()
+    throw new Error(`POST /api/config/profile/set: HTTP ${res.status} — ${detail}`)
+  }
+  return (await res.json()) as RcpConfigProfile
+}
+
+async function saveConfigProfile(): Promise<RcpConfigProfile> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/config/profile/save`, { method: 'POST' })
+  if (!res.ok) {
+    const detail = await res.text()
+    throw new Error(`POST /api/config/profile/save: HTTP ${res.status} — ${detail}`)
+  }
+  return (await res.json()) as RcpConfigProfile
+}
+
+async function restoreConfigProfile(): Promise<RcpConfigProfile> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/config/profile/restore`, { method: 'POST' })
+  if (!res.ok) {
+    const detail = await res.text()
+    throw new Error(`POST /api/config/profile/restore: HTTP ${res.status} — ${detail}`)
+  }
+  return (await res.json()) as RcpConfigProfile
+}
+
+async function factoryConfigProfile(): Promise<RcpConfigProfile> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/config/profile/factory`, { method: 'POST' })
+  if (!res.ok) {
+    const detail = await res.text()
+    throw new Error(`POST /api/config/profile/factory: HTTP ${res.status} — ${detail}`)
+  }
+  return (await res.json()) as RcpConfigProfile
+}
+
 async function savePowerLimits(): Promise<PowerMeasurementLimits> {
   const res = await fetch(`${GATEWAY_HTTP}/api/power-monitor/limits/save`, { method: 'POST' })
   if (!res.ok) {
@@ -489,6 +542,12 @@ export function useGateway() {
     setSectorBlanking,
     saveSectorBlanking,
     fetchScanWorksheet,
+    fetchConfigProfileCurrent,
+    fetchConfigProfileSaved,
+    setConfigProfile,
+    saveConfigProfile,
+    restoreConfigProfile,
+    factoryConfigProfile,
     runControlJob,
     cancelControlJob,
     send,

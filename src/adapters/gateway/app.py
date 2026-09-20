@@ -61,10 +61,12 @@ from core.contracts.mmi import (
     MaintenanceState,
     OperatorEventMessage,
     OperatorMode,
+    ClutterFilterConfig,
     PowerMeasurementLimits,
     PowerMonitorSnapshot,
     ProcessInfo,
     ProcessMonitorSnapshot,
+    RcpConfigProfile,
     RcpTaskInfo,
     ReceiverPowerOnRequest,
     ScanCutExecutionRequest,
@@ -74,6 +76,7 @@ from core.contracts.mmi import (
     StatusMessage,
     SystemInfo,
     SystemStatusSnapshot,
+    ThresholdsConfig,
     TransmitterPowerOnRequest,
     TrendChannelSample,
     TrendSeries,
@@ -123,6 +126,7 @@ def create_app(
     scan_worksheet_path: Path = Path("data/scan_worksheet.json"),
     power_limits_path: Path = Path("data/power_limits.json"),
     sector_blanking_path: Path = Path("data/sector_blanking.json"),
+    config_profile_path: Path = Path("data/config_profile.json"),
 ) -> FastAPI:
     async def _bite_poll_loop(app: FastAPI) -> None:
         while True:
@@ -279,6 +283,34 @@ def create_app(
     app.state.zero_check_noise_high_dbm: float | None = None
     app.state.zero_check_noise_low_dbm: float | None = None
     app.state.zero_check_last_result: RoutineResult | None = None
+
+    # Perfiles de configuracion local (E11)
+    app.state.config_profile_path = config_profile_path
+    app.state.thresholds = ThresholdsConfig()
+    app.state.clutter_filter = ClutterFilterConfig()
+
+    def _get_current_profile() -> RcpConfigProfile:
+        return RcpConfigProfile(
+            power_limits=app.state.power_limits,
+            antenna_step_config=app.state.antenna_step_config,
+            sector_blanking=app.state.sector_blanking,
+            thresholds=app.state.thresholds,
+            clutter_filter=app.state.clutter_filter,
+        )
+
+    def _apply_profile(profile: RcpConfigProfile) -> None:
+        app.state.power_limits = profile.power_limits
+        app.state.antenna_step_config = profile.antenna_step_config
+        app.state.sector_blanking = profile.sector_blanking
+        app.state.thresholds = profile.thresholds
+        app.state.clutter_filter = profile.clutter_filter
+
+    try:
+        saved_prof = RcpConfigProfile.model_validate_json(config_profile_path.read_text())
+        app.state.saved_profile: RcpConfigProfile = saved_prof
+        _apply_profile(saved_prof)
+    except (FileNotFoundError, ValueError):
+        app.state.saved_profile = _get_current_profile()
 
     try:
         upstream_data = tomllib.loads(UPSTREAM_PIN.read_text(encoding="utf-8"))
@@ -740,6 +772,43 @@ def create_app(
         app.state.sector_blanking_path.parent.mkdir(parents=True, exist_ok=True)
         app.state.sector_blanking_path.write_text(app.state.sector_blanking.model_dump_json())
         return app.state.sector_blanking
+
+    @app.get("/api/config/profile/current", response_model=RcpConfigProfile)
+    async def get_config_profile_current() -> RcpConfigProfile:
+        return _get_current_profile()
+
+    @app.get("/api/config/profile/saved", response_model=RcpConfigProfile)
+    async def get_config_profile_saved() -> RcpConfigProfile:
+        return app.state.saved_profile
+
+    @app.post("/api/config/profile/set", response_model=RcpConfigProfile)
+    async def set_config_profile(profile: RcpConfigProfile) -> RcpConfigProfile:
+        _apply_profile(profile)
+        return _get_current_profile()
+
+    @app.post("/api/config/profile/save", response_model=RcpConfigProfile)
+    async def save_config_profile() -> RcpConfigProfile:
+        if await _read_radiating():
+            raise HTTPException(
+                status_code=409,
+                detail="no se puede guardar el perfil mientras el radar esta radiando -- apague radiacion primero",
+            )
+        current = _get_current_profile()
+        app.state.saved_profile = current
+        app.state.config_profile_path.parent.mkdir(parents=True, exist_ok=True)
+        app.state.config_profile_path.write_text(current.model_dump_json())
+        return current
+
+    @app.post("/api/config/profile/restore", response_model=RcpConfigProfile)
+    async def restore_config_profile() -> RcpConfigProfile:
+        _apply_profile(app.state.saved_profile)
+        return _get_current_profile()
+
+    @app.post("/api/config/profile/factory", response_model=RcpConfigProfile)
+    async def factory_config_profile() -> RcpConfigProfile:
+        factory_profile = RcpConfigProfile()
+        _apply_profile(factory_profile)
+        return _get_current_profile()
 
     def _save_scan_worksheet() -> None:
         app.state.scan_worksheet_path.parent.mkdir(parents=True, exist_ok=True)

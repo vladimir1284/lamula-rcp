@@ -166,6 +166,20 @@ class SectorBlankingProfile(BaseModel):
     sectors: list[BlankingSector] = Field(default_factory=default_sectors)
 
 
+class ThresholdsConfig(BaseModel):
+    log_threshold_db: float = 1.0
+    csr_threshold_db: float = -18.0
+    sqi_threshold: float = Field(0.3, ge=0.0, le=1.0)
+    speckle_remover: bool = True
+
+
+class ClutterFilterConfig(BaseModel):
+    doppler_filter_id: int = 1
+    doppler_type_db: str = "default"
+    fft_filter_enabled: bool = False
+    statistical_filter_enabled: bool = False
+
+
 class PowerMeasurementLimits(BaseModel):
     """Limites editables por el operador (B7, RAVIS Sec.7.7) -- volatiles hasta
     `POST /api/power-monitor/limits/save` los persiste (mismo criterio que
@@ -186,6 +200,18 @@ class CalibrationLogEntry(BaseModel):
     actor: str
     message: str
     detail: str | None = None
+
+
+class RcpConfigProfile(BaseModel):
+    """Perfiles de configuracion local RCP (E11, RAVIS/RVP §4.1.1 F/S/R).
+    Agrupa los parametros de control directo del RCP: limites B7, step config C2/E5,
+    sectores de blanking C5, umbrales E3 y filtros de clutter E4."""
+
+    power_limits: PowerMeasurementLimits | None = None
+    antenna_step_config: AntennaStepConfig = Field(default_factory=AntennaStepConfig)
+    sector_blanking: SectorBlankingProfile = Field(default_factory=SectorBlankingProfile)
+    thresholds: ThresholdsConfig = Field(default_factory=ThresholdsConfig)
+    clutter_filter: ClutterFilterConfig = Field(default_factory=ClutterFilterConfig)
 
 
 class PowerMonitorSnapshot(BaseModel):

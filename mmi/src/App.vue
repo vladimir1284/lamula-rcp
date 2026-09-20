@@ -29,6 +29,7 @@ import SectorBlankingView from '@/views/SectorBlankingView.vue'
 import SystemStatusView from '@/views/SystemStatusView.vue'
 import SystemVisualizationView from '@/views/SystemVisualizationView.vue'
 import ZeroCheckView from '@/views/ZeroCheckView.vue'
+import ConfigProfilesView from '@/views/ConfigProfilesView.vue'
 import { GATEWAY_HTTP, useGateway } from '@/composables/useGateway'
 import type { IndicatorState, MosaicPreset, ViewOption } from '@/types/shell'
 
@@ -68,6 +69,7 @@ const viewCatalog: ViewOption[] = [
   { id: 'event-log', label: 'A5 Event Log', available: true },
   { id: 'system-information', label: 'A7 System Information', available: true },
   { id: 'dsp-setup-hub', label: 'E1 DSP Setup Hub', available: true },
+  { id: 'config-profiles', label: 'E11 Config Profiles', available: true },
   { id: 'ascope', label: 'D2 ASCOPE', available: true },
   { id: 'ppi', label: 'D3 PPI', available: true },
   { id: 'rhi', label: 'D4 RHI', available: true },
@@ -251,6 +253,7 @@ onMounted(() => {
     <template #event-log><EventLogView /></template>
     <template #system-information><SystemInformationView /></template>
     <template #dsp-setup-hub><DspSetupHubView /></template>
+    <template #config-profiles><ConfigProfilesView /></template>
     <template #ascope="{ panel }"><AscopeView :frozen="panel.frozen" /></template>
     <template #ppi="{ panel }"><PpiView :frozen="panel.frozen" /></template>
     <template #rhi="{ panel }"><RhiView :frozen="panel.frozen" /></template>
