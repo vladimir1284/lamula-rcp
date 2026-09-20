@@ -23,6 +23,7 @@ import PowerMonitorView from '@/views/PowerMonitorView.vue'
 import ProcessMonitorView from '@/views/ProcessMonitorView.vue'
 import StateTrendPlotView from '@/views/StateTrendPlotView.vue'
 import DspSetupHubView from '@/views/DspSetupHubView.vue'
+import ScanParameterPopup from '@/components/domain/ScanParameterPopup.vue'
 import SystemInformationView from '@/views/SystemInformationView.vue'
 import SectorBlankingView from '@/views/SectorBlankingView.vue'
 import SystemStatusView from '@/views/SystemStatusView.vue'
@@ -71,6 +72,7 @@ const viewCatalog: ViewOption[] = [
   { id: 'ppi', label: 'D3 PPI', available: true },
   { id: 'rhi', label: 'D4 RHI', available: true },
   { id: 'zero-check', label: 'G5 Zero Check', available: true },
+  { id: 'scan-parameter-popup', label: 'D8 Scan Parameter Popup', available: true },
   { id: 'sun-position', label: 'H1 Sun Position', available: false },
   { id: 'itsg-control', label: 'I2 ITSG Control', available: false },
   { id: 'calibration-log', label: 'G8 Calibration Log', available: false },
@@ -253,5 +255,6 @@ onMounted(() => {
     <template #ppi="{ panel }"><PpiView :frozen="panel.frozen" /></template>
     <template #rhi="{ panel }"><RhiView :frozen="panel.frozen" /></template>
     <template #zero-check><ZeroCheckView /></template>
+    <template #scan-parameter-popup><div class="flex h-full w-full items-center justify-center p-4"><ScanParameterPopup /></div></template>
   </AppShell>
 </template>

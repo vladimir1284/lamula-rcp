@@ -35,6 +35,7 @@ const viewCatalog: ViewOption[] = [
   { id: 'rsp-tx-rx-adjust', label: 'G2 TX/RX Adjustment', available: true },
   { id: 'antenna-control', label: 'C1 Antenna Control', available: true },
   { id: 'ppi', label: 'D3 PPI', available: true },
+  { id: 'scan-parameter-popup', label: 'D8 Scan Parameter Popup', available: true },
   { id: 'sun-position', label: 'H1 Sun Position', available: true },
   { id: 'rhi', label: 'D4 RHI', available: true },
   { id: 'itsg-control', label: 'I2 ITSG Control', available: true },

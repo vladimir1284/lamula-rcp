@@ -40,7 +40,7 @@ import type {
   WsMessage,
   ZeroCheckSnapshot,
 } from '@/types/mmi'
-import type { ScanCutResult } from '@/types/scan'
+import type { ScanCut, ScanCutResult } from '@/types/scan'
 import type { LampState } from '@/types/shell'
 import type { SessionInfo } from './useGateway'
 
@@ -85,6 +85,27 @@ const sectorBlankingProfile = ref<SectorBlankingProfile>({
     el_end_deg: 90,
   })),
 })
+
+const mockWorksheet = ref<ScanCut[]>([
+  {
+    mode: 'ppi',
+    elevation_deg: 0.5,
+    azimuth_start_deg: 0,
+    azimuth_end_deg: 360,
+    prf_hz: 1000,
+    pulse_width_us: 1.0,
+    moments: ['UZ', 'CZ', 'V', 'W'],
+  },
+  {
+    mode: 'rhi',
+    azimuth_deg: 45,
+    elevation_start_deg: 0,
+    elevation_end_deg: 90,
+    prf_hz: 800,
+    pulse_width_us: 2.0,
+    moments: ['UZ', 'V', 'ZDR'],
+  },
+])
 
 const antenna = shallowRef<AntennaMessage['position'] | null>({
   az_deg: 123.4,
@@ -403,6 +424,11 @@ async function saveSectorBlanking(): Promise<SectorBlankingProfile> {
   return JSON.parse(JSON.stringify(sectorBlankingProfile.value))
 }
 
+async function fetchScanWorksheet(): Promise<ScanCut[]> {
+  await delay(100)
+  return [...mockWorksheet.value]
+}
+
 async function lockMaintenance(): Promise<MaintenanceState> {
   await delay(300)
   maintenance.value = {
@@ -492,6 +518,7 @@ export function useGateway() {
     fetchSectorBlanking,
     setSectorBlanking,
     saveSectorBlanking,
+    fetchScanWorksheet,
     runControlJob,
     cancelControlJob,
     send,

@@ -23,6 +23,7 @@ def client(tmp_path):
         dsp,
         dsp_bind_host="127.0.0.1",
         dsp_port=0,
+        scan_worksheet_path=tmp_path / "scan_worksheet.json",
         power_limits_path=tmp_path / "power_limits.json",
     )
     with TestClient(app) as test_client:
