@@ -55,6 +55,7 @@ nav:
       - Rutinas de control: operacion/rutinas-control.md
   - Diseño:
       - Inventario de UI: diseno/inventario-ui.md
+      - Pendientes P1: diseno/pendientes-p1.md
   - Implementación:
       - Fases: implementacion/fases.md
   - Referencia:

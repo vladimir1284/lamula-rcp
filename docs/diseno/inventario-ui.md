@@ -127,23 +127,23 @@ en español.
 | A1 | App Shell | Shell | P0 | OP | RAVIS §5 | parcial (`App.vue`) |
 | A2 | Connection / Login | Shell | P0 | OP | RAVIS §6.1 | sí (`ConnectionView`) |
 | A3 | Control Authority | Shell | P0 | OP | RAVIS §6.2 | sí (`ControlAuthorityCard`) |
-| A4 | Maintenance Unlock | Shell | P1 | MANT | RAVIS §7.4 | no |
+| A4 | Maintenance Unlock | Shell | P1 | MANT | RAVIS §7.4 | sí (`MaintenanceUnlockView`) |
 | A5 | Event Log | Shell | P0 | OP | RAVIS §5.3 | sí (`EventLogView`) |
 | A6 | Alarm / Indicator Bar | Shell | P0 | OP | RAVIS §6.3 | sí (`IndicatorBar`) |
-| A7 | System Information | Shell | P1 | OP | RAVIS §13 | parcial (vista) |
+| A7 | System Information | Shell | P1 | OP | RAVIS §13 | sí (`SystemInformationView`) |
 | A8 | About / Versions | Shell | P2 | OP | RAVIS §5.2 | no |
 | B1 | System Visualization (mímico) | Estado | P0 | OP | RAVIS §7.1 | sí (vista) |
 | B2 | Subsystem Detail | Estado | P0 | OP | RAVIS §7.1.5 | sí (`SubsystemDetailView`) |
 | B3 | Analog Instruments | Estado | P2 | OP | RAVIS §7.1.6 | no |
-| B4 | State Trend Plot (XY) | Estado | P1 | OP | RAVIS §7.1.4 | no |
-| B5 | RCP Process Monitor | Estado | P1 | MANT | RAVIS §7.1.9 | no |
+| B4 | State Trend Plot (XY) | Estado | P1 | OP | RAVIS §7.1.4 | sí (`StateTrendPlotView`) |
+| B5 | RCP Process Monitor | Estado | P1 | MANT | RAVIS §7.1.9 | sí (`ProcessMonitorView`) |
 | B6 | Remote Partners | Estado | P2 | OP | RAVIS §7.1.10 | no |
-| B7 | Power Monitor (VSWR) | Estado | P1 | OP | RAVIS §7.7 | no |
+| B7 | Power Monitor (VSWR) | Estado | P1 | OP | RAVIS §7.7 | sí (`PowerMonitorView`) |
 | B8 | BiTE Messages | Estado | P0 | OP | RAVIS §9 | parcial (`FaultBadgeRow`) |
-| B9 | BiTE Review (histórico) | Estado | P1 | OP | RAVIS §9.2.1 | no |
+| B9 | BiTE Review (histórico) | Estado | P1 | OP | RAVIS §9.2.1 | sí (`BiteReviewView`) |
 | B10 | System Status | Estado | P0 | OP | RAVIS §7.1 + RVP `V` | sí (vista) |
 | C1 | Antenna Control | Control | P0 | OP | RAVIS §7.2 | sí (vista) |
-| C2 | Step Control Setup | Control | P1 | OP | RAVIS §7.2.1 | no |
+| C2 | Step Control Setup | Control | P1 | OP | RAVIS §7.2.1 | sí (`StepWidthSetup` en `AntennaControlView`) |
 | C3 | Scan Worksheet | Control | P0 | OP | RAVIS §7.3 | sí (vista) |
 | C4 | Control Routine Runner | Control | P0 | OP | propio del RCP | sí (vista) |
 | C5 | Sector Blanking Editor | Control | P1 | MANT | RAVIS §7.4.3 / RVP `Mt` | no |
@@ -192,11 +192,12 @@ en español.
 | I6 | Export / Snapshot | Utilidades | P1 | OP | RAVIS (todas) | no |
 | I7 | Help / Docs | Utilidades | P2 | OP | RAVIS §5.2 | no |
 
-**63 vistas. 13 existen hoy en `mmi/src/views/`** (P0: A2, A5, B1, B2, B8,
-B10, C1, C3, C4, D2-D4; P1: A7), la mayoría cableadas a `useGateway()` real,
-no esqueleto. Cada vista documenta en su propio fichero (comentario de
-cabecera) qué parte del origen legacy no tiene respaldo real todavía y por
-qué -- ese detalle no se repite acá.
+**63 vistas. 18 existen hoy en `mmi/src/views/`** (P0: A2, A5, B1, B2, B8,
+B10, C1, C3, C4, D2-D4; P1: A4, A7, B4, B5, B7, B9; C2 vive dentro de
+`AntennaControlView`, no como vista propia), la mayoría cableadas a
+`useGateway()` real, no esqueleto. Cada vista documenta en su propio fichero
+(comentario de cabecera) qué parte del origen legacy no tiene respaldo real
+todavía y por qué -- ese detalle no se repite acá.
 
 ---
 
