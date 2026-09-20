@@ -29,6 +29,7 @@ import type {
   PowerMeasurementLimits,
   PowerMonitorSnapshot,
   ProcessMonitorSnapshot,
+  SectorBlankingProfile,
   RoutineResult,
   SetControlModeRequest,
   SystemInfo,
@@ -73,6 +74,16 @@ const trendStartedAt = ref<string | null>(null)
 const trendData = ref<TrendSeries[]>([])
 const powerLimits = ref<PowerMeasurementLimits | null>(null)
 const powerRadiating = ref(false)
+const sectorBlankingProfile = ref<SectorBlankingProfile>({
+  enabled: false,
+  sectors: Array.from({ length: 8 }, () => ({
+    in_use: false,
+    az_start_deg: 0,
+    az_end_deg: 45,
+    el_start_deg: -90,
+    el_end_deg: 90,
+  })),
+})
 
 const antenna = shallowRef<AntennaMessage['position'] | null>({
   az_deg: 123.4,
@@ -352,6 +363,22 @@ async function savePowerLimits(): Promise<PowerMeasurementLimits> {
   return { ...powerLimits.value }
 }
 
+async function fetchSectorBlanking(): Promise<SectorBlankingProfile> {
+  await delay(80)
+  return JSON.parse(JSON.stringify(sectorBlankingProfile.value)) as SectorBlankingProfile
+}
+
+async function setSectorBlanking(profile: SectorBlankingProfile): Promise<SectorBlankingProfile> {
+  await delay(80)
+  sectorBlankingProfile.value = JSON.parse(JSON.stringify(profile))
+  return JSON.parse(JSON.stringify(sectorBlankingProfile.value))
+}
+
+async function saveSectorBlanking(): Promise<SectorBlankingProfile> {
+  await delay(150)
+  return JSON.parse(JSON.stringify(sectorBlankingProfile.value))
+}
+
 async function lockMaintenance(): Promise<MaintenanceState> {
   await delay(300)
   maintenance.value = {
@@ -437,6 +464,9 @@ export function useGateway() {
     fetchPowerMonitor,
     setPowerLimits,
     savePowerLimits,
+    fetchSectorBlanking,
+    setSectorBlanking,
+    saveSectorBlanking,
     runControlJob,
     cancelControlJob,
     send,

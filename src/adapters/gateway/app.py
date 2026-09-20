@@ -50,6 +50,7 @@ from core.contracts.mmi import (
     AntennaUnitPowerOnRequest,
     BiteEventMessage,
     BiteFaultSummary,
+    BlankingSector,
     ControlAuthorityState,
     ControlJobAccepted,
     ControlJobStatus,
@@ -66,6 +67,7 @@ from core.contracts.mmi import (
     RcpTaskInfo,
     ReceiverPowerOnRequest,
     ScanCutExecutionRequest,
+    SectorBlankingProfile,
     SessionMessage,
     SetControlModeRequest,
     StatusMessage,
@@ -118,6 +120,7 @@ def create_app(
     dsp_port: int,
     scan_worksheet_path: Path = Path("data/scan_worksheet.json"),
     power_limits_path: Path = Path("data/power_limits.json"),
+    sector_blanking_path: Path = Path("data/sector_blanking.json"),
 ) -> FastAPI:
     async def _bite_poll_loop(app: FastAPI) -> None:
         while True:
@@ -236,6 +239,14 @@ def create_app(
         )
     except (FileNotFoundError, ValueError):
         app.state.power_limits: PowerMeasurementLimits | None = None
+
+    app.state.sector_blanking_path = sector_blanking_path
+    try:
+        app.state.sector_blanking: SectorBlankingProfile = SectorBlankingProfile.model_validate_json(
+            sector_blanking_path.read_text()
+        )
+    except (FileNotFoundError, ValueError):
+        app.state.sector_blanking = SectorBlankingProfile()
     # Jobs asincronos de los seis POST /api/control/* (ver _start_control_job mas
     # abajo) -- dict ordinario, el orden de inserccion de Python 3.7+ es lo que
     # usa el tope de historial para descartar el mas viejo. En memoria, se pierde
@@ -666,6 +677,21 @@ def create_app(
         app.state.power_limits_path.parent.mkdir(parents=True, exist_ok=True)
         app.state.power_limits_path.write_text(app.state.power_limits.model_dump_json())
         return app.state.power_limits
+
+    @app.get("/api/sector-blanking", response_model=SectorBlankingProfile)
+    async def get_sector_blanking() -> SectorBlankingProfile:
+        return app.state.sector_blanking
+
+    @app.post("/api/sector-blanking/set", response_model=SectorBlankingProfile)
+    async def set_sector_blanking(profile: SectorBlankingProfile) -> SectorBlankingProfile:
+        app.state.sector_blanking = profile
+        return app.state.sector_blanking
+
+    @app.post("/api/sector-blanking/save", response_model=SectorBlankingProfile)
+    async def save_sector_blanking() -> SectorBlankingProfile:
+        app.state.sector_blanking_path.parent.mkdir(parents=True, exist_ok=True)
+        app.state.sector_blanking_path.write_text(app.state.sector_blanking.model_dump_json())
+        return app.state.sector_blanking
 
     def _save_scan_worksheet() -> None:
         app.state.scan_worksheet_path.parent.mkdir(parents=True, exist_ok=True)

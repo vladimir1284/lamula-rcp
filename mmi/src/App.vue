@@ -23,6 +23,7 @@ import PowerMonitorView from '@/views/PowerMonitorView.vue'
 import ProcessMonitorView from '@/views/ProcessMonitorView.vue'
 import StateTrendPlotView from '@/views/StateTrendPlotView.vue'
 import SystemInformationView from '@/views/SystemInformationView.vue'
+import SectorBlankingView from '@/views/SectorBlankingView.vue'
 import SystemStatusView from '@/views/SystemStatusView.vue'
 import SystemVisualizationView from '@/views/SystemVisualizationView.vue'
 import { GATEWAY_HTTP, useGateway } from '@/composables/useGateway'
@@ -58,6 +59,7 @@ const viewCatalog: ViewOption[] = [
   { id: 'antenna-control', label: 'C1 Antenna Control', available: true },
   { id: 'scan-worksheet', label: 'C3 Scan Worksheet', available: true },
   { id: 'control-routines', label: 'C4 Control Routine Runner', available: true },
+  { id: 'sector-blanking', label: 'C5 Sector Blanking Editor', available: true },
   { id: 'connection', label: 'A2 Connection', available: true },
   { id: 'maintenance-unlock', label: 'A4 Maintenance Unlock', available: true },
   { id: 'event-log', label: 'A5 Event Log', available: true },
@@ -237,6 +239,7 @@ onMounted(() => {
     <template #antenna-control><AntennaControlView /></template>
     <template #scan-worksheet><ScanWorksheetView /></template>
     <template #control-routines><ControlCenterView /></template>
+    <template #sector-blanking><SectorBlankingView /></template>
     <template #connection><ConnectionView /></template>
     <template #maintenance-unlock><MaintenanceUnlockView /></template>
     <template #event-log><EventLogView /></template>

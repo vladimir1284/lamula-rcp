@@ -64,6 +64,11 @@
     "@storybook/addon-docs": "^10.5.10",
     "eslint-plugin-storybook": "^10.5.10"
   },
+  "pnpm": {
+    "overrides": {
+      "vue-component-meta": "3.3.10"
+    }
+  },
   "engines": {
     "node": "^22.18.0 || >=24.12.0"
   }
