@@ -21,8 +21,11 @@ import type {
   ControlJobAccepted,
   ControlJobStatusResponse,
   DspStreamStatus,
+  MaintenanceState,
   SetControlModeRequest,
+  SystemInfo,
   SystemStatusSnapshot,
+  UnlockMaintenanceRequest,
   WsMessage,
 } from '@/types/mmi'
 import { STALE_TIMEOUT_MS } from '@/types/shell'
@@ -40,9 +43,11 @@ const MAX_LOG = 200
 
 const messages = ref<WsMessage[]>([])
 const control = shallowRef<ControlAuthorityState | null>(null)
+const maintenance = shallowRef<MaintenanceState | null>(null)
 const antenna = shallowRef<AntennaMessage['position'] | null>(null)
 const dsp = shallowRef<DspStreamStatus | null>(null)
 const sessionInfo = shallowRef<SessionInfo | null>(null)
+const systemInfo = shallowRef<SystemInfo | null>(null)
 // clave: signal_id -- mismo dato que app.state.bite_since_wall del lado del gateway,
 // reconstruido aca a partir del snapshot inicial + BiteEventMessage en vivo.
 const biteFaults = ref<Map<string, BiteFaultSummary>>(new Map())
@@ -112,11 +117,20 @@ async function fetchStatus(): Promise<SystemStatusSnapshot> {
   if (!res.ok) throw new Error(`GET /api/status: HTTP ${res.status}`)
   const snapshot = (await res.json()) as SystemStatusSnapshot
   control.value = snapshot.control
+  maintenance.value = snapshot.maintenance
   antenna.value = snapshot.antenna
   dsp.value = snapshot.dsp
   halConnected.value = snapshot.hal_connected
   biteFaults.value = new Map(snapshot.active_bite_faults.map((f) => [f.signal_id, f]))
   return snapshot
+}
+
+async function fetchSystemInfo(): Promise<SystemInfo> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/system-info`)
+  if (!res.ok) throw new Error(`GET /api/system-info: HTTP ${res.status}`)
+  const info = (await res.json()) as SystemInfo
+  systemInfo.value = info
+  return info
 }
 
 async function setControlMode(req: SetControlModeRequest): Promise<ControlAuthorityState> {
@@ -128,6 +142,34 @@ async function setControlMode(req: SetControlModeRequest): Promise<ControlAuthor
   if (!res.ok) throw new Error(`POST /api/control: HTTP ${res.status}`)
   const state = (await res.json()) as ControlAuthorityState
   control.value = state
+  return state
+}
+
+async function unlockMaintenance(req: UnlockMaintenanceRequest): Promise<MaintenanceState> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/maintenance/unlock`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
+  })
+  if (!res.ok) {
+    const detail = await res.text()
+    throw new Error(`POST /api/maintenance/unlock: HTTP ${res.status} — ${detail}`)
+  }
+  const state = (await res.json()) as MaintenanceState
+  maintenance.value = state
+  return state
+}
+
+async function lockMaintenance(): Promise<MaintenanceState> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/maintenance/lock`, {
+    method: 'POST',
+  })
+  if (!res.ok) {
+    const detail = await res.text()
+    throw new Error(`POST /api/maintenance/lock: HTTP ${res.status} — ${detail}`)
+  }
+  const state = (await res.json()) as MaintenanceState
+  maintenance.value = state
   return state
 }
 
@@ -210,10 +252,10 @@ function ensureConnected() {
         sessionInfo.value = { rcp_version: msg.rcp_version, started_at_wall: msg.started_at_wall }
       }
       if (msg.type === 'antenna') antenna.value = msg.position
-      if (msg.type === 'event' && msg.kind === 'control_mode_changed') {
-        // el gateway ya mando el nuevo ControlAuthorityState via el POST que
-        // origino este evento -- aca solo reflejamos que hubo un cambio
-        // hecho por otro cliente; el estado real llega por /api/status.
+      if (msg.type === 'event' && (msg.kind === 'control_mode_changed' || msg.kind.startsWith('maintenance_'))) {
+        // el gateway ya mando el nuevo estado via el POST que origino este evento
+        // o evento de expiracion; refrescamos el estado por /api/status.
+        fetchStatus().catch(() => {})
       }
       if (msg.type === 'bite_event') {
         const next = new Map(biteFaults.value)
@@ -259,9 +301,11 @@ export function useGateway() {
     lastCloseReason,
     messages,
     control,
+    maintenance,
     antenna,
     dsp,
     sessionInfo,
+    systemInfo,
     biteFaults,
     halConnected,
     statusChannelStale,
@@ -272,7 +316,10 @@ export function useGateway() {
     alarmCount,
     acknowledgeAlarm,
     fetchStatus,
+    fetchSystemInfo,
     setControlMode,
+    unlockMaintenance,
+    lockMaintenance,
     runControlJob,
     cancelControlJob,
     send,

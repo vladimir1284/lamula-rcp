@@ -24,9 +24,12 @@ import type {
   ControlAuthorityState,
   ControlJobStatusResponse,
   DspStreamStatus,
+  MaintenanceState,
   RoutineResult,
   SetControlModeRequest,
+  SystemInfo,
   SystemStatusSnapshot,
+  UnlockMaintenanceRequest,
   WsMessage,
 } from '@/types/mmi'
 import type { ScanCutResult } from '@/types/scan'
@@ -44,6 +47,13 @@ const control = shallowRef<ControlAuthorityState | null>({
   mode: 'active',
   actor: 'operador-demo',
   since_wall: iso(45 * 60_000),
+})
+
+const maintenance = shallowRef<MaintenanceState | null>({
+  level: 'OP',
+  actor: null,
+  since_wall: null,
+  expires_wall: null,
 })
 
 const antenna = shallowRef<AntennaMessage['position'] | null>({
@@ -82,6 +92,14 @@ const dspRadialRate = shallowRef<number | null>(212.5)
 const sessionInfo = shallowRef<SessionInfo | null>({
   rcp_version: 'v0.1.0-mock',
   started_at_wall: iso(2 * 3_600_000),
+})
+
+const systemInfo = shallowRef<SystemInfo | null>({
+  rcp_version: 'v0.1.0-mock',
+  dsp_contract_version: 'v1.3',
+  dsp_contract_commit: '6a09656',
+  dsp_contract_commit_date: '2026-09-16',
+  connected_clients: 2,
 })
 
 const biteFaults = ref<Map<string, BiteFaultSummary>>(
@@ -136,6 +154,7 @@ const alarmCount = computed(() => biteFaults.value.size)
 async function fetchStatus(): Promise<SystemStatusSnapshot> {
   return {
     control: control.value!,
+    maintenance: maintenance.value!,
     hal_connected: halConnected.value ?? false,
     antenna: antenna.value,
     dsp: dsp.value,
@@ -143,9 +162,40 @@ async function fetchStatus(): Promise<SystemStatusSnapshot> {
   }
 }
 
+async function fetchSystemInfo(): Promise<SystemInfo> {
+  return systemInfo.value!
+}
+
 async function setControlMode(req: SetControlModeRequest): Promise<ControlAuthorityState> {
   control.value = { mode: req.mode, actor: req.actor, since_wall: new Date().toISOString() }
   return control.value
+}
+
+async function unlockMaintenance(req: UnlockMaintenanceRequest): Promise<MaintenanceState> {
+  await delay(300)
+  if (req.password !== 'mant1234') {
+    throw new Error('POST /api/maintenance/unlock: HTTP 403 — {"detail":"contraseña de mantenimiento incorrecta"}')
+  }
+  const nowMs = Date.now()
+  const expIso = new Date(nowMs + req.duration_s * 1000).toISOString()
+  maintenance.value = {
+    level: 'MANT',
+    actor: req.actor,
+    since_wall: new Date(nowMs).toISOString(),
+    expires_wall: expIso,
+  }
+  return maintenance.value
+}
+
+async function lockMaintenance(): Promise<MaintenanceState> {
+  await delay(300)
+  maintenance.value = {
+    level: 'OP',
+    actor: null,
+    since_wall: null,
+    expires_wall: null,
+  }
+  return maintenance.value
 }
 
 function delay(ms: number) {
@@ -190,9 +240,11 @@ export function useGateway() {
     lastCloseReason,
     messages,
     control,
+    maintenance,
     antenna,
     dsp,
     sessionInfo,
+    systemInfo,
     biteFaults,
     halConnected,
     statusChannelStale,
@@ -203,7 +255,10 @@ export function useGateway() {
     alarmCount,
     acknowledgeAlarm,
     fetchStatus,
+    fetchSystemInfo,
     setControlMode,
+    unlockMaintenance,
+    lockMaintenance,
     runControlJob,
     cancelControlJob,
     send,

@@ -13,6 +13,21 @@ export interface ControlAuthorityState {
   since_wall: string
 }
 
+export type AccessLevel = 'OP' | 'MANT'
+
+export interface MaintenanceState {
+  level: AccessLevel
+  actor: string | null
+  since_wall: string | null
+  expires_wall: string | null
+}
+
+export interface UnlockMaintenanceRequest {
+  password: string
+  actor: string
+  duration_s: number
+}
+
 export interface AntennaPosition {
   az_deg: number
   el_deg: number
@@ -53,8 +68,17 @@ export interface BiteFaultSummary {
   since_wall: string
 }
 
+export interface SystemInfo {
+  rcp_version: string
+  dsp_contract_version: string
+  dsp_contract_commit: string
+  dsp_contract_commit_date: string
+  connected_clients: number
+}
+
 export interface SystemStatusSnapshot {
   control: ControlAuthorityState
+  maintenance: MaintenanceState
   hal_connected: boolean
   antenna: AntennaPosition | null
   dsp: DspStreamStatus | null

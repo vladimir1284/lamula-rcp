@@ -663,3 +663,7 @@ línea por línea, no variante propia.
   misma falta de dato real (PEND-RCP-07) empujada hasta la UI, no una carencia de esta vista.
   Cuando exista una ganancia/tabla de referencia real, considerar precargar (nunca fijar como
   default silencioso) estos campos desde un perfil por eje.
+
+### PEND-RCP-15 · Contraseña de desbloqueo de mantenimiento fija por variable de entorno { #pend-rcp-15 }
+
+`src/adapters/gateway/app.py` expone `RCP_MAINTENANCE_PASSWORD` desde variable de entorno con un default de desarrollo fijo. No existe aún una gestión de secretos ni hashing de contraseñas real para el nivel de acceso MANT.

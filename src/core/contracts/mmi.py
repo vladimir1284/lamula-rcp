@@ -47,6 +47,24 @@ class ControlAuthorityState(BaseModel):
 # --- REST -------------------------------------------------------------
 
 
+class AccessLevel(StrEnum):
+    OP = "OP"
+    MANT = "MANT"
+
+
+class MaintenanceState(BaseModel):
+    level: AccessLevel
+    actor: str | None = None
+    since_wall: datetime | None = None
+    expires_wall: datetime | None = None
+
+
+class UnlockMaintenanceRequest(BaseModel):
+    password: str
+    actor: str
+    duration_s: float
+
+
 class SetControlModeRequest(BaseModel):
     mode: OperatorMode
     actor: str
@@ -163,8 +181,17 @@ class BiteFaultSummary(BaseModel):
     since_wall: datetime
 
 
+class SystemInfo(BaseModel):
+    rcp_version: str
+    dsp_contract_version: str
+    dsp_contract_commit: str
+    dsp_contract_commit_date: str
+    connected_clients: int
+
+
 class SystemStatusSnapshot(BaseModel):
     control: ControlAuthorityState
+    maintenance: MaintenanceState
     hal_connected: bool
     antenna: AntennaPosition | None = None
     dsp: DspStreamStatus | None = None

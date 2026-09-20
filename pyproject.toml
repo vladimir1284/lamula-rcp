@@ -19,6 +19,7 @@ pythonpath = ["src", "."]
 
 [dependency-groups]
 dev = [
+    "httpx>=0.28.1",
     "mkdocs-material>=9,<10",
     "pytest>=8",
 ]

@@ -19,10 +19,12 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
+import tomllib
 import uuid
 from collections.abc import Coroutine
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -36,6 +38,7 @@ from core.bite import BiteManager
 from core.contracts.bite import BiteTransition
 from core.contracts.control import RoutineResult
 from core.contracts.mmi import (
+    AccessLevel,
     AntennaMessage,
     AntennaMovementRequest,
     AntennaPositioningRequest,
@@ -48,6 +51,7 @@ from core.contracts.mmi import (
     ControlJobStatusResponse,
     DspStreamStatus,
     HeartbeatMessage,
+    MaintenanceState,
     OperatorEventMessage,
     OperatorMode,
     ReceiverPowerOnRequest,
@@ -55,8 +59,10 @@ from core.contracts.mmi import (
     SessionMessage,
     SetControlModeRequest,
     StatusMessage,
+    SystemInfo,
     SystemStatusSnapshot,
     TransmitterPowerOnRequest,
+    UnlockMaintenanceRequest,
     WsMessage,
 )
 from core.contracts.scan import ScanCut, ScanCutResult
@@ -72,6 +78,8 @@ from core.scan_controller import run_scan_cut
 from core.session import ControlAuthority
 
 RCP_VERSION = "0.0.0"  # PEND: version real (pyproject/build info), no hay pipeline de release todavia
+RCP_MAINTENANCE_PASSWORD = os.getenv("RCP_MAINTENANCE_PASSWORD", "mant1234")  # PEND-RCP-15
+UPSTREAM_PIN = Path(__file__).resolve().parents[3] / "contract" / "vendor" / "UPSTREAM.toml"
 
 # Throttle deliberado: el encoder UDP emite a 100 Hz (nominal), la MMI no
 # necesita esa cadencia para el PPI. Ver radar_emulator/docs/interfaces/udp-encoder.md.
@@ -98,23 +106,29 @@ def create_app(
 ) -> FastAPI:
     async def _bite_poll_loop(app: FastAPI) -> None:
         while True:
-            events = await app.state.bite.poll(hal)
-            now = datetime.now(timezone.utc)
-            for event in events:
-                if event.transition is BiteTransition.FAULT:
-                    app.state.bite_since_wall[event.signal_id] = now
-                else:
-                    app.state.bite_since_wall.pop(event.signal_id, None)
-                await _broadcast(
-                    app,
-                    BiteEventMessage(signal_id=event.signal_id, transition=event.transition, detail=event.detail, at_wall=now),
-                )
+            try:
+                events = await app.state.bite.poll(hal)
+                now = datetime.now(timezone.utc)
+                for event in events:
+                    if event.transition is BiteTransition.FAULT:
+                        app.state.bite_since_wall[event.signal_id] = now
+                    else:
+                        app.state.bite_since_wall.pop(event.signal_id, None)
+                    await _broadcast(
+                        app,
+                        BiteEventMessage(signal_id=event.signal_id, transition=event.transition, detail=event.detail, at_wall=now),
+                    )
+            except (ConnectionError, RuntimeError):
+                pass
             await asyncio.sleep(BITE_POLL_PERIOD_S)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        if not hal.is_connected():
-            await hal.connect()
+        try:
+            if not hal.is_connected():
+                await hal.connect()
+        except ConnectionError:
+            pass
         await dsp.start(dsp_bind_host, dsp_port)
         bite_task = asyncio.create_task(_bite_poll_loop(app))
         try:
@@ -125,7 +139,8 @@ def create_app(
                 await bite_task
             except asyncio.CancelledError:
                 pass
-            await hal.disconnect()
+            if hal.is_connected():
+                await hal.disconnect()
             await dsp.stop()
 
     app = FastAPI(title="lamula-rcp gateway", lifespan=lifespan)
@@ -141,6 +156,7 @@ def create_app(
     app.state.hal = hal
     app.state.dsp = dsp
     app.state.control = ControlAuthority()
+    app.state.maintenance = MaintenanceState(level=AccessLevel.OP)
     app.state.started_at = datetime.now(timezone.utc)
     app.state.event_seq = 0
     app.state.websockets: set[WebSocket] = set()
@@ -185,6 +201,16 @@ def create_app(
     # control_jobs/control_job_tasks.
     app.state.control_job_cancel_requested: set[str] = set()
 
+    try:
+        upstream_data = tomllib.loads(UPSTREAM_PIN.read_text(encoding="utf-8"))
+        dsp_ver = f"v{upstream_data['contract']['version_major']}.{upstream_data['contract']['version_minor']}"
+        dsp_commit = upstream_data["upstream"]["commit"]
+        dsp_date = upstream_data["upstream"]["commit_date"]
+    except Exception:
+        dsp_ver = "desconocida"
+        dsp_commit = "desconocido"
+        dsp_date = "desconocida"
+
     def _dsp_status() -> DspStreamStatus:
         latest = dsp.latest
         return DspStreamStatus(
@@ -206,20 +232,88 @@ def create_app(
             for f in app.state.bite.active_faults()
         ]
 
+    def _effective_maintenance() -> MaintenanceState:
+        m: MaintenanceState = app.state.maintenance
+        if m.level == AccessLevel.MANT and m.expires_wall is not None:
+            now = datetime.now(timezone.utc)
+            if now >= m.expires_wall:
+                m = MaintenanceState(level=AccessLevel.OP)
+                app.state.maintenance = m
+                app.state.event_seq += 1
+                event = OperatorEventMessage(
+                    seq=app.state.event_seq,
+                    at_wall=now,
+                    kind="maintenance_expired",
+                    actor="system",
+                    payload={"level": AccessLevel.OP.value},
+                )
+                asyncio.create_task(_broadcast(app, event))
+        return m
+
+    @app.get("/api/system-info", response_model=SystemInfo)
+    async def get_system_info() -> SystemInfo:
+        return SystemInfo(
+            rcp_version=RCP_VERSION,
+            dsp_contract_version=dsp_ver,
+            dsp_contract_commit=dsp_commit,
+            dsp_contract_commit_date=dsp_date,
+            connected_clients=len(app.state.websockets),
+        )
+
     @app.get("/api/status", response_model=SystemStatusSnapshot)
     async def get_status() -> SystemStatusSnapshot:
         antenna = None
         try:
             antenna = await hal.read_antenna_position()
-        except RuntimeError:
+        except (RuntimeError, ConnectionError):
             antenna = None  # sin paquete de encoder todavia, o stream perdido
         return SystemStatusSnapshot(
             control=app.state.control.state,
+            maintenance=_effective_maintenance(),
             hal_connected=hal.is_connected(),
             antenna=antenna,
             dsp=_dsp_status(),
             active_bite_faults=_active_bite_faults(),
         )
+
+    @app.post("/api/maintenance/unlock", response_model=MaintenanceState)
+    async def unlock_maintenance(req: UnlockMaintenanceRequest) -> MaintenanceState:
+        if req.password != RCP_MAINTENANCE_PASSWORD:
+            raise HTTPException(status_code=403, detail="contraseña de mantenimiento incorrecta")
+        now = datetime.now(timezone.utc)
+        expires_wall = now + timedelta(seconds=req.duration_s)
+        state = MaintenanceState(
+            level=AccessLevel.MANT,
+            actor=req.actor,
+            since_wall=now,
+            expires_wall=expires_wall,
+        )
+        app.state.maintenance = state
+        app.state.event_seq += 1
+        event = OperatorEventMessage(
+            seq=app.state.event_seq,
+            at_wall=now,
+            kind="maintenance_unlocked",
+            actor=req.actor,
+            payload={"level": AccessLevel.MANT.value, "duration_s": req.duration_s},
+        )
+        await _broadcast(app, event)
+        return state
+
+    @app.post("/api/maintenance/lock", response_model=MaintenanceState)
+    async def lock_maintenance() -> MaintenanceState:
+        state = MaintenanceState(level=AccessLevel.OP)
+        app.state.maintenance = state
+        app.state.event_seq += 1
+        event = OperatorEventMessage(
+            seq=app.state.event_seq,
+            at_wall=datetime.now(timezone.utc),
+            kind="maintenance_locked",
+            actor="system",
+            payload={"level": AccessLevel.OP.value},
+        )
+        await _broadcast(app, event)
+        return state
 
     @app.post("/api/control", response_model=ControlAuthorityState)
     async def set_control(req: SetControlModeRequest) -> ControlAuthorityState:
