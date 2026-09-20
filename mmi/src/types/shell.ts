@@ -4,6 +4,12 @@
 
 export type LampState = 'ok' | 'neutral' | 'fault'
 
+// Umbral "sin datos hace N" del requisito transversal #1 (docs/diseno/inventario-ui.md):
+// el estado `stale` que A6 (SD/RD) es el primero en implementar de verdad (D-14,
+// docs/alcance/decisiones.md). Centralizado aca para que B2/B7, que documentan el
+// mismo patron, lo reusen en vez de inventar su propio numero.
+export const STALE_TIMEOUT_MS = 5000
+
 export type IndicatorId = 'SI' | 'SR' | 'SD' | 'RD'
 
 export interface IndicatorState {

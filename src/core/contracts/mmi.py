@@ -145,6 +145,10 @@ class DspStreamStatus(BaseModel):
     last_volume_number: int | None = None
     last_elevation_number: int | None = None
     last_radial_status: RadialStatus | None = None
+    # Hora de pared del ultimo MOMENT_RAY -- ver StatusMessage: es lo que le
+    # permite a A6 (RD) distinguir "conectado sin datos hace rato" de datos
+    # frescos, en vez de solo `connected`.
+    last_radial_at_wall: datetime | None = None
 
 
 class BiteFaultSummary(BaseModel):
@@ -199,6 +203,19 @@ class HeartbeatMessage(BaseModel):
     at_wall: datetime
 
 
+class StatusMessage(BaseModel):
+    """A6 (SI/SR/SD/RD, docs/diseno/inventario-ui.md): empuje periodico de
+    `hal_connected`/`dsp` por WS, para que la MMI derive el estado `stale`
+    (sin datos hace >5s) sin tener que sondear `GET /api/status` ella misma.
+    Si este mensaje deja de llegar, eso en si mismo es la señal de `SD`
+    caido -- no hace falta un campo aparte para "el canal de estado murio"."""
+
+    type: Literal["status"] = "status"
+    at_wall: datetime
+    hal_connected: bool
+    dsp: DspStreamStatus | None = None
+
+
 class BiteEventMessage(BaseModel):
     """Una transicion (`core/bite/manager.py`) recien detectada -- para el
     BITE Message Window (plan §4.4). El historial/filtrado en si vive del
@@ -213,6 +230,6 @@ class BiteEventMessage(BaseModel):
 
 
 WsMessage = Annotated[
-    Union[SessionMessage, AntennaMessage, OperatorEventMessage, HeartbeatMessage, BiteEventMessage],
+    Union[SessionMessage, AntennaMessage, OperatorEventMessage, HeartbeatMessage, BiteEventMessage, StatusMessage],
     Field(discriminator="type"),
 ]

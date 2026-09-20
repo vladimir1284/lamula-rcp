@@ -42,6 +42,7 @@ export interface DspStreamStatus {
   last_volume_number: number | null
   last_elevation_number: number | null
   last_radial_status: RadialStatus | null
+  last_radial_at_wall: string | null
 }
 
 export type BiteTransition = 'fault' | 'cleared'
@@ -160,6 +161,17 @@ export interface HeartbeatMessage {
   at_wall: string
 }
 
+// A6 (SI/SR/SD/RD, docs/diseno/inventario-ui.md): empujado cada ~1s (ver
+// WS_STATUS_PERIOD_S en src/adapters/gateway/app.py). Si este mensaje deja
+// de llegar es en si mismo la señal de que SD esta caido -- ver D-14 en
+// docs/alcance/decisiones.md.
+export interface StatusMessage {
+  type: 'status'
+  at_wall: string
+  hal_connected: boolean
+  dsp: DspStreamStatus | null
+}
+
 export interface BiteEventMessage {
   type: 'bite_event'
   signal_id: string
@@ -174,3 +186,4 @@ export type WsMessage =
   | OperatorEventMessage
   | HeartbeatMessage
   | BiteEventMessage
+  | StatusMessage

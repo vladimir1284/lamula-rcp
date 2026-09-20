@@ -68,7 +68,16 @@ const dsp = shallowRef<DspStreamStatus | null>({
   last_volume_number: 12,
   last_elevation_number: 3,
   last_radial_status: 'intermediate',
+  last_radial_at_wall: iso(0),
 })
+
+// A6 SD/RD "stale" (D-14, docs/alcance/decisiones.md): el doble no simula el
+// paso del tiempo, así que se fija en "fresco" -- las tres lecturas de
+// LampState de A6 ya se ven en AppShell.stories.ts con su propio array
+// `indicators` fijo, sin pasar por useGateway.
+const statusChannelStale = computed(() => false)
+const dspDataStale = computed(() => false)
+const dspRadialRate = shallowRef<number | null>(212.5)
 
 const sessionInfo = shallowRef<SessionInfo | null>({
   rcp_version: 'v0.1.0-mock',
@@ -186,6 +195,9 @@ export function useGateway() {
     sessionInfo,
     biteFaults,
     halConnected,
+    statusChannelStale,
+    dspDataStale,
+    dspRadialRate,
     alarmAckedAt,
     alarmWorst,
     alarmCount,

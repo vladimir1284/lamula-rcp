@@ -226,3 +226,37 @@ arbitraje de cuatro niveles de Ravis — sigue habiendo un solo operador con con
 es sobre *qué tipo de acción* ese mismo operador puede ejecutar en un momento dado, no sobre quién
 tiene autoridad. Decisión operativa del usuario, no del product expert — igual que D-11, queda
 sujeta a revisión si el product expert señala algo distinto al llegar a Fase 3.
+
+---
+
+## D-14 · `StatusMessage` por WS para que A6 (SD/RD) detecte `stale` de verdad
+
+**Decisión (2026-09-19).** `GET /api/status` (`hal_connected`, `dsp`) solo se pedía una vez al
+montar cada vista — sin refresco, los indicadores `SD`/`RD` del inventario de UI
+(`docs/diseno/inventario-ui.md`, A6) quedaban congelados en lo que vieron al arrancar y nunca
+podían mostrar el estado `stale` ("hay conexión pero el dato no se refresca hace 5s") que el
+propio documento marca como el más peligroso de los cinco. Se agrega `StatusMessage` (nuevo tipo
+del sobre WS discriminado, `core/contracts/mmi.py`), emitido cada `WS_STATUS_PERIOD_S` (1 s,
+`src/adapters/gateway/app.py`) con `hal_connected` y `dsp` — mismo criterio D-10 que
+`ControlJobStatusResponse.result`: se amplía el contrato ya congelado para una capacidad nueva y
+necesaria, no se reinterpreta nada ya fijado. `HeartbeatMessage` no se toca ni se fusiona con
+este mensaje nuevo: sigue siendo el keep-alive documentado en `docs/implementacion/fases.md`.
+
+`DspStreamStatus` gana `last_radial_at_wall` (`MomentStreamReceiver.last_radial_at`, nuevo):
+`connected` solo refleja el socket TCP del emisor, no si sigue mandando radiales de verdad — sin
+este timestamp, un emisor conectado pero congelado seguía pintando `RD` en verde.
+
+**Por qué no polling desde la MMI.** Se evaluó (y se descartó) que `useGateway.ts` reintentara
+`GET /api/status` cada ~2s en vez de tocar el contrato WS: es menos código, pero el resultado
+depende de la cadencia de sondeo del cliente, no de un dato real del servidor, y el resto del
+estado en vivo de la app (`AntennaMessage`, `BiteEventMessage`) ya viaja por WS — meter un segundo
+mecanismo de refresco (polling HTTP) para un solo indicador hubiera sido inconsistente sin
+necesidad.
+
+**Cómo se deriva `stale` del lado de la MMI (`useGateway.ts`):** sin comparar relojes de pared
+entre máquinas (AGENTS.md, "dos clocks") — todo se mide contra `Date.now()` del propio navegador
+en el momento de *recibir* cada dato, nunca contra `at_wall`/`last_radial_at_wall` del servidor.
+`SD` stale si no llega un `StatusMessage` nuevo en >5s (el mensaje dejar de llegar **es** la señal
+de canal de estado caído, no hace falta un campo aparte); `RD` stale si `dsp.connected` es cierto
+pero `radials_received` no cambió en >5s. `fault` (rojo) sigue siendo distinto de `stale` (gris):
+sin conexión vs. conectado-sin-datos, tal como exige la tabla de A6 del inventario.

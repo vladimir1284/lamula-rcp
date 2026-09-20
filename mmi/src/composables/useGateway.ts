@@ -25,6 +25,7 @@ import type {
   SystemStatusSnapshot,
   WsMessage,
 } from '@/types/mmi'
+import { STALE_TIMEOUT_MS } from '@/types/shell'
 import type { LampState } from '@/types/shell'
 
 export interface SessionInfo {
@@ -45,10 +46,41 @@ const sessionInfo = shallowRef<SessionInfo | null>(null)
 // clave: signal_id -- mismo dato que app.state.bite_since_wall del lado del gateway,
 // reconstruido aca a partir del snapshot inicial + BiteEventMessage en vivo.
 const biteFaults = ref<Map<string, BiteFaultSummary>>(new Map())
-// hal_connected llega en cada /api/status pero no viaja por WS -- se guarda
-// aparte para que A6/A1 (indicadores SD/RD) lo puedan leer de forma reactiva
-// sin que cada vista tenga que llamar fetchStatus() y desempacarlo ella misma.
+// hal_connected llega en cada /api/status y ahora tambien por StatusMessage
+// (WS, ~1 Hz) -- se guarda aparte para que A6/A1 (indicadores SD/RD) lo
+// puedan leer de forma reactiva sin que cada vista tenga que llamar
+// fetchStatus() y desempacarlo ella misma.
 const halConnected = shallowRef<boolean | null>(null)
+
+// A6 SD/RD "stale" (D-14, docs/alcance/decisiones.md): medido contra
+// Date.now() del propio navegador al momento de RECIBIR cada dato, nunca
+// contra at_wall del servidor -- AGENTS.md "dos clocks", no hay que asumir
+// relojes sincronizados entre gateway y MMI.
+const lastStatusMessageAt = shallowRef<number | null>(null)
+const lastRadialSample = shallowRef<{ count: number; at: number } | null>(null)
+const lastRadialChangeAt = shallowRef<number | null>(null)
+const dspRadialRate = shallowRef<number | null>(null)
+// Tick de 1 s para que los computed de abajo se re-evaluen aunque no llegue
+// ningun mensaje nuevo -- si el canal muere del todo, sin esto el estado
+// quedaria congelado en el ultimo valor en vez de pasar a stale.
+const nowTick = shallowRef(Date.now())
+
+// `SD` cae en stale si StatusMessage deja de llegar -- el propio silencio es
+// la señal (ver StatusMessage en core/contracts/mmi.py), no hace falta un
+// campo de servidor aparte.
+const statusChannelStale = computed(() => {
+  if (lastStatusMessageAt.value === null) return false
+  return nowTick.value - lastStatusMessageAt.value > STALE_TIMEOUT_MS
+})
+
+// `RD` cae en stale si el emisor sigue conectado (TCP) pero el contador de
+// radiales no avanzo hace mas de STALE_TIMEOUT_MS -- distinto de `fault`
+// (sin conexion), que ya cubre dsp.connected === false.
+const dspDataStale = computed(() => {
+  if (!dsp.value?.connected) return false
+  if (lastRadialChangeAt.value === null) return false
+  return nowTick.value - lastRadialChangeAt.value > STALE_TIMEOUT_MS
+})
 
 // A2 Connection/Login (docs/diseno/inventario-ui.md): motivo del último
 // cierre/fallo del WS, para mostrar un error legible en vez de solo
@@ -192,8 +224,31 @@ function ensureConnected() {
         }
         biteFaults.value = next
       }
+      if (msg.type === 'status') {
+        const receivedAt = Date.now()
+        lastStatusMessageAt.value = receivedAt
+        halConnected.value = msg.hal_connected
+        dsp.value = msg.dsp
+        const count = msg.dsp?.radials_received ?? null
+        if (count !== null) {
+          const prev = lastRadialSample.value
+          if (prev !== null && count !== prev.count) {
+            const elapsedS = (receivedAt - prev.at) / 1000
+            if (elapsedS > 0) dspRadialRate.value = (count - prev.count) / elapsedS
+            lastRadialChangeAt.value = receivedAt
+          } else if (prev === null) {
+            lastRadialChangeAt.value = receivedAt
+          }
+          lastRadialSample.value = { count, at: receivedAt }
+        }
+      }
     },
   })
+  // 1 Hz alcanza para el umbral de STALE_TIMEOUT_MS (5 s) con margen -- ver
+  // statusChannelStale/dspDataStale mas arriba.
+  setInterval(() => {
+    nowTick.value = Date.now()
+  }, 1000)
   return ws
 }
 
@@ -209,6 +264,9 @@ export function useGateway() {
     sessionInfo,
     biteFaults,
     halConnected,
+    statusChannelStale,
+    dspDataStale,
+    dspRadialRate,
     alarmAckedAt,
     alarmWorst,
     alarmCount,

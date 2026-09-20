@@ -54,6 +54,7 @@ from core.contracts.mmi import (
     ScanCutExecutionRequest,
     SessionMessage,
     SetControlModeRequest,
+    StatusMessage,
     SystemStatusSnapshot,
     TransmitterPowerOnRequest,
     WsMessage,
@@ -76,6 +77,9 @@ RCP_VERSION = "0.0.0"  # PEND: version real (pyproject/build info), no hay pipel
 # necesita esa cadencia para el PPI. Ver radar_emulator/docs/interfaces/udp-encoder.md.
 WS_ANTENNA_PERIOD_S = 0.1
 WS_HEARTBEAT_PERIOD_S = 1.0
+# A6 (docs/diseno/inventario-ui.md): cadencia del push de hal_connected/dsp
+# por WS. 1 Hz alcanza para un umbral de "stale" de 5 s con margen.
+WS_STATUS_PERIOD_S = 1.0
 # core/bite/manager.py hace hasta 20 lecturas Modbus por poll (una por señal
 # monitoreada) -- no son condiciones de tiempo duro, 2 Hz alcanza sin competir
 # con el resto del trafico Modbus (posicionamiento de antena, etc.).
@@ -189,6 +193,7 @@ def create_app(
             last_volume_number=latest.volume_number if latest else None,
             last_elevation_number=latest.elevation_number if latest else None,
             last_radial_status=latest.radial_status if latest else None,
+            last_radial_at_wall=dsp.last_radial_at,
         )
 
     def _active_bite_faults() -> list[BiteFaultSummary]:
@@ -422,6 +427,7 @@ def create_app(
             )
             loop = asyncio.get_running_loop()
             last_heartbeat = loop.time()
+            last_status = loop.time()
             while True:
                 try:
                     position = await hal.read_antenna_position()
@@ -435,6 +441,15 @@ def create_app(
                         HeartbeatMessage(at_wall=datetime.now(timezone.utc)).model_dump_json()
                     )
                     last_heartbeat = now
+                if now - last_status >= WS_STATUS_PERIOD_S:
+                    await websocket.send_text(
+                        StatusMessage(
+                            at_wall=datetime.now(timezone.utc),
+                            hal_connected=hal.is_connected(),
+                            dsp=_dsp_status(),
+                        ).model_dump_json()
+                    )
+                    last_status = now
 
                 await asyncio.sleep(WS_ANTENNA_PERIOD_S)
         except WebSocketDisconnect:

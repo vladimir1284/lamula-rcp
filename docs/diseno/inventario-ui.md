@@ -129,7 +129,7 @@ en español.
 | A3 | Control Authority | Shell | P0 | OP | RAVIS §6.2 | sí (`ControlAuthorityCard`) |
 | A4 | Maintenance Unlock | Shell | P1 | MANT | RAVIS §7.4 | no |
 | A5 | Event Log | Shell | P0 | OP | RAVIS §5.3 | sí (`EventLogView`) |
-| A6 | Alarm / Indicator Bar | Shell | P0 | OP | RAVIS §6.3 | parcial (`IndicatorBar`) |
+| A6 | Alarm / Indicator Bar | Shell | P0 | OP | RAVIS §6.3 | sí (`IndicatorBar`) |
 | A7 | System Information | Shell | P1 | OP | RAVIS §13 | parcial (vista) |
 | A8 | About / Versions | Shell | P2 | OP | RAVIS §5.2 | no |
 | B1 | System Visualization (mímico) | Estado | P0 | OP | RAVIS §7.1 | sí (vista) |
@@ -334,7 +334,18 @@ Al pasar el ratón por encima aparece el detalle (por ejemplo, la tasa real de t
 **Este es el origen del estado `stale` de todo el sistema** y merece un tratamiento de primera
 clase en el diseño, no un punto gris de 6 px.
 
-**Componentes:** `IndicatorBar`, `IndicatorLamp`, `DataRateTooltip`, `StaleBadge`.
+**Estado (2026-09-19, paso 5, D-14 en `docs/alcance/decisiones.md`).** `SD`/`RD` ya distinguen
+`fault` (sin conexión, rojo) de `stale` (conectado pero sin datos hace >5 s, gris) con datos
+reales: el gateway empuja `hal_connected`/`dsp` por WS cada 1 s (`StatusMessage`) y la MMI mide la
+frescura contra su propio reloj, no contra el del servidor. El detalle de `RD` muestra radiales/s
+reales en vez de un contador acumulado. `SI`/`SR` siguen en `neutral` sin fuente real: el
+scheduler RVP900 no está implementado en el backend, gap de Fase 2/3, no de este paso.
+
+**Componentes:** `IndicatorBar` *(existe)*, `IndicatorLamp` *(existe)*. `DataRateTooltip` y
+`StaleBadge` no se separaron en componentes propios: el detalle vive en el `title` nativo de
+`IndicatorLamp` (mismo criterio que B2, ver su nota) y `stale` se pinta con el mismo tono que
+`disabled` porque la tabla de arriba solo define tres colores por indicador — no hace falta un
+cuarto tono para A6 en particular.
 
 ## A7 — System Information
 

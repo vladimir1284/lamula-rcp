@@ -23,7 +23,17 @@ import SystemVisualizationView from '@/views/SystemVisualizationView.vue'
 import { GATEWAY_HTTP, useGateway } from '@/composables/useGateway'
 import type { IndicatorState, MosaicPreset, ViewOption } from '@/types/shell'
 
-const { control, dsp, halConnected, alarmWorst, alarmCount, fetchStatus } = useGateway()
+const {
+  control,
+  dsp,
+  halConnected,
+  statusChannelStale,
+  dspDataStale,
+  dspRadialRate,
+  alarmWorst,
+  alarmCount,
+  fetchStatus,
+} = useGateway()
 
 // Catálogo completo de las 63 vistas del inventario está fuera de alcance
 // (D1-D8, E-*, F-*, G-*, H-*, I-* siguen sin construir) -- las que ya
@@ -127,18 +137,54 @@ const INITIAL_PRESET_ID = 'surveillance'
 // hal_connected (conexión gateway<->HAL) y el stream DSP de radiales. No es
 // 1:1 con la semántica legacy, pero es honesto: 'neutral' + detalle explica
 // por qué, en vez de fabricar un estado sin respaldo.
+//
+// `fault` (rojo) y `stale` (gris, vía statusChannelStale/dspDataStale) son
+// estados distintos a propósito (D-14, docs/alcance/decisiones.md): sin
+// conexión vs. conectado-pero-sin-datos-hace-5s. Ambos se pintan 'neutral'
+// porque LampState solo tiene tres colores (igual que la tabla A6 del
+// inventario), pero el detalle deja clara la diferencia.
 const indicators = computed<IndicatorState[]>(() => [
   { id: 'SI', state: 'neutral', detail: 'sin fuente de datos (scheduler RVP900 no implementado)' },
   { id: 'SR', state: 'neutral', detail: 'sin fuente de datos (scheduler RVP900 no implementado)' },
   {
     id: 'SD',
-    state: halConnected.value === null ? 'neutral' : halConnected.value ? 'ok' : 'fault',
-    detail: halConnected.value === null ? 'esperando /api/status' : halConnected.value ? 'HAL conectado' : 'HAL sin conexión',
+    state:
+      halConnected.value === null
+        ? 'neutral'
+        : statusChannelStale.value
+          ? 'neutral'
+          : halConnected.value
+            ? 'ok'
+            : 'fault',
+    detail:
+      halConnected.value === null
+        ? 'esperando estado inicial'
+        : statusChannelStale.value
+          ? 'sin datos de estado hace más de 5 s'
+          : halConnected.value
+            ? 'HAL conectado'
+            : 'HAL sin conexión',
   },
   {
     id: 'RD',
-    state: dsp.value === null ? 'neutral' : dsp.value.connected ? 'ok' : 'fault',
-    detail: dsp.value ? `${dsp.value.radials_received} radiales recibidos` : 'sin stream DSP',
+    state:
+      dsp.value === null
+        ? 'neutral'
+        : !dsp.value.connected
+          ? 'fault'
+          : dspDataStale.value
+            ? 'neutral'
+            : 'ok',
+    detail:
+      dsp.value === null
+        ? 'sin stream DSP'
+        : !dsp.value.connected
+          ? 'DSP sin conexión'
+          : dspDataStale.value
+            ? 'sin radiales hace más de 5 s'
+            : dspRadialRate.value !== null
+              ? `${dspRadialRate.value.toFixed(1)} radiales/s`
+              : `${dsp.value.radials_received} radiales recibidos`,
   },
 ])
 

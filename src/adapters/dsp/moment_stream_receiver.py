@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from datetime import datetime, timezone
 
 from contract.vendor import dsp_rcp_v0_1 as wire
 from core.contracts.dsp import RadialMoments
@@ -51,11 +52,19 @@ class MomentStreamReceiver:
         self.other_messages_received = 0
         self.frame_errors = 0
         self._latest: RadialMoments | None = None
+        # Hora de pared del ultimo MOMENT_RAY -- unica forma de que A6 (RD)
+        # distinga "conectado pero sin datos hace rato" de "recibiendo de
+        # verdad"; `connected` solo refleja el socket TCP, no el flujo.
+        self._last_radial_at: datetime | None = None
         self._server: asyncio.Server | None = None
 
     @property
     def latest(self) -> RadialMoments | None:
         return self._latest
+
+    @property
+    def last_radial_at(self) -> datetime | None:
+        return self._last_radial_at
 
     async def _read_message(self, reader: asyncio.StreamReader) -> tuple[int, bytes]:
         raw_header = await reader.readexactly(wire.Header.SIZE)
@@ -78,6 +87,7 @@ class MomentStreamReceiver:
                 if msg_type == wire.MsgType.MOMENT_RAY:
                     self._latest = decode_moment_ray(body)
                     self.radials_received += 1
+                    self._last_radial_at = datetime.now(timezone.utc)
                 else:
                     # status, bite_event, config_ack, capabilities... son
                     # legitimos por este mismo enlace; todavia no hay consumidor.
