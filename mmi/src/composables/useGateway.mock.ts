@@ -38,6 +38,7 @@ import type {
   TrendStatus,
   UnlockMaintenanceRequest,
   WsMessage,
+  ZeroCheckSnapshot,
 } from '@/types/mmi'
 import type { ScanCutResult } from '@/types/scan'
 import type { LampState } from '@/types/shell'
@@ -344,6 +345,29 @@ async function fetchPowerMonitor(): Promise<PowerMonitorSnapshot> {
   }
 }
 
+async function fetchZeroCheck(): Promise<ZeroCheckSnapshot> {
+  await delay(80)
+  return {
+    last_run_at_wall: iso(15 * 60_000),
+    next_run_at_wall: iso(-45 * 60_000),
+    interval_s: 3600,
+    enabled: true,
+    noise_high_dbm: -105.2,
+    noise_low_dbm: -102.8,
+    last_result: {
+      routine: 'zero_check',
+      outcome: 'success',
+      steps: [
+        { signal_id: 'sys.remote_mode_ok_status', ok: true, detail: 'precondicion ok' },
+        { signal_id: 'ant.antenna_remote_status', ok: true, detail: 'precondicion ok' },
+        { signal_id: 'rx.zero_check_high_channel', ok: true, detail: 'Noise High Channel: -105.20 dBm' },
+        { signal_id: 'rx.zero_check_low_channel', ok: true, detail: 'Noise Low Channel: -102.80 dBm' },
+      ],
+      at_us: (now - 15 * 60_000) * 1000,
+    },
+  }
+}
+
 async function setPowerLimits(limits: PowerMeasurementLimits): Promise<PowerMeasurementLimits> {
   await delay(80)
   powerLimits.value = { ...limits }
@@ -462,6 +486,7 @@ export function useGateway() {
     clearTrend,
     fetchTrendData,
     fetchPowerMonitor,
+    fetchZeroCheck,
     setPowerLimits,
     savePowerLimits,
     fetchSectorBlanking,

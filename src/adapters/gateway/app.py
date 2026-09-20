@@ -40,9 +40,10 @@ from adapters.hal_sim.signal_catalog import CATALOG
 from core.bite import BiteManager
 from core.contracts.bite import BiteTransition
 from core.contracts.common import SignalQuality
-from core.contracts.control import RoutineResult
+from core.contracts.control import RoutineOutcome, RoutineResult
 from core.contracts.mmi import (
     AccessLevel,
+    ZeroCheckSnapshot,
     AntennaMessage,
     AntennaMovementRequest,
     AntennaPositioningRequest,
@@ -89,6 +90,7 @@ from core.control_routines import (
     run_general_power_on,
     run_receiver_power_on,
     run_transmitter_power_on,
+    run_zero_check,
 )
 from core.scan_controller import run_scan_cut
 from core.session import ControlAuthority
@@ -270,6 +272,13 @@ def create_app(
     app.state.trend_channels: list[str] = []
     app.state.trend_buffers: dict[str, deque[TrendChannelSample]] = {}
     app.state.trend_started_at: datetime | None = None
+
+    app.state.zero_check_last_run_at_wall: datetime | None = None
+    app.state.zero_check_next_run_at_wall: datetime | None = None
+    app.state.zero_check_interval_s: float = 3600.0
+    app.state.zero_check_noise_high_dbm: float | None = None
+    app.state.zero_check_noise_low_dbm: float | None = None
+    app.state.zero_check_last_result: RoutineResult | None = None
 
     try:
         upstream_data = tomllib.loads(UPSTREAM_PIN.read_text(encoding="utf-8"))
@@ -531,6 +540,45 @@ def create_app(
                 timeout_s=req.timeout_s,
             ),
         )
+
+    async def _execute_zero_check() -> RoutineResult:
+        res = await run_zero_check(hal)
+        now = datetime.now(timezone.utc)
+        app.state.zero_check_last_result = res
+        if res.outcome == RoutineOutcome.SUCCESS:
+            app.state.zero_check_last_run_at_wall = now
+            app.state.zero_check_next_run_at_wall = now + timedelta(seconds=app.state.zero_check_interval_s)
+            for step in res.steps:
+                if "Noise High Channel:" in step.detail:
+                    try:
+                        val_str = step.detail.split(":")[1].replace("dBm", "").strip()
+                        app.state.zero_check_noise_high_dbm = float(val_str)
+                    except ValueError:
+                        pass
+                elif "Noise Low Channel:" in step.detail:
+                    try:
+                        val_str = step.detail.split(":")[1].replace("dBm", "").strip()
+                        app.state.zero_check_noise_low_dbm = float(val_str)
+                    except ValueError:
+                        pass
+        return res
+
+    @app.get("/api/zero-check", response_model=ZeroCheckSnapshot)
+    async def get_zero_check() -> ZeroCheckSnapshot:
+        return ZeroCheckSnapshot(
+            last_run_at_wall=app.state.zero_check_last_run_at_wall,
+            next_run_at_wall=app.state.zero_check_next_run_at_wall,
+            interval_s=app.state.zero_check_interval_s,
+            enabled=True,
+            noise_high_dbm=app.state.zero_check_noise_high_dbm,
+            noise_low_dbm=app.state.zero_check_noise_low_dbm,
+            last_result=app.state.zero_check_last_result,
+        )
+
+    @app.post("/api/control/zero-check", response_model=ControlJobAccepted, status_code=202)
+    async def zero_check() -> ControlJobAccepted:
+        _require_active_control()
+        return _start_control_job("zero_check", _execute_zero_check())
 
     @app.get("/api/antenna/step-config", response_model=AntennaStepConfig)
     async def get_antenna_step_config() -> AntennaStepConfig:

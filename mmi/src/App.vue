@@ -26,6 +26,7 @@ import SystemInformationView from '@/views/SystemInformationView.vue'
 import SectorBlankingView from '@/views/SectorBlankingView.vue'
 import SystemStatusView from '@/views/SystemStatusView.vue'
 import SystemVisualizationView from '@/views/SystemVisualizationView.vue'
+import ZeroCheckView from '@/views/ZeroCheckView.vue'
 import { GATEWAY_HTTP, useGateway } from '@/composables/useGateway'
 import type { IndicatorState, MosaicPreset, ViewOption } from '@/types/shell'
 
@@ -67,6 +68,7 @@ const viewCatalog: ViewOption[] = [
   { id: 'ascope', label: 'D2 ASCOPE', available: true },
   { id: 'ppi', label: 'D3 PPI', available: true },
   { id: 'rhi', label: 'D4 RHI', available: true },
+  { id: 'zero-check', label: 'G5 Zero Check', available: true },
   { id: 'sun-position', label: 'H1 Sun Position', available: false },
   { id: 'itsg-control', label: 'I2 ITSG Control', available: false },
   { id: 'calibration-log', label: 'G8 Calibration Log', available: false },
@@ -247,5 +249,6 @@ onMounted(() => {
     <template #ascope="{ panel }"><AscopeView :frozen="panel.frozen" /></template>
     <template #ppi="{ panel }"><PpiView :frozen="panel.frozen" /></template>
     <template #rhi="{ panel }"><RhiView :frozen="panel.frozen" /></template>
+    <template #zero-check><ZeroCheckView /></template>
   </AppShell>
 </template>

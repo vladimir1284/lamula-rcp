@@ -301,6 +301,19 @@ class SystemStatusSnapshot(BaseModel):
     active_bite_faults: list[BiteFaultSummary] = Field(default_factory=list)
 
 
+class ZeroCheckSnapshot(BaseModel):
+    """G5 Zero Check (docs/diseno/inventario-ui.md): muestreo de ruido del receptor.
+    Corre automaticamente en boot y a intervalos fijos (interval_s), y se puede lanzar a mano."""
+
+    last_run_at_wall: datetime | None = None
+    next_run_at_wall: datetime | None = None
+    interval_s: float
+    enabled: bool
+    noise_high_dbm: float | None = None
+    noise_low_dbm: float | None = None
+    last_result: RoutineResult | None = None
+
+
 # --- WebSocket ----------------------------------------------------------
 # Sobre discriminado por "type", siguiendo el mismo patron de canal
 # unico usado ya en docs/interfaces/websocket.md de `radar_emulator`

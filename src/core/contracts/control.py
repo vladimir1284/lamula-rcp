@@ -26,6 +26,7 @@ class RoutineName(StrEnum):
     ANTENNA_UNIT_POWER_ON = "antenna_unit_power_on"
     ANTENNA_MOVEMENT = "antenna_movement"
     ANTENNA_POSITIONING = "antenna_positioning"
+    ZERO_CHECK = "zero_check"
 
 
 class RoutineOutcome(StrEnum):
