@@ -34,6 +34,7 @@ import type {
   TrendStatus,
   UnlockMaintenanceRequest,
   WsMessage,
+  ZeroCheckSnapshot,
 } from '@/types/mmi'
 import { STALE_TIMEOUT_MS } from '@/types/shell'
 import type { LampState } from '@/types/shell'
@@ -245,6 +246,12 @@ async function fetchPowerMonitor(): Promise<PowerMonitorSnapshot> {
   const res = await fetch(`${GATEWAY_HTTP}/api/power-monitor`)
   if (!res.ok) throw new Error(`GET /api/power-monitor: HTTP ${res.status}`)
   return (await res.json()) as PowerMonitorSnapshot
+}
+
+async function fetchZeroCheck(): Promise<ZeroCheckSnapshot> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/zero-check`)
+  if (!res.ok) throw new Error(`GET /api/zero-check: HTTP ${res.status}`)
+  return (await res.json()) as ZeroCheckSnapshot
 }
 
 async function setPowerLimits(limits: PowerMeasurementLimits): Promise<PowerMeasurementLimits> {
@@ -468,6 +475,7 @@ export function useGateway() {
     clearTrend,
     fetchTrendData,
     fetchPowerMonitor,
+    fetchZeroCheck,
     setPowerLimits,
     savePowerLimits,
     fetchSectorBlanking,

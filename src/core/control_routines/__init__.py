@@ -4,6 +4,7 @@ from .antenna_unit_power_on import run_antenna_unit_power_on
 from .general_power_on import run_general_power_on
 from .receiver_power_on import run_receiver_power_on
 from .transmitter_power_on import run_transmitter_power_on
+from .zero_check import run_zero_check
 
 __all__ = [
     "run_antenna_movement",
@@ -12,4 +13,5 @@ __all__ = [
     "run_general_power_on",
     "run_receiver_power_on",
     "run_transmitter_power_on",
+    "run_zero_check",
 ]

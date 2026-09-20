@@ -219,6 +219,16 @@ export interface PowerMonitorSnapshot {
   limits: PowerMeasurementLimits | null
 }
 
+export interface ZeroCheckSnapshot {
+  last_run_at_wall: string | null
+  next_run_at_wall: string | null
+  interval_s: number
+  enabled: boolean
+  noise_high_dbm: number | null
+  noise_low_dbm: number | null
+  last_result: RoutineResult | null
+}
+
 // D-12: los seis POST /api/control/* ya no bloquean hasta que la rutina
 // termina -- devuelven un job (202) y el llamador sondea su estado.
 export type ControlJobStatus = 'running' | 'done'
