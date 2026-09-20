@@ -16,7 +16,7 @@ import PresetBar from './PresetBar.vue'
 import PanelMosaic from './PanelMosaic.vue'
 import PanelFrame from './PanelFrame.vue'
 import PresetManager from './PresetManager.vue'
-import type { ControlAuthorityState } from '@/types/mmi'
+import type { ControlAuthorityState, MaintenanceState } from '@/types/mmi'
 import type {
   IndicatorState,
   LampState,
@@ -32,6 +32,7 @@ const props = defineProps<{
   simulated: boolean
   control: ControlAuthorityState | null
   accessLevel: 'OP' | 'MANT'
+  maintenance?: MaintenanceState | null
   indicators: IndicatorState[]
   alarmWorst: LampState
   alarmCount: number
@@ -126,6 +127,7 @@ function duplicateCurrent() {
       :simulated="simulated"
       :control="control"
       :access-level="accessLevel"
+      :maintenance="maintenance"
       :indicators="indicators"
       :alarm-worst="alarmWorst"
       :alarm-count="alarmCount"

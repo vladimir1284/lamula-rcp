@@ -17,6 +17,8 @@ import PpiView from '@/views/PpiView.vue'
 import RhiView from '@/views/RhiView.vue'
 import ScanWorksheetView from '@/views/ScanWorksheetView.vue'
 import SubsystemDetailView from '@/views/SubsystemDetailView.vue'
+import BiteReviewView from '@/views/BiteReviewView.vue'
+import MaintenanceUnlockView from '@/views/MaintenanceUnlockView.vue'
 import SystemInformationView from '@/views/SystemInformationView.vue'
 import SystemStatusView from '@/views/SystemStatusView.vue'
 import SystemVisualizationView from '@/views/SystemVisualizationView.vue'
@@ -25,6 +27,7 @@ import type { IndicatorState, MosaicPreset, ViewOption } from '@/types/shell'
 
 const {
   control,
+  maintenance,
   dsp,
   halConnected,
   statusChannelStale,
@@ -45,10 +48,12 @@ const viewCatalog: ViewOption[] = [
   { id: 'subsystem-detail', label: 'B2 Subsystem Detail', available: true },
   { id: 'system-status', label: 'B10 System Status', available: true },
   { id: 'bite-messages', label: 'B8 BiTE Messages', available: true },
+  { id: 'bite-review', label: 'B9 BiTE Review', available: true },
   { id: 'antenna-control', label: 'C1 Antenna Control', available: true },
   { id: 'scan-worksheet', label: 'C3 Scan Worksheet', available: true },
   { id: 'control-routines', label: 'C4 Control Routine Runner', available: true },
   { id: 'connection', label: 'A2 Connection', available: true },
+  { id: 'maintenance-unlock', label: 'A4 Maintenance Unlock', available: true },
   { id: 'event-log', label: 'A5 Event Log', available: true },
   { id: 'system-information', label: 'A7 System Information', available: true },
   { id: 'ascope', label: 'D2 ASCOPE', available: true },
@@ -188,11 +193,9 @@ const indicators = computed<IndicatorState[]>(() => [
   },
 ])
 
-// `simulated` (HAL real vs radar_emulator) y `accessLevel` (A4 Maintenance
-// Unlock) no tienen respaldo en el backend todavía -- ningún contrato
-// expone hal_kind ni un modo de mantenimiento (A4 es P1, fuera de este
-// paso). Se fijan en falso/'OP' en vez de fabricar un valor: ver
-// SystemStatusSnapshot en core/contracts/mmi.py.
+// `simulated` (HAL real vs radar_emulator) no tiene respaldo en el backend
+// todavía -- ningún contrato expone hal_kind. Se fija en falso en vez de
+// fabricar un valor.
 
 onMounted(() => {
   fetchStatus().catch(() => {
@@ -208,7 +211,8 @@ onMounted(() => {
     :host="GATEWAY_HTTP"
     :simulated="false"
     :control="control"
-    access-level="OP"
+    :access-level="maintenance?.level ?? 'OP'"
+    :maintenance="maintenance"
     :indicators="indicators"
     :alarm-worst="alarmWorst"
     :alarm-count="alarmCount"
@@ -220,10 +224,12 @@ onMounted(() => {
     <template #subsystem-detail><SubsystemDetailView /></template>
     <template #system-status><SystemStatusView /></template>
     <template #bite-messages><BiteMessagesView /></template>
+    <template #bite-review><BiteReviewView /></template>
     <template #antenna-control><AntennaControlView /></template>
     <template #scan-worksheet><ScanWorksheetView /></template>
     <template #control-routines><ControlCenterView /></template>
     <template #connection><ConnectionView /></template>
+    <template #maintenance-unlock><MaintenanceUnlockView /></template>
     <template #event-log><EventLogView /></template>
     <template #system-information><SystemInformationView /></template>
     <template #ascope="{ panel }"><AscopeView :frozen="panel.frozen" /></template>
