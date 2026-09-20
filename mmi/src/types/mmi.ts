@@ -182,6 +182,15 @@ export interface TrendStatus {
   signal_ids: string[]
 }
 
+export interface CalibrationLogEntry {
+  at_wall: string
+  severity: 'info' | 'warn' | 'error'
+  procedure: string
+  actor: string
+  message: string
+  detail?: string | null
+}
+
 export interface PowerMeasurementLimits {
   forward_limit_kw: number
   reverse_limit_kw: number
