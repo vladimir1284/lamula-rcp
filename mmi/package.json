@@ -18,6 +18,11 @@
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build"
   },
+  "pnpm": {
+    "overrides": {
+      "vue-component-meta": "3.3.10"
+    }
+  },
   "dependencies": {
     "@lucide/vue": "^1.32.0",
     "@tailwindcss/vite": "^4.3.3",
