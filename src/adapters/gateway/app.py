@@ -59,6 +59,8 @@ from core.contracts.mmi import (
     MaintenanceState,
     OperatorEventMessage,
     OperatorMode,
+    PowerMeasurementLimits,
+    PowerMonitorSnapshot,
     ProcessInfo,
     ProcessMonitorSnapshot,
     RcpTaskInfo,
@@ -115,6 +117,7 @@ def create_app(
     dsp_bind_host: str,
     dsp_port: int,
     scan_worksheet_path: Path = Path("data/scan_worksheet.json"),
+    power_limits_path: Path = Path("data/power_limits.json"),
 ) -> FastAPI:
     async def _bite_poll_loop(app: FastAPI) -> None:
         while True:
@@ -145,7 +148,7 @@ def create_app(
                         for sig in app.state.trend_channels:
                             try:
                                 reading = await hal.read_analog(sig)
-                                val = reading.value if reading.quality == SignalQuality.GOOD else None
+                                val = reading.value if reading.quality == SignalQuality.OK else None
                             except Exception:
                                 val = None
                             sample = TrendChannelSample(at_wall=now, value=val)
@@ -222,6 +225,17 @@ def create_app(
         )
     except (FileNotFoundError, ValueError):
         app.state.scan_worksheet: list[ScanCut] = []
+    # Limites de potencia editables (B7) -- mismo criterio de persistencia que
+    # scan_worksheet_path arriba. Archivo ausente o corrupto arranca en `None`
+    # ("sin limite"), no en un umbral inventado (ver docstring de
+    # PowerMonitorSnapshot.limits).
+    app.state.power_limits_path = power_limits_path
+    try:
+        app.state.power_limits: PowerMeasurementLimits | None = PowerMeasurementLimits.model_validate_json(
+            power_limits_path.read_text()
+        )
+    except (FileNotFoundError, ValueError):
+        app.state.power_limits: PowerMeasurementLimits | None = None
     # Jobs asincronos de los seis POST /api/control/* (ver _start_control_job mas
     # abajo) -- dict ordinario, el orden de inserccion de Python 3.7+ es lo que
     # usa el tope de historial para descartar el mas viejo. En memoria, se pierde
@@ -603,6 +617,55 @@ def create_app(
             TrendSeries(signal_id=sig, samples=list(buf))
             for sig, buf in app.state.trend_buffers.items()
         ]
+
+    async def _read_radiating() -> bool:
+        try:
+            return (await hal.read_digital("tx.radiating_status")).value
+        except Exception:
+            return False
+
+    @app.get("/api/power-monitor", response_model=PowerMonitorSnapshot)
+    async def get_power_monitor() -> PowerMonitorSnapshot:
+        async def _read_power(sig: str) -> float | None:
+            try:
+                reading = await hal.read_analog(sig)
+            except Exception:
+                return None
+            return reading.value if reading.quality == SignalQuality.OK else None
+
+        forward = await _read_power("tx.tx_peak_power_sample")
+        reverse = await _read_power("tx.tx_reflected_power_sample")
+        vswr = None
+        if forward is not None and reverse is not None and forward > 0 and reverse < forward:
+            ratio = (reverse / forward) ** 0.5
+            vswr = round((1 + ratio) / (1 - ratio), 3)
+
+        return PowerMonitorSnapshot(
+            forward_power_kw=forward,
+            reverse_power_kw=reverse,
+            vswr=vswr,
+            bus_ok=hal.is_connected(),
+            radiating=await _read_radiating(),
+            limits=app.state.power_limits,
+        )
+
+    @app.post("/api/power-monitor/limits", response_model=PowerMeasurementLimits)
+    async def set_power_limits(limits: PowerMeasurementLimits) -> PowerMeasurementLimits:
+        app.state.power_limits = limits
+        return app.state.power_limits
+
+    @app.post("/api/power-monitor/limits/save", response_model=PowerMeasurementLimits)
+    async def save_power_limits() -> PowerMeasurementLimits:
+        if app.state.power_limits is None:
+            raise HTTPException(status_code=409, detail="no hay limites para guardar -- use Set primero")
+        if await _read_radiating():
+            raise HTTPException(
+                status_code=409,
+                detail="no se puede guardar mientras el radar esta radiando -- apague radiacion primero",
+            )
+        app.state.power_limits_path.parent.mkdir(parents=True, exist_ok=True)
+        app.state.power_limits_path.write_text(app.state.power_limits.model_dump_json())
+        return app.state.power_limits
 
     def _save_scan_worksheet() -> None:
         app.state.scan_worksheet_path.parent.mkdir(parents=True, exist_ok=True)

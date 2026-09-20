@@ -473,6 +473,33 @@
     }
   },
   {
+    "id": "tx.tx_reflected_power_sample",
+    "subsystem": "tx",
+    "kind": "AI",
+    "type": "float",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 5,
+      "space": "holding",
+      "address": 0,
+      "conventional": "400001",
+      "access": "r"
+    },
+    "units": "kW",
+    "range": [
+      0.0,
+      350.0
+    ],
+    "raw": {
+      "encoding": "int16",
+      "raw_range": [
+        0,
+        65535
+      ],
+      "note": "PENDIENTE: confirmar codificacion y rango crudo del modulo real (PEND-29 en radar_emulator: modulo/unit_id sin confirmar en inventario real)"
+    }
+  },
+  {
     "id": "tx.magnetron_peak_current_sample",
     "subsystem": "tx",
     "kind": "AI",

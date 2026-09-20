@@ -26,6 +26,8 @@ import type {
   ControlJobStatusResponse,
   DspStreamStatus,
   MaintenanceState,
+  PowerMeasurementLimits,
+  PowerMonitorSnapshot,
   ProcessMonitorSnapshot,
   RoutineResult,
   SetControlModeRequest,
@@ -69,6 +71,8 @@ const trendRunning = ref(false)
 const trendChannels = ref<string[]>(['tx.mps_output_voltage_sample', 'tx.fps_output_voltage_sample'])
 const trendStartedAt = ref<string | null>(null)
 const trendData = ref<TrendSeries[]>([])
+const powerLimits = ref<PowerMeasurementLimits | null>(null)
+const powerRadiating = ref(false)
 
 const antenna = shallowRef<AntennaMessage['position'] | null>({
   az_deg: 123.4,
@@ -314,6 +318,40 @@ async function fetchTrendData(): Promise<TrendSeries[]> {
   return trendData.value
 }
 
+async function fetchPowerMonitor(): Promise<PowerMonitorSnapshot> {
+  await delay(80)
+  const forward = 210 + Math.sin(Date.now() / 3000) * 5
+  const reverse = 3 + Math.random()
+  const ratio = Math.sqrt(reverse / forward)
+  return {
+    forward_power_kw: forward,
+    reverse_power_kw: reverse,
+    vswr: Math.round(((1 + ratio) / (1 - ratio)) * 1000) / 1000,
+    bus_ok: true,
+    radiating: powerRadiating.value,
+    limits: powerLimits.value,
+  }
+}
+
+async function setPowerLimits(limits: PowerMeasurementLimits): Promise<PowerMeasurementLimits> {
+  await delay(80)
+  powerLimits.value = { ...limits }
+  return { ...powerLimits.value }
+}
+
+async function savePowerLimits(): Promise<PowerMeasurementLimits> {
+  await delay(150)
+  if (powerLimits.value === null) {
+    throw new Error('POST /api/power-monitor/limits/save: HTTP 409 — no hay limites para guardar -- use Set primero')
+  }
+  if (powerRadiating.value) {
+    throw new Error(
+      'POST /api/power-monitor/limits/save: HTTP 409 — no se puede guardar mientras el radar esta radiando',
+    )
+  }
+  return { ...powerLimits.value }
+}
+
 async function lockMaintenance(): Promise<MaintenanceState> {
   await delay(300)
   maintenance.value = {
@@ -396,6 +434,9 @@ export function useGateway() {
     continueTrend,
     clearTrend,
     fetchTrendData,
+    fetchPowerMonitor,
+    setPowerLimits,
+    savePowerLimits,
     runControlJob,
     cancelControlJob,
     send,

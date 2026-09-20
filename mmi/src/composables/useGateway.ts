@@ -23,6 +23,8 @@ import type {
   ControlJobStatusResponse,
   DspStreamStatus,
   MaintenanceState,
+  PowerMeasurementLimits,
+  PowerMonitorSnapshot,
   ProcessMonitorSnapshot,
   SetControlModeRequest,
   SystemInfo,
@@ -238,6 +240,34 @@ async function fetchTrendData(): Promise<TrendSeries[]> {
   return (await res.json()) as TrendSeries[]
 }
 
+async function fetchPowerMonitor(): Promise<PowerMonitorSnapshot> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/power-monitor`)
+  if (!res.ok) throw new Error(`GET /api/power-monitor: HTTP ${res.status}`)
+  return (await res.json()) as PowerMonitorSnapshot
+}
+
+async function setPowerLimits(limits: PowerMeasurementLimits): Promise<PowerMeasurementLimits> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/power-monitor/limits`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(limits),
+  })
+  if (!res.ok) {
+    const detail = await res.text()
+    throw new Error(`POST /api/power-monitor/limits: HTTP ${res.status} — ${detail}`)
+  }
+  return (await res.json()) as PowerMeasurementLimits
+}
+
+async function savePowerLimits(): Promise<PowerMeasurementLimits> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/power-monitor/limits/save`, { method: 'POST' })
+  if (!res.ok) {
+    const detail = await res.text()
+    throw new Error(`POST /api/power-monitor/limits/save: HTTP ${res.status} — ${detail}`)
+  }
+  return (await res.json()) as PowerMeasurementLimits
+}
+
 async function lockMaintenance(): Promise<MaintenanceState> {
   const res = await fetch(`${GATEWAY_HTTP}/api/maintenance/lock`, {
     method: 'POST',
@@ -408,6 +438,9 @@ export function useGateway() {
     continueTrend,
     clearTrend,
     fetchTrendData,
+    fetchPowerMonitor,
+    setPowerLimits,
+    savePowerLimits,
     runControlJob,
     cancelControlJob,
     send,

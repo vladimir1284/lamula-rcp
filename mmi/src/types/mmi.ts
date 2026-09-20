@@ -182,6 +182,21 @@ export interface TrendStatus {
   signal_ids: string[]
 }
 
+export interface PowerMeasurementLimits {
+  forward_limit_kw: number
+  reverse_limit_kw: number
+  vswr_limit: number
+}
+
+export interface PowerMonitorSnapshot {
+  forward_power_kw: number | null
+  reverse_power_kw: number | null
+  vswr: number | null
+  bus_ok: boolean
+  radiating: boolean
+  limits: PowerMeasurementLimits | null
+}
+
 // D-12: los seis POST /api/control/* ya no bloquean hasta que la rutina
 // termina -- devuelven un job (202) y el llamador sondea su estado.
 export type ControlJobStatus = 'running' | 'done'

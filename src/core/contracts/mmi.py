@@ -149,6 +149,36 @@ class TrendStatus(BaseModel):
     signal_ids: list[SignalId] = Field(default_factory=list)
 
 
+class PowerMeasurementLimits(BaseModel):
+    """Limites editables por el operador (B7, RAVIS Sec.7.7) -- volatiles hasta
+    `POST /api/power-monitor/limits/save` los persiste (mismo criterio que
+    `scan_worksheet_path`: JSON en `data/`, gitignored)."""
+
+    forward_limit_kw: float
+    reverse_limit_kw: float
+    vswr_limit: float
+
+
+class PowerMonitorSnapshot(BaseModel):
+    """`forward_power_kw`/`reverse_power_kw` en `None` si la lectura Modbus no es
+    `SignalQuality.OK` (fuera de rango o excepcion) -- hueco, no dato fabricado.
+    `vswr` requiere ambas lecturas OK y forward_power_kw > 0 (si no, `None`:
+    no hay VSWR valido sin portadora). `bus_ok` es `hal_connected` (D-06: una
+    sola conexion Modbus multiplexada hace de "bus status", no hay Profibus en
+    este sistema -- ver docs/alcance/pendientes.md)."""
+
+    forward_power_kw: float | None
+    reverse_power_kw: float | None
+    vswr: float | None
+    bus_ok: bool
+    radiating: bool
+    # `None` hasta el primer `POST /api/power-monitor/limits` -- ningun limite
+    # de fabrica esta confirmado (mismo criterio que PEND-RCP-07), asi que no
+    # se fabrica un valor de partida; la MMI debe mostrar "sin limite" en vez
+    # de un semaforo con un umbral inventado.
+    limits: PowerMeasurementLimits | None
+
+
 class ScanCutExecutionRequest(BaseModel):
     """`POST /api/scan/worksheet/{index}/execute` -- espejo de los kwargs de
     `core.scan_controller.run_scan_cut` (sin `cut`, ya identificado por
