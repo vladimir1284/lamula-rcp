@@ -20,15 +20,19 @@
 import { computed, ref, shallowRef } from 'vue'
 import type {
   AntennaMessage,
+  AntennaStepConfig,
   BiteFaultSummary,
   ControlAuthorityState,
   ControlJobStatusResponse,
   DspStreamStatus,
   MaintenanceState,
+  ProcessMonitorSnapshot,
   RoutineResult,
   SetControlModeRequest,
   SystemInfo,
   SystemStatusSnapshot,
+  TrendSeries,
+  TrendStatus,
   UnlockMaintenanceRequest,
   WsMessage,
 } from '@/types/mmi'
@@ -55,6 +59,16 @@ const maintenance = shallowRef<MaintenanceState | null>({
   since_wall: null,
   expires_wall: null,
 })
+
+const stepConfig = ref<AntennaStepConfig>({
+  azimuth_step_deg: 1.0,
+  elevation_step_deg: 1.0,
+})
+
+const trendRunning = ref(false)
+const trendChannels = ref<string[]>(['tx.mps_output_voltage_sample', 'tx.fps_output_voltage_sample'])
+const trendStartedAt = ref<string | null>(null)
+const trendData = ref<TrendSeries[]>([])
 
 const antenna = shallowRef<AntennaMessage['position'] | null>({
   az_deg: 123.4,
@@ -152,9 +166,12 @@ const alarmWorst = computed<LampState>(() => {
 const alarmCount = computed(() => biteFaults.value.size)
 
 async function fetchStatus(): Promise<SystemStatusSnapshot> {
+  if (!control.value || !maintenance.value) {
+    throw new Error('mock missing initial state')
+  }
   return {
-    control: control.value!,
-    maintenance: maintenance.value!,
+    control: control.value,
+    maintenance: maintenance.value,
     hal_connected: halConnected.value ?? false,
     antenna: antenna.value,
     dsp: dsp.value,
@@ -185,6 +202,116 @@ async function unlockMaintenance(req: UnlockMaintenanceRequest): Promise<Mainten
     expires_wall: expIso,
   }
   return maintenance.value
+}
+
+async function fetchStepConfig(): Promise<AntennaStepConfig> {
+  await delay(100)
+  return { ...stepConfig.value }
+}
+
+async function setStepConfig(config: AntennaStepConfig): Promise<AntennaStepConfig> {
+  await delay(100)
+  if (config.azimuth_step_deg < 0.1 || config.azimuth_step_deg > 1.0 || config.elevation_step_deg < 0.1 || config.elevation_step_deg > 1.0) {
+    throw new Error('POST /api/antenna/step-config: HTTP 422 — Unprocessable Entity')
+  }
+  stepConfig.value = { ...config }
+  return { ...stepConfig.value }
+}
+
+async function fetchProcessMonitor(): Promise<ProcessMonitorSnapshot> {
+  await delay(100)
+  return {
+    process: {
+      pid: 12345,
+      name: 'uvicorn',
+      priority: 0,
+      status: 'running',
+      cpu_percent: 1.2,
+      memory_mb: 42.8,
+    },
+    tasks: [
+      { name: 'Task-1 (_bite_poll_loop)', state: 'pending' },
+      { name: 'Task-2 (ws_endpoint)', state: 'pending' },
+      { name: 'Task-3 (antenna_positioning)', state: 'done' },
+    ],
+  }
+}
+
+async function fetchTrendChannels(): Promise<string[]> {
+  await delay(50)
+  return [
+    'tx.mps_output_voltage_sample',
+    'tx.fps_output_voltage_sample',
+    'tx.tx_peak_power_sample',
+    'ant.az_motor_current_sample',
+    'ant.el_motor_current_sample',
+  ]
+}
+
+async function fetchTrendStatus(): Promise<TrendStatus> {
+  await delay(50)
+  return {
+    running: trendRunning.value,
+    started_at_wall: trendStartedAt.value,
+    signal_ids: trendChannels.value,
+  }
+}
+
+async function startTrend(signalIds: string[]): Promise<TrendStatus> {
+  await delay(50)
+  if (trendRunning.value) {
+    throw new Error('POST /api/trend/start: HTTP 409 — muestreo ya en ejecución')
+  }
+  trendChannels.value = signalIds
+  trendStartedAt.value = new Date().toISOString()
+  trendRunning.value = true
+  const nowMs = Date.now()
+  trendData.value = signalIds.map((sig, idx) => ({
+    signal_id: sig,
+    samples: Array.from({ length: 30 }, (_, i) => ({
+      at_wall: new Date(nowMs - (30 - i) * 1000).toISOString(),
+      value: i === 15 ? null : 100 + idx * 20 + Math.sin(i / 2) * 10,
+    })),
+  }))
+  return fetchTrendStatus()
+}
+
+async function stopTrend(): Promise<TrendStatus> {
+  await delay(50)
+  trendRunning.value = false
+  return fetchTrendStatus()
+}
+
+async function continueTrend(): Promise<TrendStatus> {
+  await delay(50)
+  trendRunning.value = true
+  return fetchTrendStatus()
+}
+
+async function clearTrend(): Promise<TrendStatus> {
+  await delay(50)
+  trendRunning.value = false
+  trendData.value = []
+  trendChannels.value = []
+  trendStartedAt.value = null
+  return fetchTrendStatus()
+}
+
+async function fetchTrendData(): Promise<TrendSeries[]> {
+  await delay(50)
+  if (trendRunning.value && trendData.value.length > 0) {
+    const nowIso = new Date().toISOString()
+    trendData.value.forEach((series) => {
+      const lastSample = series.samples.length > 0 ? series.samples[series.samples.length - 1] : undefined
+      const lastVal = (lastSample && lastSample.value !== null) ? lastSample.value : 100
+      series.samples.push({
+        at_wall: nowIso,
+        value: lastVal + (Math.random() - 0.5) * 2,
+      })
+      if (series.samples.length > 300) series.samples.shift()
+    })
+  }
+  return trendData.value
 }
 
 async function lockMaintenance(): Promise<MaintenanceState> {
@@ -259,6 +386,16 @@ export function useGateway() {
     setControlMode,
     unlockMaintenance,
     lockMaintenance,
+    fetchStepConfig,
+    setStepConfig,
+    fetchProcessMonitor,
+    fetchTrendChannels,
+    fetchTrendStatus,
+    startTrend,
+    stopTrend,
+    continueTrend,
+    clearTrend,
+    fetchTrendData,
     runControlJob,
     cancelControlJob,
     send,

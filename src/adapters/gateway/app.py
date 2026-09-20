@@ -20,8 +20,10 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import psutil
 import tomllib
 import uuid
+from collections import deque
 from collections.abc import Coroutine
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
@@ -34,14 +36,17 @@ from pydantic import TypeAdapter
 
 from adapters.dsp import MomentStreamReceiver
 from adapters.hal_sim import SimulatedHAL
+from adapters.hal_sim.signal_catalog import CATALOG
 from core.bite import BiteManager
 from core.contracts.bite import BiteTransition
+from core.contracts.common import SignalQuality
 from core.contracts.control import RoutineResult
 from core.contracts.mmi import (
     AccessLevel,
     AntennaMessage,
     AntennaMovementRequest,
     AntennaPositioningRequest,
+    AntennaStepConfig,
     AntennaUnitPowerOnRequest,
     BiteEventMessage,
     BiteFaultSummary,
@@ -54,6 +59,9 @@ from core.contracts.mmi import (
     MaintenanceState,
     OperatorEventMessage,
     OperatorMode,
+    ProcessInfo,
+    ProcessMonitorSnapshot,
+    RcpTaskInfo,
     ReceiverPowerOnRequest,
     ScanCutExecutionRequest,
     SessionMessage,
@@ -62,6 +70,10 @@ from core.contracts.mmi import (
     SystemInfo,
     SystemStatusSnapshot,
     TransmitterPowerOnRequest,
+    TrendChannelSample,
+    TrendSeries,
+    TrendStartRequest,
+    TrendStatus,
     UnlockMaintenanceRequest,
     WsMessage,
 )
@@ -122,6 +134,28 @@ def create_app(
                 pass
             await asyncio.sleep(BITE_POLL_PERIOD_S)
 
+    async def _trend_sample_loop(app: FastAPI) -> None:
+        while True:
+            try:
+                if app.state.trend_running:
+                    now = datetime.now(timezone.utc)
+                    if app.state.trend_started_at and (now - app.state.trend_started_at) > timedelta(hours=8):
+                        app.state.trend_running = False
+                    else:
+                        for sig in app.state.trend_channels:
+                            try:
+                                reading = await hal.read_analog(sig)
+                                val = reading.value if reading.quality == SignalQuality.GOOD else None
+                            except Exception:
+                                val = None
+                            sample = TrendChannelSample(at_wall=now, value=val)
+                            if sig not in app.state.trend_buffers:
+                                app.state.trend_buffers[sig] = deque(maxlen=28800)
+                            app.state.trend_buffers[sig].append(sample)
+            except Exception:
+                pass
+            await asyncio.sleep(1.0)
+
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         try:
@@ -131,12 +165,18 @@ def create_app(
             pass
         await dsp.start(dsp_bind_host, dsp_port)
         bite_task = asyncio.create_task(_bite_poll_loop(app))
+        trend_task = asyncio.create_task(_trend_sample_loop(app))
         try:
             yield
         finally:
             bite_task.cancel()
+            trend_task.cancel()
             try:
                 await bite_task
+            except asyncio.CancelledError:
+                pass
+            try:
+                await trend_task
             except asyncio.CancelledError:
                 pass
             if hal.is_connected():
@@ -200,6 +240,11 @@ def create_app(
     # `_start_control_job` mas abajo. Mismo tope de historial que
     # control_jobs/control_job_tasks.
     app.state.control_job_cancel_requested: set[str] = set()
+    app.state.antenna_step_config = AntennaStepConfig()
+    app.state.trend_running: bool = False
+    app.state.trend_channels: list[str] = []
+    app.state.trend_buffers: dict[str, deque[TrendChannelSample]] = {}
+    app.state.trend_started_at: datetime | None = None
 
     try:
         upstream_data = tomllib.loads(UPSTREAM_PIN.read_text(encoding="utf-8"))
@@ -461,6 +506,103 @@ def create_app(
                 timeout_s=req.timeout_s,
             ),
         )
+
+    @app.get("/api/antenna/step-config", response_model=AntennaStepConfig)
+    async def get_antenna_step_config() -> AntennaStepConfig:
+        return app.state.antenna_step_config
+
+    @app.post("/api/antenna/step-config", response_model=AntennaStepConfig)
+    async def set_antenna_step_config(config: AntennaStepConfig) -> AntennaStepConfig:
+        app.state.antenna_step_config = config
+        return app.state.antenna_step_config
+
+    @app.get("/api/process-monitor", response_model=ProcessMonitorSnapshot)
+    async def get_process_monitor() -> ProcessMonitorSnapshot:
+        proc = psutil.Process(os.getpid())
+        try:
+            priority = proc.nice()
+        except Exception:
+            priority = 0
+
+        proc_info = ProcessInfo(
+            pid=proc.pid,
+            name=proc.name(),
+            priority=priority,
+            status=proc.status(),
+            cpu_percent=proc.cpu_percent(interval=0.1),
+            memory_mb=round(proc.memory_info().rss / 1e6, 2),
+        )
+
+        tasks = []
+        for task in asyncio.all_tasks():
+            state = "done" if task.done() else ("cancelled" if task.cancelled() else "pending")
+            tasks.append(RcpTaskInfo(name=task.get_name(), state=state))
+
+        return ProcessMonitorSnapshot(process=proc_info, tasks=tasks)
+
+    @app.get("/api/trend/channels", response_model=list[str])
+    async def get_trend_channels() -> list[str]:
+        return [s.id for s in CATALOG.values() if s.kind == "AI"]
+
+    @app.get("/api/trend/status", response_model=TrendStatus)
+    async def get_trend_status() -> TrendStatus:
+        return TrendStatus(
+            running=app.state.trend_running,
+            started_at_wall=app.state.trend_started_at,
+            signal_ids=app.state.trend_channels,
+        )
+
+    @app.post("/api/trend/start", response_model=TrendStatus)
+    async def start_trend(req: TrendStartRequest) -> TrendStatus:
+        if app.state.trend_running:
+            raise HTTPException(status_code=409, detail="muestreo de tendencias ya está en ejecución; detenga antes de iniciar")
+        now = datetime.now(timezone.utc)
+        app.state.trend_channels = req.signal_ids
+        app.state.trend_buffers = {sig: deque(maxlen=28800) for sig in req.signal_ids}
+        app.state.trend_started_at = now
+        app.state.trend_running = True
+        return TrendStatus(
+            running=app.state.trend_running,
+            started_at_wall=app.state.trend_started_at,
+            signal_ids=app.state.trend_channels,
+        )
+
+    @app.post("/api/trend/stop", response_model=TrendStatus)
+    async def stop_trend() -> TrendStatus:
+        app.state.trend_running = False
+        return TrendStatus(
+            running=app.state.trend_running,
+            started_at_wall=app.state.trend_started_at,
+            signal_ids=app.state.trend_channels,
+        )
+
+    @app.post("/api/trend/continue", response_model=TrendStatus)
+    async def continue_trend() -> TrendStatus:
+        app.state.trend_running = True
+        return TrendStatus(
+            running=app.state.trend_running,
+            started_at_wall=app.state.trend_started_at,
+            signal_ids=app.state.trend_channels,
+        )
+
+    @app.post("/api/trend/clear", response_model=TrendStatus)
+    async def clear_trend() -> TrendStatus:
+        app.state.trend_running = False
+        app.state.trend_buffers.clear()
+        app.state.trend_channels = []
+        app.state.trend_started_at = None
+        return TrendStatus(
+            running=app.state.trend_running,
+            started_at_wall=app.state.trend_started_at,
+            signal_ids=app.state.trend_channels,
+        )
+
+    @app.get("/api/trend/data", response_model=list[TrendSeries])
+    async def get_trend_data() -> list[TrendSeries]:
+        return [
+            TrendSeries(signal_id=sig, samples=list(buf))
+            for sig, buf in app.state.trend_buffers.items()
+        ]
 
     def _save_scan_worksheet() -> None:
         app.state.scan_worksheet_path.parent.mkdir(parents=True, exist_ok=True)

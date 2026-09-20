@@ -5,6 +5,7 @@ description = "Radar Control Processor & Operator MMI para el radar meteorológi
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.141.1",
+    "psutil>=6,<7",
     "pydantic>=2,<3",
     "pymodbus>=3.15.0",
     "uvicorn>=0.52.4",

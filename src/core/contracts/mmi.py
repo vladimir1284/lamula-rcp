@@ -105,6 +105,50 @@ class AntennaPositioningRequest(BaseModel):
     timeout_s: float
 
 
+class AntennaStepConfig(BaseModel):
+    azimuth_step_deg: float = Field(1.0, ge=0.1, le=1.0)
+    elevation_step_deg: float = Field(1.0, ge=0.1, le=1.0)
+
+
+class ProcessInfo(BaseModel):
+    pid: int
+    name: str
+    priority: int
+    status: str
+    cpu_percent: float
+    memory_mb: float
+
+
+class RcpTaskInfo(BaseModel):
+    name: str
+    state: Literal["pending", "done", "cancelled"]
+
+
+class ProcessMonitorSnapshot(BaseModel):
+    process: ProcessInfo
+    tasks: list[RcpTaskInfo]
+
+
+class TrendChannelSample(BaseModel):
+    at_wall: datetime
+    value: float | None
+
+
+class TrendSeries(BaseModel):
+    signal_id: SignalId
+    samples: list[TrendChannelSample]
+
+
+class TrendStartRequest(BaseModel):
+    signal_ids: list[SignalId]
+
+
+class TrendStatus(BaseModel):
+    running: bool
+    started_at_wall: datetime | None = None
+    signal_ids: list[SignalId] = Field(default_factory=list)
+
+
 class ScanCutExecutionRequest(BaseModel):
     """`POST /api/scan/worksheet/{index}/execute` -- espejo de los kwargs de
     `core.scan_controller.run_scan_cut` (sin `cut`, ya identificado por
