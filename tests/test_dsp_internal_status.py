@@ -45,8 +45,21 @@ def test_get_dsp_internal_status(client):
     assert "gate_spacing_m" in data
 
 
+def test_post_dsp_reset_counters_requires_maintenance(client):
+    test_client, dsp = client
+    dsp.radials_received = 150
+
+    res = test_client.post("/api/dsp/reset-counters")
+    assert res.status_code == 403
+    assert dsp.radials_received == 150
+
+
 def test_post_dsp_reset_counters(client):
     test_client, dsp = client
+    test_client.post(
+        "/api/maintenance/unlock",
+        json={"password": "mant1234", "actor": "tecnico1", "duration_s": 300},
+    )
     dsp.radials_received = 150
     assert dsp.radials_received == 150
 

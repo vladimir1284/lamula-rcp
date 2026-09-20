@@ -78,7 +78,7 @@ class MomentStreamReceiver:
     def last_radial_at(self) -> datetime | None:
         return self._last_radial_at
 
-    def reset_counters(self) -> None:
+    async def reset_counters(self) -> None:
         """Reinicia contadores de trigger/radiales (Vz)."""
         self.radials_received = 0
         self.other_messages_received = 0
@@ -92,6 +92,7 @@ class MomentStreamReceiver:
                 self._control_seq += 1
                 msg = encode_control(self._control_seq, wire.Command.RESET_COUNTERS)
                 self._writer.write(msg)
+                await self._writer.drain()
             except Exception:
                 logger.exception("Error enviando mandato RESET_COUNTERS al DSP")
 

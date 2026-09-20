@@ -483,7 +483,12 @@ def create_app(
 
     @app.post("/api/dsp/reset-counters", response_model=DspResetCountersResponse)
     async def reset_dsp_counters() -> DspResetCountersResponse:
-        dsp.reset_counters()
+        if _effective_maintenance().level != AccessLevel.MANT:
+            raise HTTPException(
+                status_code=403,
+                detail="se requiere nivel de mantenimiento para esta operación",
+            )
+        await dsp.reset_counters()
         now = datetime.now(timezone.utc)
         app.state.event_seq += 1
         event = OperatorEventMessage(
