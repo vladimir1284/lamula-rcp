@@ -39,6 +39,11 @@
     "vue": "^3.5.40",
     "vue-router": "^5.2.0"
   },
+  "pnpm": {
+    "overrides": {
+      "vue-component-meta": "3.3.10"
+    }
+  },
   "devDependencies": {
     "@playwright/test": "^1.61.1",
     "@storybook/addon-docs": "^10.5.10",
