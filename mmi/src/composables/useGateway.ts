@@ -26,6 +26,7 @@ import type {
   PowerMeasurementLimits,
   PowerMonitorSnapshot,
   ProcessMonitorSnapshot,
+  SectorBlankingProfile,
   SetControlModeRequest,
   SystemInfo,
   SystemStatusSnapshot,
@@ -259,6 +260,34 @@ async function setPowerLimits(limits: PowerMeasurementLimits): Promise<PowerMeas
   return (await res.json()) as PowerMeasurementLimits
 }
 
+async function fetchSectorBlanking(): Promise<SectorBlankingProfile> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/sector-blanking`)
+  if (!res.ok) throw new Error(`GET /api/sector-blanking: HTTP ${res.status}`)
+  return (await res.json()) as SectorBlankingProfile
+}
+
+async function setSectorBlanking(profile: SectorBlankingProfile): Promise<SectorBlankingProfile> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/sector-blanking/set`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(profile),
+  })
+  if (!res.ok) {
+    const detail = await res.text()
+    throw new Error(`POST /api/sector-blanking/set: HTTP ${res.status} — ${detail}`)
+  }
+  return (await res.json()) as SectorBlankingProfile
+}
+
+async function saveSectorBlanking(): Promise<SectorBlankingProfile> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/sector-blanking/save`, { method: 'POST' })
+  if (!res.ok) {
+    const detail = await res.text()
+    throw new Error(`POST /api/sector-blanking/save: HTTP ${res.status} — ${detail}`)
+  }
+  return (await res.json()) as SectorBlankingProfile
+}
+
 async function savePowerLimits(): Promise<PowerMeasurementLimits> {
   const res = await fetch(`${GATEWAY_HTTP}/api/power-monitor/limits/save`, { method: 'POST' })
   if (!res.ok) {
@@ -441,6 +470,9 @@ export function useGateway() {
     fetchPowerMonitor,
     setPowerLimits,
     savePowerLimits,
+    fetchSectorBlanking,
+    setSectorBlanking,
+    saveSectorBlanking,
     runControlJob,
     cancelControlJob,
     send,

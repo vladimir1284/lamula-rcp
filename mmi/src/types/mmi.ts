@@ -191,6 +191,19 @@ export interface CalibrationLogEntry {
   detail?: string | null
 }
 
+export interface BlankingSector {
+  in_use: boolean
+  az_start_deg: number
+  az_end_deg: number
+  el_start_deg: number
+  el_end_deg: number
+}
+
+export interface SectorBlankingProfile {
+  enabled: boolean
+  sectors: BlankingSector[]
+}
+
 export interface PowerMeasurementLimits {
   forward_limit_kw: number
   reverse_limit_kw: number

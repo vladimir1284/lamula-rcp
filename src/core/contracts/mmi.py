@@ -149,6 +149,23 @@ class TrendStatus(BaseModel):
     signal_ids: list[SignalId] = Field(default_factory=list)
 
 
+class BlankingSector(BaseModel):
+    in_use: bool = False
+    az_start_deg: float = Field(0.0, ge=0.0, le=360.0)
+    az_end_deg: float = Field(0.0, ge=0.0, le=360.0)
+    el_start_deg: float = Field(-90.0, ge=-90.0, le=90.0)
+    el_end_deg: float = Field(90.0, ge=-90.0, le=90.0)
+
+
+def default_sectors() -> list[BlankingSector]:
+    return [BlankingSector() for _ in range(8)]
+
+
+class SectorBlankingProfile(BaseModel):
+    enabled: bool = False
+    sectors: list[BlankingSector] = Field(default_factory=default_sectors)
+
+
 class PowerMeasurementLimits(BaseModel):
     """Limites editables por el operador (B7, RAVIS Sec.7.7) -- volatiles hasta
     `POST /api/power-monitor/limits/save` los persiste (mismo criterio que
