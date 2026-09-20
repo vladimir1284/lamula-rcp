@@ -159,6 +159,18 @@ class PowerMeasurementLimits(BaseModel):
     vswr_limit: float
 
 
+class CalibrationLogEntry(BaseModel):
+    """Contrato unificado para el registro de actividades de calibracion (G8, RAVIS Sec.7.4).
+    Reutilizado por todas las vistas de la familia G."""
+
+    at_wall: datetime
+    severity: Literal["info", "warn", "error"]
+    procedure: str
+    actor: str
+    message: str
+    detail: str | None = None
+
+
 class PowerMonitorSnapshot(BaseModel):
     """`forward_power_kw`/`reverse_power_kw` en `None` si la lectura Modbus no es
     `SignalQuality.OK` (fuera de rango o excepcion) -- hueco, no dato fabricado.
