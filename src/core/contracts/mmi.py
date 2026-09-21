@@ -268,8 +268,15 @@ class ScanCutExecutionRequest(BaseModel):
     sweep_timeout_s: float
 
 
+class WizardStepInputRequest(BaseModel):
+    """Payload genérico para avanzar un paso interactivo en un wizard job."""
+
+    data: dict[str, object] = Field(default_factory=dict)
+
+
 class ControlJobStatus(StrEnum):
     RUNNING = "running"
+    AWAITING_OPERATOR_INPUT = "awaiting_operator_input"
     DONE = "done"
 
 
@@ -286,7 +293,7 @@ class ControlJobAccepted(BaseModel):
 
 class ControlJobStatusResponse(BaseModel):
     """Respuesta de `GET /api/control/jobs/{job_id}`. `result` es `None`
-    mientras `status == RUNNING`. `error` distingue una excepcion inesperada
+    mientras `status == RUNNING` o `AWAITING_OPERATOR_INPUT`. `error` distingue una excepcion inesperada
     (p.ej. el HAL se desconecto a mitad de camino) de un `RoutineResult` con
     `outcome` en `failed`/`interrupted`, que es un resultado legitimo de la
     rutina, no un error de infraestructura."""
@@ -294,6 +301,10 @@ class ControlJobStatusResponse(BaseModel):
     job_id: str
     routine: str
     status: ControlJobStatus
+    current_step: int | None = None
+    total_steps: int | None = None
+    step_name: str | None = None
+    prompt: str | None = None
     # `ScanCutResult` (Scan Controller) se agrego a esta union en vez de un
     # contrato de job separado -- mismo criterio D-10 (ampliar el contrato ya
     # congelado): `routine` ya era `str` libre, no el enum cerrado

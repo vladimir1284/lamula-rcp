@@ -22,6 +22,7 @@ import type {
   AntennaMessage,
   AntennaStepConfig,
   BiteFaultSummary,
+  CalibrationLogEntry,
   ControlAuthorityState,
   ControlJobStatusResponse,
   DspInternalStatusSnapshot,
@@ -414,6 +415,29 @@ async function fetchTrendData(): Promise<TrendSeries[]> {
   return trendData.value
 }
 
+const calibrationLog = ref<CalibrationLogEntry[]>([
+  {
+    at_wall: iso(30 * 60_000),
+    severity: 'info',
+    procedure: 'TX Power Calibration',
+    actor: 'operador-demo',
+    message: 'Paso 1/3 completado: Precondiciones y caldeo de radiación verificados',
+  },
+  {
+    at_wall: iso(25 * 60_000),
+    severity: 'info',
+    procedure: 'TX Power Calibration',
+    actor: 'operador-demo',
+    message: 'Paso 2/3 completado: Potencia pico medida registrada: 250.00 kW',
+    detail: 'Muestra HAL: 248.50 kW',
+  },
+])
+
+async function fetchCalibrationLog(): Promise<CalibrationLogEntry[]> {
+  await delay(80)
+  return [...calibrationLog.value]
+}
+
 async function fetchPowerMonitor(): Promise<PowerMonitorSnapshot> {
   await delay(80)
   const forward = 210 + Math.sin(Date.now() / 3000) * 5
@@ -622,12 +646,55 @@ function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
+async function advanceControlJobStep(jobId: string, _data: Record<string, unknown>): Promise<ControlJobStatusResponse> {
+  await delay(100)
+  return {
+    job_id: jobId,
+    routine: 'tx_power_calibration',
+    status: 'done',
+    result: {
+      routine: 'tx_power_calibration',
+      outcome: 'success',
+      steps: [
+        { signal_id: 'sys.remote_mode_ok_status', ok: true, detail: 'precondicion ok' },
+        { signal_id: 'tx.tx_peak_power_sample', ok: true, detail: 'Potencia pico medida: 250.00 kW' },
+        { signal_id: 'tx.directional_coupler_offset', ok: true, detail: 'Offset de acoplador confirmado: 0.00 dB' },
+      ],
+      at_us: Date.now() * 1000,
+    },
+    error: null,
+  }
+}
+
 // Simula "202 + sondeo" con un único delay -- suficiente para que
 // JobActionPanel muestre su estado `busy` antes de resolver, sin tener que
 // reimplementar el ciclo de sondeo real por job_id.
-async function runControlJob<T>(path: string, _body?: unknown, onJobId?: (jobId: string) => void): Promise<T> {
-  onJobId?.(`mock-job-${Date.now()}`)
-  await delay(600)
+async function runControlJob<T>(
+  path: string,
+  _body?: unknown,
+  onJobId?: (jobId: string) => void,
+  onJobStatus?: (job: ControlJobStatusResponse) => void,
+): Promise<T> {
+  const jobId = `mock-job-${Date.now()}`
+  onJobId?.(jobId)
+  await delay(300)
+
+  if (path.includes('tx-power-calibration')) {
+    const statusResp: ControlJobStatusResponse = {
+      job_id: jobId,
+      routine: 'tx_power_calibration',
+      status: 'awaiting_operator_input',
+      current_step: 2,
+      total_steps: 3,
+      step_name: 'Entrada de Potencia de Referencia',
+      prompt: 'Ingrese la potencia pico medida en kW con un medidor de potencia externo',
+      result: null,
+      error: null,
+    }
+    onJobStatus?.(statusResp)
+  }
+
+  await delay(300)
   if (path.includes('/scan/worksheet/')) {
     const result: ScanCutResult = {
       outcome: 'success',
@@ -690,6 +757,7 @@ export function useGateway() {
     clearTrend,
     fetchTrendData,
     fetchPowerMonitor,
+    fetchCalibrationLog,
     fetchZeroCheck,
     setPowerLimits,
     savePowerLimits,
@@ -708,6 +776,7 @@ export function useGateway() {
     fetchRadarConstant,
     setRadarConstant,
     saveRadarConstant,
+    advanceControlJobStep,
     runControlJob,
     cancelControlJob,
     send,

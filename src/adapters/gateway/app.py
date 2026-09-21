@@ -44,6 +44,7 @@ from core.contracts.common import SignalQuality
 from core.contracts.control import RoutineOutcome, RoutineResult
 from core.contracts.mmi import (
     AccessLevel,
+    CalibrationLogEntry,
     ZeroCheckSnapshot,
     AntennaMessage,
     AntennaMovementRequest,
@@ -88,6 +89,7 @@ from core.contracts.mmi import (
     TrendStartRequest,
     TrendStatus,
     UnlockMaintenanceRequest,
+    WizardStepInputRequest,
     WsMessage,
 )
 from core.contracts.scan import ScanCut, ScanCutResult
@@ -98,6 +100,7 @@ from core.control_routines import (
     run_general_power_on,
     run_receiver_power_on,
     run_transmitter_power_on,
+    run_tx_power_calibration,
     run_zero_check,
 )
 from core.scan_controller import run_scan_cut
@@ -157,6 +160,10 @@ def compute_radar_constant_db(params: RadarConstantParameters) -> float:
         / ((wavelength_m ** 2) * (10.0 ** ((params.tx_losses_db + params.rx_losses_db + params.radome_losses_db) / 10.0)))
     )
     return round(10.0 * math.log10(c_lin), 2)
+
+
+def _record_calibration_log(app: FastAPI, entry: CalibrationLogEntry) -> None:
+    app.state.calibration_log.append(entry)
 
 
 def create_app(
@@ -332,6 +339,9 @@ def create_app(
     app.state.zero_check_noise_high_dbm: float | None = None
     app.state.zero_check_noise_low_dbm: float | None = None
     app.state.zero_check_last_result: RoutineResult | None = None
+
+    app.state.calibration_log: list[CalibrationLogEntry] = []
+    app.state.control_job_inputs: dict[str, asyncio.Queue[dict[str, Any]]] = {}
 
     # Perfiles de configuracion local (E11)
     app.state.config_profile_path = config_profile_path
@@ -640,13 +650,18 @@ def create_app(
 
     CONTROL_JOB_HISTORY_LIMIT = 50  # mismo criterio que MAX_LOG en useGateway.ts -- evita crecimiento sin limite
 
-    def _start_control_job(routine: str, coro: Coroutine[Any, Any, RoutineResult | ScanCutResult]) -> ControlJobAccepted:
+    def _start_control_job(
+        routine: str,
+        coro: Coroutine[Any, Any, RoutineResult | ScanCutResult],
+        job_id: str | None = None,
+    ) -> ControlJobAccepted:
         # D-12: los seis POST /api/control/* dejaron de bloquear hasta que la
         # rutina termina (podia ser hasta `timeout_s`, minutos en
         # antenna-positioning/power-on con caldeo real) -- arrancan la
         # corrutina en un task de fondo y devuelven de inmediato; el llamador
         # sondea GET /api/control/jobs/{job_id}.
-        job_id = uuid.uuid4().hex
+        if job_id is None:
+            job_id = uuid.uuid4().hex
         app.state.control_jobs[job_id] = ControlJobStatusResponse(
             job_id=job_id, routine=routine, status=ControlJobStatus.RUNNING, result=None, error=None
         )
@@ -655,6 +670,7 @@ def create_app(
             del app.state.control_jobs[oldest_job_id]
             app.state.control_job_tasks.pop(oldest_job_id, None)
             app.state.control_job_cancel_requested.discard(oldest_job_id)
+            app.state.control_job_inputs.pop(oldest_job_id, None)
 
         async def _run() -> None:
             try:
@@ -692,6 +708,8 @@ def create_app(
                 app.state.control_jobs[job_id] = ControlJobStatusResponse(
                     job_id=job_id, routine=routine, status=ControlJobStatus.DONE, result=None, error=error
                 )
+            finally:
+                app.state.control_job_inputs.pop(job_id, None)
 
         app.state.control_job_tasks[job_id] = asyncio.create_task(_run())
         return ControlJobAccepted(job_id=job_id, routine=routine, status=ControlJobStatus.RUNNING)
@@ -702,6 +720,29 @@ def create_app(
         if record is None:
             raise HTTPException(status_code=404, detail=f"job {job_id} no encontrado")
         return record
+
+    @app.post("/api/control/jobs/{job_id}/step", response_model=ControlJobStatusResponse)
+    async def advance_control_job_step(job_id: str, req: WizardStepInputRequest) -> ControlJobStatusResponse:
+        record = app.state.control_jobs.get(job_id)
+        if record is None:
+            raise HTTPException(status_code=404, detail=f"job {job_id} no encontrado")
+        queue = app.state.control_job_inputs.get(job_id)
+        if queue is None or record.status != ControlJobStatus.AWAITING_OPERATOR_INPUT:
+            raise HTTPException(status_code=400, detail=f"job {job_id} no está esperando entrada del operador")
+
+        app.state.control_jobs[job_id] = ControlJobStatusResponse(
+            job_id=job_id,
+            routine=record.routine,
+            status=ControlJobStatus.RUNNING,
+            current_step=record.current_step,
+            total_steps=record.total_steps,
+            step_name=record.step_name,
+            prompt=record.prompt,
+            result=record.result,
+            error=None,
+        )
+        await queue.put(req.data)
+        return app.state.control_jobs[job_id]
 
     @app.post("/api/control/jobs/{job_id}/cancel", response_model=ControlJobStatusResponse)
     async def cancel_control_job(job_id: str) -> ControlJobStatusResponse:
@@ -797,10 +838,58 @@ def create_app(
             last_result=app.state.zero_check_last_result,
         )
 
+    @app.get("/api/calibration-log", response_model=list[CalibrationLogEntry])
+    async def get_calibration_log() -> list[CalibrationLogEntry]:
+        return app.state.calibration_log
+
     @app.post("/api/control/zero-check", response_model=ControlJobAccepted, status_code=202)
     async def zero_check() -> ControlJobAccepted:
         _require_active_control()
         return _start_control_job("zero_check", _execute_zero_check())
+
+    @app.post("/api/control/tx-power-calibration", response_model=ControlJobAccepted, status_code=202)
+    async def tx_power_calibration(warmup_duration_s: float = 1200.0) -> ControlJobAccepted:
+        _require_active_control()
+        if _effective_maintenance().level != AccessLevel.MANT:
+            raise HTTPException(
+                status_code=403,
+                detail="se requiere nivel de mantenimiento MANT para la calibración de potencia TX",
+            )
+
+        job_id = uuid.uuid4().hex
+        input_queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
+
+        async def _get_input() -> dict[str, Any]:
+            return await input_queue.get()
+
+        def _on_step_change(current_step: int, total_steps: int, step_name: str, prompt: str) -> None:
+            rec = app.state.control_jobs.get(job_id)
+            if rec:
+                app.state.control_jobs[job_id] = ControlJobStatusResponse(
+                    job_id=job_id,
+                    routine="tx_power_calibration",
+                    status=ControlJobStatus.AWAITING_OPERATOR_INPUT,
+                    current_step=current_step,
+                    total_steps=total_steps,
+                    step_name=step_name,
+                    prompt=prompt,
+                    result=rec.result,
+                    error=None,
+                )
+
+        coro = run_tx_power_calibration(
+            hal,
+            actor=app.state.control.state.actor,
+            step_input_func=_get_input,
+            on_step_change_func=_on_step_change,
+            record_log_func=lambda entry: _record_calibration_log(app, entry),
+            warmup_duration_s=warmup_duration_s,
+            required_warmup_s=1200.0,
+        )
+
+        app.state.control_job_inputs[job_id] = input_queue
+        accepted = _start_control_job("tx_power_calibration", coro, job_id=job_id)
+        return accepted
 
     @app.get("/api/antenna/step-config", response_model=AntennaStepConfig)
     async def get_antenna_step_config() -> AntennaStepConfig:

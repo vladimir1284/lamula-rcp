@@ -309,9 +309,13 @@ export interface ZeroCheckSnapshot {
   last_result: RoutineResult | null
 }
 
+export interface WizardStepInputRequest {
+  data: Record<string, unknown>
+}
+
 // D-12: los seis POST /api/control/* ya no bloquean hasta que la rutina
 // termina -- devuelven un job (202) y el llamador sondea su estado.
-export type ControlJobStatus = 'running' | 'done'
+export type ControlJobStatus = 'running' | 'awaiting_operator_input' | 'done'
 
 export interface ControlJobAccepted {
   job_id: string
@@ -323,6 +327,10 @@ export interface ControlJobStatusResponse {
   job_id: string
   routine: string
   status: ControlJobStatus
+  current_step?: number | null
+  total_steps?: number | null
+  step_name?: string | null
+  prompt?: string | null
   // `ScanCutResult` (Scan Controller, POST /api/scan/worksheet/{index}/execute)
   // se agrego a esta union en vez de un contrato de job separado -- ver
   // ControlJobStatusResponse en core/contracts/mmi.py.
