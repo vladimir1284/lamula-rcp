@@ -29,6 +29,8 @@ import type {
   PowerMeasurementLimits,
   PowerMonitorSnapshot,
   ProcessMonitorSnapshot,
+  RadarConstantParameters,
+  RadarConstantSnapshot,
   RoutineResult,
   SetControlModeRequest,
   SystemInfo,
@@ -73,6 +75,41 @@ const trendStartedAt = ref<string | null>(null)
 const trendData = ref<TrendSeries[]>([])
 const powerLimits = ref<PowerMeasurementLimits | null>(null)
 const powerRadiating = ref(false)
+
+const radarConstantParams = ref<RadarConstantParameters>({
+  pulse_width_us: 1.0,
+  zero_check_high_dbm: -75.0,
+  zero_check_low_dbm: -80.0,
+  tx_losses_db: 1.5,
+  rx_losses_db: 1.5,
+  radome_losses_db: 0.5,
+  atmospheric_attenuation_db_km: 0.016,
+  horizontal_beam_width_deg: 0.95,
+  vertical_beam_width_deg: 0.95,
+  antenna_gain_db: 45.0,
+  wavelength_cm: 5.33,
+  noise_figure_db: 2.5,
+  filter_init_pulses: 4,
+})
+
+function mockComputeRadarConstant(p: RadarConstantParameters): number {
+  const c = 2.99792458e8
+  const wavelength_m = p.wavelength_cm / 100.0
+  const theta = (p.horizontal_beam_width_deg * Math.PI) / 180.0
+  const phi = (p.vertical_beam_width_deg * Math.PI) / 180.0
+  const h = c * (p.pulse_width_us * 1e-6)
+  const k2 = 0.93
+
+  const const_factor = (Math.pow(Math.PI, 3) * k2) / (1024.0 * Math.LN2)
+  const c_lin =
+    const_factor *
+    Math.pow(10, (2.0 * p.antenna_gain_db) / 10.0) *
+    theta *
+    phi *
+    h /
+    (Math.pow(wavelength_m, 2) * Math.pow(10, (p.tx_losses_db + p.rx_losses_db + p.radome_losses_db) / 10.0))
+  return Math.round(10.0 * Math.log10(c_lin) * 100) / 100
+}
 
 const antenna = shallowRef<AntennaMessage['position'] | null>({
   az_deg: 123.4,
@@ -352,6 +389,31 @@ async function savePowerLimits(): Promise<PowerMeasurementLimits> {
   return { ...powerLimits.value }
 }
 
+async function fetchRadarConstant(): Promise<RadarConstantSnapshot> {
+  await delay(80)
+  return {
+    params: { ...radarConstantParams.value },
+    radar_constant_db: mockComputeRadarConstant(radarConstantParams.value),
+  }
+}
+
+async function setRadarConstant(params: RadarConstantParameters): Promise<RadarConstantSnapshot> {
+  await delay(80)
+  radarConstantParams.value = { ...params }
+  return {
+    params: { ...radarConstantParams.value },
+    radar_constant_db: mockComputeRadarConstant(radarConstantParams.value),
+  }
+}
+
+async function saveRadarConstant(): Promise<RadarConstantSnapshot> {
+  await delay(150)
+  return {
+    params: { ...radarConstantParams.value },
+    radar_constant_db: mockComputeRadarConstant(radarConstantParams.value),
+  }
+}
+
 async function lockMaintenance(): Promise<MaintenanceState> {
   await delay(300)
   maintenance.value = {
@@ -437,6 +499,9 @@ export function useGateway() {
     fetchPowerMonitor,
     setPowerLimits,
     savePowerLimits,
+    fetchRadarConstant,
+    setRadarConstant,
+    saveRadarConstant,
     runControlJob,
     cancelControlJob,
     send,

@@ -159,6 +159,27 @@ class PowerMeasurementLimits(BaseModel):
     vswr_limit: float
 
 
+class RadarConstantParameters(BaseModel):
+    pulse_width_us: float
+    zero_check_high_dbm: float
+    zero_check_low_dbm: float
+    tx_losses_db: float
+    rx_losses_db: float
+    radome_losses_db: float
+    atmospheric_attenuation_db_km: float
+    horizontal_beam_width_deg: float
+    vertical_beam_width_deg: float
+    antenna_gain_db: float
+    wavelength_cm: float
+    noise_figure_db: float | None = None
+    filter_init_pulses: int
+
+
+class RadarConstantSnapshot(BaseModel):
+    params: RadarConstantParameters
+    radar_constant_db: float
+
+
 class PowerMonitorSnapshot(BaseModel):
     """`forward_power_kw`/`reverse_power_kw` en `None` si la lectura Modbus no es
     `SignalQuality.OK` (fuera de rango o excepcion) -- hueco, no dato fabricado.

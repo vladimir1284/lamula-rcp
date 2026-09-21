@@ -21,6 +21,7 @@ import BiteReviewView from '@/views/BiteReviewView.vue'
 import MaintenanceUnlockView from '@/views/MaintenanceUnlockView.vue'
 import PowerMonitorView from '@/views/PowerMonitorView.vue'
 import ProcessMonitorView from '@/views/ProcessMonitorView.vue'
+import RadarConstantView from '@/views/RadarConstantView.vue'
 import StateTrendPlotView from '@/views/StateTrendPlotView.vue'
 import SystemInformationView from '@/views/SystemInformationView.vue'
 import SystemStatusView from '@/views/SystemStatusView.vue'
@@ -52,6 +53,7 @@ const viewCatalog: ViewOption[] = [
   { id: 'state-trend-plot', label: 'B4 State Trend Plot', available: true },
   { id: 'process-monitor', label: 'B5 RCP Process Monitor', available: true },
   { id: 'power-monitor', label: 'B7 Power Monitor (VSWR)', available: true },
+  { id: 'radar-constant', label: 'G7 Radar Constant Parameters', available: true },
   { id: 'system-status', label: 'B10 System Status', available: true },
   { id: 'bite-messages', label: 'B8 BiTE Messages', available: true },
   { id: 'bite-review', label: 'B9 BiTE Review', available: true },
@@ -231,6 +233,7 @@ onMounted(() => {
     <template #state-trend-plot><StateTrendPlotView /></template>
     <template #process-monitor><ProcessMonitorView /></template>
     <template #power-monitor><PowerMonitorView /></template>
+    <template #radar-constant><RadarConstantView /></template>
     <template #system-status><SystemStatusView /></template>
     <template #bite-messages><BiteMessagesView /></template>
     <template #bite-review><BiteReviewView /></template>

@@ -66,5 +66,10 @@
   },
   "engines": {
     "node": "^22.18.0 || >=24.12.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "vue-component-meta": "3.3.10"
+    }
   }
 }

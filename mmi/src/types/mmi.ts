@@ -182,6 +182,27 @@ export interface TrendStatus {
   signal_ids: string[]
 }
 
+export interface RadarConstantParameters {
+  pulse_width_us: number
+  zero_check_high_dbm: number
+  zero_check_low_dbm: number
+  tx_losses_db: number
+  rx_losses_db: number
+  radome_losses_db: number
+  atmospheric_attenuation_db_km: number
+  horizontal_beam_width_deg: number
+  vertical_beam_width_deg: number
+  antenna_gain_db: number
+  wavelength_cm: number
+  noise_figure_db: number | null
+  filter_init_pulses: number
+}
+
+export interface RadarConstantSnapshot {
+  params: RadarConstantParameters
+  radar_constant_db: number
+}
+
 export interface PowerMeasurementLimits {
   forward_limit_kw: number
   reverse_limit_kw: number

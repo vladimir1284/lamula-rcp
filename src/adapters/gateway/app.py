@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import math
 import os
 import psutil
 import tomllib
@@ -61,6 +62,8 @@ from core.contracts.mmi import (
     OperatorMode,
     PowerMeasurementLimits,
     PowerMonitorSnapshot,
+    RadarConstantParameters,
+    RadarConstantSnapshot,
     ProcessInfo,
     ProcessMonitorSnapshot,
     RcpTaskInfo,
@@ -110,6 +113,42 @@ BITE_POLL_PERIOD_S = 0.5
 
 SCAN_WORKSHEET_LIST_ADAPTER = TypeAdapter(list[ScanCut])
 
+DEFAULT_RADAR_CONSTANT_PARAMS = RadarConstantParameters(
+    pulse_width_us=1.0,
+    zero_check_high_dbm=-75.0,
+    zero_check_low_dbm=-80.0,
+    tx_losses_db=1.5,
+    rx_losses_db=1.5,
+    radome_losses_db=0.5,
+    atmospheric_attenuation_db_km=0.016,
+    horizontal_beam_width_deg=0.95,
+    vertical_beam_width_deg=0.95,
+    antenna_gain_db=45.0,
+    wavelength_cm=5.33,
+    noise_figure_db=2.5,
+    filter_init_pulses=4,
+)
+
+
+def compute_radar_constant_db(params: RadarConstantParameters) -> float:
+    c_m_s = 2.99792458e8
+    wavelength_m = params.wavelength_cm / 100.0
+    theta_rad = math.radians(params.horizontal_beam_width_deg)
+    phi_rad = math.radians(params.vertical_beam_width_deg)
+    h_m = c_m_s * (params.pulse_width_us * 1e-6)
+    k2 = 0.93  # |K|^2 para agua liquida
+
+    const_factor = (math.pi ** 3 * k2) / (1024.0 * math.log(2.0))
+    c_lin = (
+        const_factor
+        * (10.0 ** (2.0 * params.antenna_gain_db / 10.0))
+        * theta_rad
+        * phi_rad
+        * h_m
+        / ((wavelength_m ** 2) * (10.0 ** ((params.tx_losses_db + params.rx_losses_db + params.radome_losses_db) / 10.0)))
+    )
+    return round(10.0 * math.log10(c_lin), 2)
+
 
 def create_app(
     hal: SimulatedHAL,
@@ -118,6 +157,7 @@ def create_app(
     dsp_port: int,
     scan_worksheet_path: Path = Path("data/scan_worksheet.json"),
     power_limits_path: Path = Path("data/power_limits.json"),
+    radar_constant_path: Path = Path("data/radar_constant.json"),
 ) -> FastAPI:
     async def _bite_poll_loop(app: FastAPI) -> None:
         while True:
@@ -236,6 +276,14 @@ def create_app(
         )
     except (FileNotFoundError, ValueError):
         app.state.power_limits: PowerMeasurementLimits | None = None
+
+    app.state.radar_constant_path = radar_constant_path
+    try:
+        app.state.radar_constant_params = RadarConstantParameters.model_validate_json(
+            radar_constant_path.read_text()
+        )
+    except (FileNotFoundError, ValueError):
+        app.state.radar_constant_params = DEFAULT_RADAR_CONSTANT_PARAMS
     # Jobs asincronos de los seis POST /api/control/* (ver _start_control_job mas
     # abajo) -- dict ordinario, el orden de inserccion de Python 3.7+ es lo que
     # usa el tope de historial para descartar el mas viejo. En memoria, se pierde
@@ -623,6 +671,33 @@ def create_app(
             return (await hal.read_digital("tx.radiating_status")).value
         except Exception:
             return False
+
+    @app.get("/api/radar-constant", response_model=RadarConstantSnapshot)
+    async def get_radar_constant() -> RadarConstantSnapshot:
+        params = app.state.radar_constant_params
+        return RadarConstantSnapshot(
+            params=params,
+            radar_constant_db=compute_radar_constant_db(params),
+        )
+
+    @app.post("/api/radar-constant", response_model=RadarConstantSnapshot)
+    async def set_radar_constant(params: RadarConstantParameters) -> RadarConstantSnapshot:
+        app.state.radar_constant_params = params
+        return RadarConstantSnapshot(
+            params=params,
+            radar_constant_db=compute_radar_constant_db(params),
+        )
+
+    @app.post("/api/radar-constant/save", response_model=RadarConstantSnapshot)
+    async def save_radar_constant() -> RadarConstantSnapshot:
+        app.state.radar_constant_path.parent.mkdir(parents=True, exist_ok=True)
+        app.state.radar_constant_path.write_text(
+            app.state.radar_constant_params.model_dump_json()
+        )
+        return RadarConstantSnapshot(
+            params=app.state.radar_constant_params,
+            radar_constant_db=compute_radar_constant_db(app.state.radar_constant_params),
+        )
 
     @app.get("/api/power-monitor", response_model=PowerMonitorSnapshot)
     async def get_power_monitor() -> PowerMonitorSnapshot:
