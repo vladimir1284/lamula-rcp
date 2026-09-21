@@ -1,0 +1,324 @@
+
+> mmi@0.0.0 build-storybook /app/mmi
+> storybook build
+
+
+┌  Building storybook v10.5.10
+│
+◇  Cleaning outputDir: storybook-static
+│
+◇  Loading presets
+│
+◇  Building manager..
+▲ [WARNING] Duplicate key "pnpm" in object literal [duplicate-object-key]
+
+    package.json:42:2:
+      42 │   "pnpm": {
+         ╵   ~~~~~~
+
+  The original key "pnpm" is here:
+
+    package.json:21:2:
+      21 │   "pnpm": {
+         ╵   ~~~~~~
+
+▲ [WARNING] Duplicate key "pnpm" in object literal [duplicate-object-key]
+
+    package.json:82:2:
+      82 │   "pnpm": {
+         ╵   ~~~~~~
+
+  The original key "pnpm" is here:
+
+    package.json:21:2:
+      21 │   "pnpm": {
+         ╵   ~~~~~~
+
+│
+●  Building open services..
+│
+●  Building preview..
+│  Vite vite v8.2.1 building client environment for production...
+[2Ktransforming...✓ 1019 modules transformed.
+rendering chunks...
+computing gzip size...
+│  Vite storybook-static/iframe.html
+│  19.60 kB │ gzip:   5.42 kB
+│  storybook-static/assets/iframe-BGkjD9tS.css
+│  56.54 kB │ gzip:  10.10 kB
+│  storybook-static/assets/iframe-DuwsccVg.js
+│  0.04 kB │ gzip:   0.06 kB
+│  storybook-static/assets/components-vdrnl3N7.js
+│  0.21 kB │ gzip:   0.18 kB
+│  storybook-static/assets/formatter-L2YTDE3Q-CRGuSxAF.js
+│  0.30 kB │ gzip:   0.24 kB
+│  storybook-static/assets/usePanelExport-9HOvy6KO.js
+│  0.31 kB │ gzip:   0.24 kB
+│  storybook-static/assets/chunk-QQBDHPVZ-DC5n6Pix.js
+│  0.32 kB │ gzip:   0.20 kB
+│  storybook-static/assets/ConfigProfilesView.stories-BnVS1Hay.js
+│  0.41 kB │ gzip:   0.27 kB
+│  storybook-static/assets/ScanParameterPopup.stories-EyBAx_D8.js
+│  0.41 kB │ gzip:   0.27 kB
+│  storybook-static/assets/EventLogView.stories-hEKgZLfW.js
+│  0.43 kB │ gzip:   0.29 kB
+│  storybook-static/assets/ZeroCheckView.stories-DVbe3C7w.js
+│  0.43 kB │ gzip:   0.29 kB
+│  storybook-static/assets/ConnectionView.stories-Bc1RSBqe.js
+│  0.44 kB │ gzip:   0.29 kB
+│  storybook-static/assets/BiteMessagesView.stories-CkpgP5N6.js
+│  0.44 kB │ gzip:   0.29 kB
+│  storybook-static/assets/PowerMonitorView.stories-D5YpVM5p.js
+│  0.44 kB │ gzip:   0.29 kB
+│  storybook-static/assets/SystemStatusView.stories-Bue6pfmx.js
+│  0.44 kB │ gzip:   0.29 kB
+│  storybook-static/assets/ControlCenterView.stories-CNQtjzgX.js
+│  0.44 kB │ gzip:   0.29 kB
+│  storybook-static/assets/ScanWorksheetView.stories-BqItiq-s.js
+│  0.44 kB │ gzip:   0.29 kB
+│  storybook-static/assets/AntennaControlView.stories-e-CkLt1x.js
+│  0.44 kB │ gzip:   0.29 kB
+│  storybook-static/assets/ProcessMonitorView.stories-RlVKS33s.js
+│  0.44 kB │ gzip:   0.29 kB
+│  storybook-static/assets/SectorBlankingView.stories-CSQKOj-u.js
+│  0.44 kB │ gzip:   0.29 kB
+│  storybook-static/assets/StateTrendPlotView.stories-BW3HR6Zc.js
+│  0.44 kB │ gzip:   0.29 kB
+│  storybook-static/assets/SubsystemDetailView.stories-BpZArFtX.js
+│  0.45 kB │ gzip:   0.30 kB
+│  storybook-static/assets/MaintenanceUnlockView.stories-ZrtBEhtJ.js
+│  0.45 kB │ gzip:   0.30 kB
+│  storybook-static/assets/DspInternalStatusView.stories--BkIiqqM.js
+│  0.45 kB │ gzip:   0.30 kB
+│  storybook-static/assets/SystemVisualizationView.stories-DMJNyxiZ.js
+│  0.45 kB │ gzip:   0.29 kB
+│  storybook-static/assets/HistoricalModeBanner.stories-BXt2NfA8.js
+│  0.56 kB │ gzip:   0.36 kB
+│  storybook-static/assets/react-Bl2r1tuC.js
+│  0.58 kB │ gzip:   0.34 kB
+│  storybook-static/assets/SystemInformationView.stories-Dc1XSvds.js
+│  0.66 kB │ gzip:   0.36 kB
+│  storybook-static/assets/AxisSelector.stories-CGIctCGr.js
+│  0.69 kB │ gzip:   0.35 kB
+│  storybook-static/assets/DspSetupHubView.stories-9Q0PgJgE.js
+│  0.76 kB │ gzip:   0.42 kB
+│  storybook-static/assets/ExportMenu.stories-odCd-nQV.js
+│  0.76 kB │ gzip:   0.43 kB
+│  storybook-static/assets/MeasurementFilePicker.stories-LAGPccwt.js
+│  0.79 kB │ gzip:   0.44 kB
+│  storybook-static/assets/DataViewToolbar.stories-BlZAkGpQ.js
+│  0.79 kB │ gzip:   0.43 kB
+│  storybook-static/assets/FaultBadgeRow.stories-B2KcSm1g.js
+│  0.82 kB │ gzip:   0.44 kB
+│  storybook-static/assets/NoiseLevelReadout.stories-56HK2tgA.js
+│  0.93 kB │ gzip:   0.45 kB
+│  storybook-static/assets/PrecheckList-Cwn-tlVC.js
+│  0.94 kB │ gzip:   0.57 kB
+│  storybook-static/assets/ConnectionStatusBadge-CUBBBhJT.js
+│  0.96 kB │ gzip:   0.57 kB
+│  storybook-static/assets/ColorScaleLegend.stories-CaEWnWdj.js
+│  1.03 kB │ gzip:   0.47 kB
+│  storybook-static/assets/ScheduleInfoRow.stories-Dhga4fZV.js
+│  1.05 kB │ gzip:   0.46 kB
+│  storybook-static/assets/TrafficLight.stories-BDr4wFzR.js
+│  1.08 kB │ gzip:   0.43 kB
+│  storybook-static/assets/PpiView.stories-BaB8Racg.js
+│  1.09 kB │ gzip:   0.45 kB
+│  storybook-static/assets/RhiView.stories-Dvp2U_6d.js
+│  1.09 kB │ gzip:   0.45 kB
+│  storybook-static/assets/IndicatorLamp-D4UfSXe-.js
+│  1.10 kB │ gzip:   0.63 kB
+│  storybook-static/assets/AscopeView.stories-CMzyABLZ.js
+│  1.12 kB │ gzip:   0.45 kB
+│  storybook-static/assets/ConnectionStatusBadge.stories-CPg01wox.js
+│  1.13 kB │ gzip:   0.44 kB
+│  storybook-static/assets/rolldown-runtime-DkW27tQK.js
+│  1.19 kB │ gzip:   0.67 kB
+│  storybook-static/assets/ColorScaleLegend-CPvOCztL.js
+│  1.21 kB │ gzip:   0.72 kB
+│  storybook-static/assets/AxisSelector-BFhoFzFp.js
+│  1.22 kB │ gzip:   0.63 kB
+│  storybook-static/assets/AxisPositioningFields.stories-C7U9T6ug.js
+│  1.23 kB │ gzip:   0.49 kB
+│  storybook-static/assets/TrafficLight-498S2xXp.js
+│  1.23 kB │ gzip:   0.73 kB
+│  storybook-static/assets/CursorReadout.stories-BLYelldG.js
+│  1.24 kB │ gzip:   0.53 kB
+│  storybook-static/assets/MaintenanceUnlockView-mbPg89kO.js
+│  1.25 kB │ gzip:   0.65 kB
+│  storybook-static/assets/preload-helper-wdlQj8DP.js
+│  1.31 kB │ gzip:   0.74 kB
+│  storybook-static/assets/UptimeDisplay.stories-bZS8rWgF.js
+│  1.33 kB │ gzip:   0.73 kB
+│  storybook-static/assets/FaultBadgeRow-BLWfsI3o.js
+│  1.39 kB │ gzip:   0.73 kB
+│  storybook-static/assets/BiteReviewView.stories-thotGzUN.js
+│  1.46 kB │ gzip:   0.64 kB
+│  storybook-static/assets/PrecheckList.stories-C_Pt2IzO.js
+│  1.49 kB │ gzip:   0.48 kB
+│  storybook-static/assets/KeyValueTable-DRVxyB3f.js
+│  1.53 kB │ gzip:   0.87 kB
+│  storybook-static/assets/HistoricalModeBanner-yLqF63uu.js
+│  1.56 kB │ gzip:   0.86 kB
+│  storybook-static/assets/ConfigDiffView.stories-BaW_5U3Z.js
+│  1.59 kB │ gzip:   0.64 kB
+│  storybook-static/assets/chunk-IMSF75WX-CGYlPTyG.js
+│  1.67 kB │ gzip:   0.91 kB
+│  storybook-static/assets/AntennaPositionReadout-D2c0BQe7.js
+│  1.67 kB │ gzip:   0.84 kB
+│  storybook-static/assets/Primitive-Cj8YdxJD.js
+│  1.71 kB │ gzip:   0.87 kB
+│  storybook-static/assets/AntennaPositionReadout.stories-ZiVR8Oz9.js
+│  1.75 kB │ gzip:   0.59 kB
+│  storybook-static/assets/CursorReadout-BmO2ZVJv.js
+│  1.78 kB │ gzip:   0.88 kB
+│  storybook-static/assets/ColorComposer.stories-CpZuh9fz.js
+│  1.87 kB │ gzip:   0.50 kB
+│  storybook-static/assets/ControlAuthorityCard.stories-BAkkfrQp.js
+│  1.94 kB │ gzip:   0.58 kB
+│  storybook-static/assets/SystemStatusView-C-95yWU-.js
+│  1.95 kB │ gzip:   1.00 kB
+│  storybook-static/assets/input-DoArghqT.js
+│  1.99 kB │ gzip:   0.96 kB
+│  storybook-static/assets/SystemVisualizationView-BZAocR_H.js
+│  2.00 kB │ gzip:   1.04 kB
+│  storybook-static/assets/badge-CrNjAgxr.js
+│  2.17 kB │ gzip:   1.05 kB
+│  storybook-static/assets/MaintenanceUnlockCard.stories-Byfq0dRG.js
+│  2.25 kB │ gzip:   0.68 kB
+│  storybook-static/assets/AxisPositioningFields-CvcGhyE-.js
+│  2.32 kB │ gzip:   0.91 kB
+│  storybook-static/assets/ConnectionView-CkPMZupz.js
+│  2.33 kB │ gzip:   1.20 kB
+│  storybook-static/assets/dataPalette-D2hn1y8O.js
+│  2.35 kB │ gzip:   1.02 kB
+│  storybook-static/assets/JobActionPanel.stories-CuaXyMzY.js
+│  2.43 kB │ gzip:   0.75 kB
+│  storybook-static/assets/dist-CygBSfVV.js
+│  2.44 kB │ gzip:   1.27 kB
+│  storybook-static/assets/ScheduleInfoRow-BVEvvLYL.js
+│  2.63 kB │ gzip:   1.16 kB
+│  storybook-static/assets/NoiseLevelReadout-BhuZfp57.js
+│  2.68 kB │ gzip:   1.13 kB
+│  storybook-static/assets/dist-zCLA9fld.js
+│  2.80 kB │ gzip:   1.33 kB
+│  storybook-static/assets/ZeroCheckView-ZUugA9gD.js
+│  3.05 kB │ gzip:   1.48 kB
+│  storybook-static/assets/JobActionPanel-B6tQo6dT.js
+│  3.08 kB │ gzip:   1.16 kB
+│  storybook-static/assets/SnapshotAction.stories-QSLHy0gc.js
+│  3.21 kB │ gzip:   1.39 kB
+│  storybook-static/assets/EventLogView-dMJ13ba3.js
+│  3.38 kB │ gzip:   1.56 kB
+│  storybook-static/assets/chunk-DRQKCCAG-DvsmU7ha.js
+│  3.39 kB │ gzip:   1.41 kB
+│  storybook-static/assets/button-DJWheYxl.js
+│  3.70 kB │ gzip:   1.40 kB
+│  storybook-static/assets/chunk-242VQQM5-BvAPezJ5.js
+│  3.78 kB │ gzip:   1.47 kB
+│  storybook-static/assets/ProcessMonitorView-CBFKXYqE.js
+│  3.94 kB │ gzip:   1.57 kB
+│  storybook-static/assets/MeasurementFilePicker-BWgw3hJy.js
+│  4.08 kB │ gzip:   1.77 kB
+│  storybook-static/assets/AscopeView-C-oguvZE.js
+│  4.11 kB │ gzip:   2.10 kB
+│  storybook-static/assets/ScanParameterPopup-5eBs_lW6.js
+│  4.13 kB │ gzip:   1.88 kB
+│  storybook-static/assets/ControlAuthorityCard-xgCh5mpD.js
+│  4.35 kB │ gzip:   1.66 kB
+│  storybook-static/assets/MaintenanceUnlockCard-CCzBNS5s.js
+│  4.41 kB │ gzip:   1.91 kB
+│  storybook-static/assets/ExportMenu-D5HNk4HJ.js
+│  4.43 kB │ gzip:   1.74 kB
+│  storybook-static/assets/ConfigProfilesView-Ctw_pf_q.js
+│  4.63 kB │ gzip:   1.88 kB
+│  storybook-static/assets/PpiView-j4zPfG0q.js
+│  4.67 kB │ gzip:   2.25 kB
+│  storybook-static/assets/AppShell.stories-DjCWUpze.js
+│  4.82 kB │ gzip:   1.59 kB
+│  storybook-static/assets/BiteReviewView-Ccj9I_sb.js
+│  4.89 kB │ gzip:   2.11 kB
+│  storybook-static/assets/ConfigDiffView-DKpgh78X.js
+│  4.93 kB │ gzip:   2.14 kB
+│  storybook-static/assets/RhiView-D7SHkkSa.js
+│  4.95 kB │ gzip:   2.38 kB
+│  storybook-static/assets/BiteMessagesView-ZQtjuvJF.js
+│  4.99 kB │ gzip:   2.20 kB
+│  storybook-static/assets/Presence-DR7m1AQv.js
+│  5.08 kB │ gzip:   2.19 kB
+│  storybook-static/assets/chunk-5GYAEUAU-BGgO7bU4.js
+│  5.14 kB │ gzip:   1.93 kB
+│  storybook-static/assets/PowerMonitorView-C-PxGp03.js
+│  5.17 kB │ gzip:   2.00 kB
+│  storybook-static/assets/SubsystemDetailView-DCSvGP30.js
+│  5.43 kB │ gzip:   2.18 kB
+│  storybook-static/assets/card-Bec-gpmq.js
+│  5.63 kB │ gzip:   1.42 kB
+│  storybook-static/assets/DataViewToolbar-mT3uLELf.js
+│  5.64 kB │ gzip:   2.01 kB
+│  storybook-static/assets/ColorSystem.stories-R3vgmzlI.js
+│  5.92 kB │ gzip:   2.34 kB
+│  storybook-static/assets/SystemInformationView-BGxtYCQN.js
+│  6.34 kB │ gzip:   2.52 kB
+│  storybook-static/assets/ControlCenterView-DHvh7AKr.js
+│  6.87 kB │ gzip:   2.10 kB
+│  storybook-static/assets/App.stories-Cujyh9H4.js
+│  7.42 kB │ gzip:   2.81 kB
+│  storybook-static/assets/react-BZJXY1be.js
+│  7.53 kB │ gzip:   2.88 kB
+│  storybook-static/assets/CalibrationLogView.stories-D0kRB1Tn.js
+│  7.67 kB │ gzip:   2.77 kB
+│  storybook-static/assets/ColorComposer-Bv6K-4qt.js
+│  9.03 kB │ gzip:   3.66 kB
+│  storybook-static/assets/DspSetupHubView-CqF0_tTo.js
+│  10.36 kB │ gzip:   4.11 kB
+│  storybook-static/assets/useGateway.mock-BSDgTZ6o.js
+│  10.82 kB │ gzip:   3.92 kB
+│  storybook-static/assets/ScanWorksheetView-D1dSLjEP.js
+│  11.92 kB │ gzip:   3.88 kB
+│  storybook-static/assets/SectorBlankingView-Cfegfdkk.js
+│  12.91 kB │ gzip:   4.47 kB
+│  storybook-static/assets/exportUtils-BGitIVxx.js
+│  14.91 kB │ gzip:   5.79 kB
+│  storybook-static/assets/StateTrendPlotView-BsogUAx4.js
+│  15.26 kB │ gzip:   5.10 kB
+│  storybook-static/assets/AppShell-BiOLB8S6.js
+│  18.17 kB │ gzip:   5.55 kB
+│  storybook-static/assets/DspInternalStatusView-DQEAw1kr.js
+│  18.46 kB │ gzip:   5.70 kB
+│  storybook-static/assets/scroll-area-DCXaDADp.js
+│  19.54 kB │ gzip:   5.36 kB
+│  storybook-static/assets/chunk-W22LQPXL-EGASGoRO.js
+│  23.09 kB │ gzip:   7.77 kB
+│  storybook-static/assets/utils-Dm4OyE3Q.js
+│  27.68 kB │ gzip:   8.95 kB
+│  storybook-static/vite-inject-mocker-entry.js
+│  27.84 kB │ gzip:   9.66 kB
+│  storybook-static/assets/Color-6AOWCN3U-CCOoKJXm.js
+│  30.43 kB │ gzip:  11.51 kB
+│  storybook-static/assets/AntennaControlView-T1m-nXch.js
+│  32.37 kB │ gzip:   9.99 kB
+│  storybook-static/assets/WithTooltip-CDUNV5IS-DhCPbPmq.js
+│  32.74 kB │ gzip:  11.48 kB
+│  storybook-static/assets/theming-DOzTPRww.js
+│  55.41 kB │ gzip:  21.34 kB
+│  storybook-static/assets/syntaxhighlighter-QEQV7K2Y-CTdu_pGE.js
+│  75.92 kB │ gzip:  27.27 kB
+│  storybook-static/assets/DocsRenderer-JROSPFPF-4JD2Ndow.js
+│  938.09 kB │ gzip: 297.37 kB
+│  storybook-static/assets/iframe-BBU-T3gR.js
+│  1,069.51 kB │ gzip: 316.91 kB
+
+│
+▲  Vite [plugin builtin:vite-reporter]
+│  (!) Some chunks are larger than 500 kB after minification. Consider:
+│  - Using dynamic import() to code-split the application
+│  - Use build.rolldownOptions.output.codeSplitting to improve chunking:
+│  ]8;;https://rolldown.rs/reference/OutputOptions.codeSplittinghttps://rolldown.rs/reference/OutputOptions.codeSplitting]8;;
+│  - Adjust chunk size limit for this warning via
+│  build.chunkSizeWarningLimit.
+│  Vite ✓ built in 5.82s
+│
+◇  Output directory: /app/mmi/storybook-static
+│
+└  Storybook build completed successfully

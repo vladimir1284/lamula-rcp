@@ -1,20 +1,10 @@
 <script setup lang="ts">
-// D4 RHI (docs/diseno/inventario-ui.md) -- igual patrón que D3 (PpiView.vue):
-// radar en la esquina inferior izquierda, línea radial sigue la velocidad de
-// elevación en vez de azimut, cursor añade altura. Misma limitación
-// documentada en PpiView.vue sobre el inset (zoom centrado, sin recentrar
-// por click) y mismo límite de fondo (sin stream de momentos real, "camino
-// 1" -- solo UI + datos sintéticos).
-//
-// Azimut fijo sintético: en el legacy el RHI corre a un azimut del Scan
-// Worksheet, que en este mock no existe conectado -- se fija a un valor
-// constante en vez de inventar un selector de azimut sin scan worksheet real
-// detrás.
+// D4 RHI (docs/diseno/inventario-ui.md) -- D6: usa escala continua interpolada `buildActiveScale`.
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import ColorScaleLegend from '@/components/domain/ColorScaleLegend.vue'
 import CursorReadout from '@/components/domain/CursorReadout.vue'
 import DataViewToolbar from '@/components/domain/DataViewToolbar.vue'
-import { resolvePalette, colorForValue } from '@/lib/dataPalette'
+import { buildActiveScale, colorForValueContinuous } from '@/lib/dataPalette'
 import { generateGates, GATE_COUNT, MAX_RANGE_KM, type DataKind } from '@/lib/mockRadar'
 
 const props = withDefaults(defineProps<{ frozen?: boolean }>(), { frozen: false })
@@ -36,13 +26,11 @@ let ro: ResizeObserver | null = null
 let timer: ReturnType<typeof setInterval> | null = null
 
 const elevation = ref(0)
-let direction = 1 // RHI barre elevación de ida y vuelta, no da vueltas completas como PPI
+let direction = 1
 const BUCKET_COUNT = (EL_MAX - EL_MIN) / EL_STEP_DEG
-// Mismo bug que PpiView.vue: el bucket del historial tiene que medir lo
-// mismo que el paso de elevación por tick, si no, sólo se pinta una
-// fracción de los grados y quedan rendijas "de rueda" en el abanico.
 let history: (number[] | null)[] = Array.from({ length: BUCKET_COUNT }, () => null)
-let palette = resolvePalette(dataType.value)
+
+const activeScale = ref<string[]>(buildActiveScale(dataType.value, 256))
 
 const cursor = ref<{ rangeKm: number; azimuthDeg: number; elevationDeg: number; heightKm: number; value: number; kind: DataKind } | null>(null)
 
@@ -71,8 +59,6 @@ function resizeCanvases() {
   redrawAll()
 }
 
-// Misma cuña polar real que PpiView.vue -- ver comentario ahí sobre el bug
-// de rendijas que deja un rect de ancho fijo.
 function drawSector(bucketDeg: number, gates: number[]) {
   const ctx = dataCanvasEl.value?.getContext('2d')
   if (!ctx) return
@@ -84,7 +70,7 @@ function drawSector(bucketDeg: number, gates: number[]) {
     const v = quantize(gates[i] ?? 0, resolution.value)
     const r0 = i * rScale
     const r1 = (i + 1) * rScale + 0.5
-    ctx.fillStyle = colorForValue(palette, dataType.value, v)
+    ctx.fillStyle = colorForValueContinuous(activeScale.value, dataType.value, v)
     ctx.beginPath()
     ctx.arc(originX, originY, r1, a0, a1)
     ctx.arc(originX, originY, r0, a1, a0, true)
@@ -111,7 +97,6 @@ function drawOverlay() {
   const { w, h, originX, originY, radius } = sizePx()
   ctx.clearRect(0, 0, w, h)
 
-  // Anillos de rango (isométricos con PPI: arcos de altura/rango constante).
   ctx.strokeStyle = 'rgba(255,255,255,0.18)'
   ctx.lineWidth = 1
   for (let f = 0.25; f <= 1; f += 0.25) {
@@ -120,7 +105,6 @@ function drawOverlay() {
     ctx.stroke()
   }
 
-  // Línea de barrido: sigue la velocidad de elevación, no de azimut.
   const elRad = (elevation.value * Math.PI) / 180
   ctx.strokeStyle = 'white'
   ctx.lineWidth = 2
@@ -165,8 +149,13 @@ function step() {
   drawOverlay()
 }
 
+function reloadScale() {
+  activeScale.value = buildActiveScale(dataType.value, 256)
+  redrawAll()
+}
+
 watch(dataType, () => {
-  palette = resolvePalette(dataType.value)
+  activeScale.value = buildActiveScale(dataType.value, 256)
   history = Array.from({ length: BUCKET_COUNT }, () => null)
   redrawAll()
 })
@@ -218,6 +207,7 @@ onBeforeUnmount(() => {
       v-model:resolution="resolution"
       v-model:zoom="zoom"
       v-model:source="source"
+      @color-composer-updated="reloadScale"
     />
     <div class="flex min-h-0 flex-1 gap-1.5">
       <div ref="wrapEl" class="relative min-h-0 flex-1">
@@ -225,7 +215,7 @@ onBeforeUnmount(() => {
         <canvas ref="overlayCanvasEl" class="absolute inset-0 h-full w-full cursor-crosshair" @click="onCanvasClick" />
         <span v-if="frozen" class="absolute right-1 top-1 rounded-sm bg-state-simulated/80 px-1 text-[10px] text-white">FROZEN</span>
       </div>
-      <ColorScaleLegend :kind="dataType" />
+      <ColorScaleLegend :kind="dataType" :custom-scale="activeScale" />
     </div>
     <div class="flex items-center justify-between gap-2">
       <span class="text-[10px] text-muted-foreground">

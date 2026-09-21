@@ -1,20 +1,10 @@
 <script setup lang="ts">
-// D3 PPI (docs/diseno/inventario-ui.md) -- "camino 1": solo UI + datos
-// sintéticos, sin backend real (mismo límite que AscopeView.vue). `frozen`
-// llega del panel (App.vue), mismo criterio que D2.
-//
-// Simplificación deliberada de "Location out of Center" (§8.4.3): el
-// inventario pide que al pulsar dentro del inset de vista general se
-// redefina el centro de la vista ampliada -- eso es la parte que el propio
-// documento marca como "hay que diseñar bien" (overview + detail con centro
-// móvil). Esta primera pasada implementa zoom centrado (sin desplazar el
-// centro) y el inset como referencia visual fija; el click-para-recentrar
-// queda pendiente, documentado acá en vez de improvisarlo mal.
+// D3 PPI (docs/diseno/inventario-ui.md) -- D6: usa escala continua interpolada `buildActiveScale`.
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import ColorScaleLegend from '@/components/domain/ColorScaleLegend.vue'
 import CursorReadout from '@/components/domain/CursorReadout.vue'
 import DataViewToolbar from '@/components/domain/DataViewToolbar.vue'
-import { resolvePalette, colorForValue } from '@/lib/dataPalette'
+import { buildActiveScale, colorForValueContinuous } from '@/lib/dataPalette'
 import { generateGates, GATE_COUNT, MAX_RANGE_KM, type DataKind } from '@/lib/mockRadar'
 
 const props = withDefaults(defineProps<{ frozen?: boolean }>(), { frozen: false })
@@ -30,15 +20,12 @@ const overlayCanvasEl = ref<HTMLCanvasElement | null>(null)
 let ro: ResizeObserver | null = null
 let timer: ReturnType<typeof setInterval> | null = null
 
-const angle = ref(0) // azimut de la antena sintética, grados, 0 = norte arriba
+const angle = ref(0)
 const ANGLE_STEP_DEG = 3
 const BUCKET_COUNT = 360 / ANGLE_STEP_DEG
-// Los buckets del historial tienen que medir lo mismo que el paso angular
-// del barrido -- con buckets de 1° y un paso de 3°, 2 de cada 3 buckets no
-// se pintaban nunca: el bug de "rayos de rueda" no era antialiasing, era
-// esto (visto en Storybook con datos sintéticos antes de este fix).
 let history: (number[] | null)[] = Array.from({ length: BUCKET_COUNT }, () => null)
-let palette = resolvePalette(dataType.value)
+
+const activeScale = ref<string[]>(buildActiveScale(dataType.value, 256))
 
 const cursor = ref<{ rangeKm: number; azimuthDeg: number; elevationDeg: number; value: number; kind: DataKind } | null>(null)
 
@@ -67,17 +54,10 @@ function resizeCanvases() {
   redrawAll()
 }
 
-// Cuña polar real (arco interior + arco exterior), no una aproximación
-// rectangular -- un rect de ancho fijo deja rendijas crecientes con el radio
-// entre sectores de 1° adyacentes (bug real, visto en Storybook con datos
-// sintéticos: "rayos de rueda" en vez de un disco continuo).
 function drawSector(bucketDeg: number, gates: number[]) {
   const ctx = dataCanvasEl.value?.getContext('2d')
   if (!ctx) return
   const { cx, cy, radius } = sizePx()
-  // -90°: 0° de azimut (norte) queda arriba; canvas mide ángulo desde +x.
-  // bucketDeg ya es el borde inicial del sector (ancho ANGLE_STEP_DEG);
-  // +2% de solape para tapar el hairline de antialiasing entre sectores.
   const a0 = ((bucketDeg * Math.PI) / 180) - Math.PI / 2
   const a1 = (((bucketDeg + ANGLE_STEP_DEG * 1.02) * Math.PI) / 180) - Math.PI / 2
   const rScale = (radius * zoom.value) / gates.length
@@ -85,7 +65,7 @@ function drawSector(bucketDeg: number, gates: number[]) {
     const v = quantize(gates[i] ?? 0, resolution.value)
     const r0 = i * rScale
     const r1 = (i + 1) * rScale + 0.5
-    ctx.fillStyle = colorForValue(palette, dataType.value, v)
+    ctx.fillStyle = colorForValueContinuous(activeScale.value, dataType.value, v)
     ctx.beginPath()
     ctx.arc(cx, cy, r1, a0, a1)
     ctx.arc(cx, cy, r0, a1, a0, true)
@@ -112,7 +92,6 @@ function drawOverlay() {
   const { w, h, cx, cy, radius } = sizePx()
   ctx.clearRect(0, 0, w, h)
 
-  // Anillos de rango (RangeRings), cada 1/4 de alcance máximo visible.
   ctx.strokeStyle = 'rgba(255,255,255,0.18)'
   ctx.lineWidth = 1
   for (let f = 0.25; f <= 1; f += 0.25) {
@@ -121,7 +100,6 @@ function drawOverlay() {
     ctx.stroke()
   }
 
-  // Línea de barrido (AntennaSweepLine): blanca, posición actual de antena.
   const thetaRad = (angle.value * Math.PI) / 180
   ctx.strokeStyle = 'white'
   ctx.lineWidth = 2
@@ -130,7 +108,6 @@ function drawOverlay() {
   ctx.lineTo(cx + radius * zoom.value * Math.sin(thetaRad), cy - radius * zoom.value * Math.cos(thetaRad))
   ctx.stroke()
 
-  // Inset de vista general (OverviewInset), sólo con zoom > 1.
   if (zoom.value > 1) {
     const insetR = Math.min(w, h) * 0.14
     const insetCx = w - insetR - 8
@@ -157,8 +134,13 @@ function step() {
   drawOverlay()
 }
 
+function reloadScale() {
+  activeScale.value = buildActiveScale(dataType.value, 256)
+  redrawAll()
+}
+
 watch(dataType, () => {
-  palette = resolvePalette(dataType.value)
+  activeScale.value = buildActiveScale(dataType.value, 256)
   history = Array.from({ length: BUCKET_COUNT }, () => null)
   redrawAll()
 })
@@ -207,6 +189,7 @@ onBeforeUnmount(() => {
       v-model:resolution="resolution"
       v-model:zoom="zoom"
       v-model:source="source"
+      @color-composer-updated="reloadScale"
     />
     <div class="flex min-h-0 flex-1 gap-1.5">
       <div ref="wrapEl" class="relative min-h-0 flex-1">
@@ -214,7 +197,7 @@ onBeforeUnmount(() => {
         <canvas ref="overlayCanvasEl" class="absolute inset-0 h-full w-full cursor-crosshair" @click="onCanvasClick" />
         <span v-if="frozen" class="absolute right-1 top-1 rounded-sm bg-state-simulated/80 px-1 text-[10px] text-white">FROZEN</span>
       </div>
-      <ColorScaleLegend :kind="dataType" />
+      <ColorScaleLegend :kind="dataType" :custom-scale="activeScale" />
     </div>
     <div class="flex items-center justify-between gap-2">
       <span class="text-[10px] text-muted-foreground">
