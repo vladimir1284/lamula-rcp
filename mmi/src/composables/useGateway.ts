@@ -21,6 +21,8 @@ import type {
   ControlAuthorityState,
   ControlJobAccepted,
   ControlJobStatusResponse,
+  DspInternalStatusSnapshot,
+  DspResetCountersResponse,
   DspStreamStatus,
   MaintenanceState,
   PowerMeasurementLimits,
@@ -254,6 +256,20 @@ async function fetchZeroCheck(): Promise<ZeroCheckSnapshot> {
   const res = await fetch(`${GATEWAY_HTTP}/api/zero-check`)
   if (!res.ok) throw new Error(`GET /api/zero-check: HTTP ${res.status}`)
   return (await res.json()) as ZeroCheckSnapshot
+}
+
+async function fetchDspInternalStatus(): Promise<DspInternalStatusSnapshot> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/dsp/internal-status`)
+  if (!res.ok) throw new Error(`GET /api/dsp/internal-status: HTTP ${res.status}`)
+  return (await res.json()) as DspInternalStatusSnapshot
+}
+
+async function resetDspCounters(): Promise<DspResetCountersResponse> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/dsp/reset-counters`, {
+    method: 'POST',
+  })
+  if (!res.ok) throw new Error(`POST /api/dsp/reset-counters: HTTP ${res.status}`)
+  return (await res.json()) as DspResetCountersResponse
 }
 
 async function setPowerLimits(limits: PowerMeasurementLimits): Promise<PowerMeasurementLimits> {
@@ -548,6 +564,8 @@ export function useGateway() {
     saveConfigProfile,
     restoreConfigProfile,
     factoryConfigProfile,
+    fetchDspInternalStatus,
+    resetDspCounters,
     runControlJob,
     cancelControlJob,
     send,

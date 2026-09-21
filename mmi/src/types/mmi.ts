@@ -60,6 +60,43 @@ export interface DspStreamStatus {
   last_radial_at_wall: string | null
 }
 
+export interface DspInternalStatusSnapshot {
+  connected: boolean
+  uptime_s: number
+  phase: number
+  severity: number
+  last_error: number
+  n_rx_channels: number
+  capability_flags: number
+  bite_flags: number
+  config_seq: number
+  rays_in: number
+  rays_out: number
+  rays_dropped: number
+  queue_depth: number
+  bins_ok: number
+  bins_total: number
+  trigger_period_cmd_ns: number
+  trigger_period_meas_ns: number
+  noise_floor_dbm: number[]
+  dc_offset_i: number[]
+  dc_offset_q: number[]
+  n_gates: number
+  n_pulses: number
+  prf_hz: number
+  gate_spacing_m: number
+  sqi_threshold: number
+  sig_threshold: number
+  ccor_threshold: number
+  log_threshold: number
+  rfi_filter: number
+}
+
+export interface DspResetCountersResponse {
+  status: string
+  message: string
+}
+
 export type BiteTransition = 'fault' | 'cleared'
 
 export interface BiteFaultSummary {
