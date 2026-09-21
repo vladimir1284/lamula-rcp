@@ -17,7 +17,7 @@ import {
   type ScanCutResult,
 } from '@/types/scan'
 
-const { control, runControlJob, cancelControlJob } = useGateway()
+const { control, runControlJob, cancelControlJob, fetchScanWorksheet: gatewayFetchScanWorksheet } = useGateway()
 const isActive = computed(() => control.value?.mode === 'active')
 
 const worksheet = ref<ScanCut[]>([])
@@ -96,9 +96,7 @@ function buildCut(): ScanCut {
 }
 
 async function fetchWorksheet() {
-  const res = await fetch(`${GATEWAY_HTTP}/api/scan/worksheet`)
-  if (!res.ok) throw new Error(`GET /api/scan/worksheet: HTTP ${res.status}`)
-  worksheet.value = (await res.json()) as ScanCut[]
+  worksheet.value = await gatewayFetchScanWorksheet()
 }
 
 async function addCut() {

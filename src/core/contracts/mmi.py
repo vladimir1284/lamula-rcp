@@ -149,6 +149,37 @@ class TrendStatus(BaseModel):
     signal_ids: list[SignalId] = Field(default_factory=list)
 
 
+class BlankingSector(BaseModel):
+    in_use: bool = False
+    az_start_deg: float = Field(0.0, ge=0.0, le=360.0)
+    az_end_deg: float = Field(0.0, ge=0.0, le=360.0)
+    el_start_deg: float = Field(-90.0, ge=-90.0, le=90.0)
+    el_end_deg: float = Field(90.0, ge=-90.0, le=90.0)
+
+
+def default_sectors() -> list[BlankingSector]:
+    return [BlankingSector() for _ in range(8)]
+
+
+class SectorBlankingProfile(BaseModel):
+    enabled: bool = False
+    sectors: list[BlankingSector] = Field(default_factory=default_sectors)
+
+
+class ThresholdsConfig(BaseModel):
+    log_threshold_db: float = 1.0
+    csr_threshold_db: float = -18.0
+    sqi_threshold: float = Field(0.3, ge=0.0, le=1.0)
+    speckle_remover: bool = True
+
+
+class ClutterFilterConfig(BaseModel):
+    doppler_filter_id: int = 1
+    doppler_type_db: str = "default"
+    fft_filter_enabled: bool = False
+    statistical_filter_enabled: bool = False
+
+
 class PowerMeasurementLimits(BaseModel):
     """Limites editables por el operador (B7, RAVIS Sec.7.7) -- volatiles hasta
     `POST /api/power-monitor/limits/save` los persiste (mismo criterio que
@@ -157,6 +188,30 @@ class PowerMeasurementLimits(BaseModel):
     forward_limit_kw: float
     reverse_limit_kw: float
     vswr_limit: float
+
+
+class CalibrationLogEntry(BaseModel):
+    """Contrato unificado para el registro de actividades de calibracion (G8, RAVIS Sec.7.4).
+    Reutilizado por todas las vistas de la familia G."""
+
+    at_wall: datetime
+    severity: Literal["info", "warn", "error"]
+    procedure: str
+    actor: str
+    message: str
+    detail: str | None = None
+
+
+class RcpConfigProfile(BaseModel):
+    """Perfiles de configuracion local RCP (E11, RAVIS/RVP §4.1.1 F/S/R).
+    Agrupa los parametros de control directo del RCP: limites B7, step config C2/E5,
+    sectores de blanking C5, umbrales E3 y filtros de clutter E4."""
+
+    power_limits: PowerMeasurementLimits | None = None
+    antenna_step_config: AntennaStepConfig = Field(default_factory=AntennaStepConfig)
+    sector_blanking: SectorBlankingProfile = Field(default_factory=SectorBlankingProfile)
+    thresholds: ThresholdsConfig = Field(default_factory=ThresholdsConfig)
+    clutter_filter: ClutterFilterConfig = Field(default_factory=ClutterFilterConfig)
 
 
 class PowerMonitorSnapshot(BaseModel):
@@ -243,6 +298,47 @@ class DspStreamStatus(BaseModel):
     last_radial_at_wall: datetime | None = None
 
 
+class DspInternalStatusSnapshot(BaseModel):
+    """Detalle completo del estado interno del DSP (E12 - V/Vz)."""
+
+    connected: bool
+    uptime_s: int
+    phase: int
+    severity: int
+    last_error: int
+    n_rx_channels: int
+    capability_flags: int
+    bite_flags: int
+    config_seq: int
+    rays_in: int
+    rays_out: int
+    rays_dropped: int
+    queue_depth: int
+    bins_ok: int
+    bins_total: int
+    trigger_period_cmd_ns: int
+    trigger_period_meas_ns: int
+    noise_floor_dbm: list[float]
+    dc_offset_i: list[float]
+    dc_offset_q: list[float]
+    n_gates: int
+    n_pulses: int
+    prf_hz: float
+    gate_spacing_m: float
+    sqi_threshold: float
+    sig_threshold: float
+    ccor_threshold: float
+    log_threshold: float
+    rfi_filter: int
+
+
+class DspResetCountersResponse(BaseModel):
+    """Respuesta al reinicio de contadores del DSP (Vz)."""
+
+    status: str
+    message: str
+
+
 class BiteFaultSummary(BaseModel):
     """Una falla activa del System Status & BITE Manager (`core/bite/`), ya
     con hora de pared -- el gateway se la asigna al momento de detectarla
@@ -270,6 +366,19 @@ class SystemStatusSnapshot(BaseModel):
     antenna: AntennaPosition | None = None
     dsp: DspStreamStatus | None = None
     active_bite_faults: list[BiteFaultSummary] = Field(default_factory=list)
+
+
+class ZeroCheckSnapshot(BaseModel):
+    """G5 Zero Check (docs/diseno/inventario-ui.md): muestreo de ruido del receptor.
+    Corre automaticamente en boot y a intervalos fijos (interval_s), y se puede lanzar a mano."""
+
+    last_run_at_wall: datetime | None = None
+    next_run_at_wall: datetime | None = None
+    interval_s: float
+    enabled: bool
+    noise_high_dbm: float | None = None
+    noise_low_dbm: float | None = None
+    last_result: RoutineResult | None = None
 
 
 # --- WebSocket ----------------------------------------------------------

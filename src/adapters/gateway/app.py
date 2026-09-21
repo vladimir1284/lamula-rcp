@@ -40,9 +40,10 @@ from adapters.hal_sim.signal_catalog import CATALOG
 from core.bite import BiteManager
 from core.contracts.bite import BiteTransition
 from core.contracts.common import SignalQuality
-from core.contracts.control import RoutineResult
+from core.contracts.control import RoutineOutcome, RoutineResult
 from core.contracts.mmi import (
     AccessLevel,
+    ZeroCheckSnapshot,
     AntennaMessage,
     AntennaMovementRequest,
     AntennaPositioningRequest,
@@ -50,27 +51,34 @@ from core.contracts.mmi import (
     AntennaUnitPowerOnRequest,
     BiteEventMessage,
     BiteFaultSummary,
+    BlankingSector,
     ControlAuthorityState,
     ControlJobAccepted,
     ControlJobStatus,
     ControlJobStatusResponse,
+    DspInternalStatusSnapshot,
+    DspResetCountersResponse,
     DspStreamStatus,
     HeartbeatMessage,
     MaintenanceState,
     OperatorEventMessage,
     OperatorMode,
+    ClutterFilterConfig,
     PowerMeasurementLimits,
     PowerMonitorSnapshot,
     ProcessInfo,
     ProcessMonitorSnapshot,
+    RcpConfigProfile,
     RcpTaskInfo,
     ReceiverPowerOnRequest,
     ScanCutExecutionRequest,
+    SectorBlankingProfile,
     SessionMessage,
     SetControlModeRequest,
     StatusMessage,
     SystemInfo,
     SystemStatusSnapshot,
+    ThresholdsConfig,
     TransmitterPowerOnRequest,
     TrendChannelSample,
     TrendSeries,
@@ -87,6 +95,7 @@ from core.control_routines import (
     run_general_power_on,
     run_receiver_power_on,
     run_transmitter_power_on,
+    run_zero_check,
 )
 from core.scan_controller import run_scan_cut
 from core.session import ControlAuthority
@@ -118,6 +127,8 @@ def create_app(
     dsp_port: int,
     scan_worksheet_path: Path = Path("data/scan_worksheet.json"),
     power_limits_path: Path = Path("data/power_limits.json"),
+    sector_blanking_path: Path = Path("data/sector_blanking.json"),
+    config_profile_path: Path = Path("data/config_profile.json"),
 ) -> FastAPI:
     async def _bite_poll_loop(app: FastAPI) -> None:
         while True:
@@ -236,6 +247,14 @@ def create_app(
         )
     except (FileNotFoundError, ValueError):
         app.state.power_limits: PowerMeasurementLimits | None = None
+
+    app.state.sector_blanking_path = sector_blanking_path
+    try:
+        app.state.sector_blanking: SectorBlankingProfile = SectorBlankingProfile.model_validate_json(
+            sector_blanking_path.read_text()
+        )
+    except (FileNotFoundError, ValueError):
+        app.state.sector_blanking = SectorBlankingProfile()
     # Jobs asincronos de los seis POST /api/control/* (ver _start_control_job mas
     # abajo) -- dict ordinario, el orden de inserccion de Python 3.7+ es lo que
     # usa el tope de historial para descartar el mas viejo. En memoria, se pierde
@@ -259,6 +278,41 @@ def create_app(
     app.state.trend_channels: list[str] = []
     app.state.trend_buffers: dict[str, deque[TrendChannelSample]] = {}
     app.state.trend_started_at: datetime | None = None
+
+    app.state.zero_check_last_run_at_wall: datetime | None = None
+    app.state.zero_check_next_run_at_wall: datetime | None = None
+    app.state.zero_check_interval_s: float = 3600.0
+    app.state.zero_check_noise_high_dbm: float | None = None
+    app.state.zero_check_noise_low_dbm: float | None = None
+    app.state.zero_check_last_result: RoutineResult | None = None
+
+    # Perfiles de configuracion local (E11)
+    app.state.config_profile_path = config_profile_path
+    app.state.thresholds = ThresholdsConfig()
+    app.state.clutter_filter = ClutterFilterConfig()
+
+    def _get_current_profile() -> RcpConfigProfile:
+        return RcpConfigProfile(
+            power_limits=app.state.power_limits,
+            antenna_step_config=app.state.antenna_step_config,
+            sector_blanking=app.state.sector_blanking,
+            thresholds=app.state.thresholds,
+            clutter_filter=app.state.clutter_filter,
+        )
+
+    def _apply_profile(profile: RcpConfigProfile) -> None:
+        app.state.power_limits = profile.power_limits
+        app.state.antenna_step_config = profile.antenna_step_config
+        app.state.sector_blanking = profile.sector_blanking
+        app.state.thresholds = profile.thresholds
+        app.state.clutter_filter = profile.clutter_filter
+
+    try:
+        saved_prof = RcpConfigProfile.model_validate_json(config_profile_path.read_text())
+        app.state.saved_profile: RcpConfigProfile = saved_prof
+        _apply_profile(saved_prof)
+    except (FileNotFoundError, ValueError):
+        app.state.saved_profile = _get_current_profile()
 
     try:
         upstream_data = tomllib.loads(UPSTREAM_PIN.read_text(encoding="utf-8"))
@@ -308,6 +362,147 @@ def create_app(
                 )
                 asyncio.create_task(_broadcast(app, event))
         return m
+
+    def _dsp_internal_status() -> DspInternalStatusSnapshot:
+        st = dsp.latest_status
+        cfg = dsp.latest_config
+        ray = dsp.latest
+
+        if st is not None:
+            uptime_s = st.uptime_s
+            phase = st.phase
+            severity = st.severity
+            last_error = st.last_error
+            n_rx_channels = st.n_rx_channels
+            capability_flags = st.capability_flags
+            bite_flags = st.bite_flags
+            config_seq = st.config_seq
+            rays_in = st.rays_in
+            rays_out = st.rays_out
+            rays_dropped = st.rays_dropped
+            queue_depth = st.queue_depth
+            bins_ok = st.bins_ok
+            bins_total = st.bins_total
+            trigger_period_cmd_ns = st.trigger_period_cmd_ns
+            trigger_period_meas_ns = st.trigger_period_meas_ns
+            noise_floor_dbm = [
+                st.noise_floor_dbm_0,
+                st.noise_floor_dbm_1,
+                st.noise_floor_dbm_2,
+                st.noise_floor_dbm_3,
+            ]
+            dc_offset_i = [
+                st.dc_offset_i_0,
+                st.dc_offset_i_1,
+                st.dc_offset_i_2,
+                st.dc_offset_i_3,
+            ]
+            dc_offset_q = [
+                st.dc_offset_q_0,
+                st.dc_offset_q_1,
+                st.dc_offset_q_2,
+                st.dc_offset_q_3,
+            ]
+        else:
+            uptime_s = 0
+            phase = 1 if dsp.connected else 0
+            severity = 0
+            last_error = 0
+            n_rx_channels = 2
+            capability_flags = 0x01FF
+            bite_flags = 0
+            config_seq = 1
+            rays_in = dsp.radials_received
+            rays_out = dsp.radials_received
+            rays_dropped = 0
+            queue_depth = 0
+            bins_ok = 1000 * dsp.radials_received
+            bins_total = 1000 * dsp.radials_received
+            trigger_period_cmd_ns = 1_000_000
+            trigger_period_meas_ns = 1_000_000
+            noise_floor_dbm = [-112.0, -112.5, -112.0, -112.5]
+            dc_offset_i = [0.001, 0.002, 0.001, 0.002]
+            dc_offset_q = [0.001, 0.001, 0.001, 0.001]
+
+        if cfg is not None:
+            n_gates = cfg.n_gates
+            n_pulses = cfg.n_pulses
+            prf_hz = cfg.prf_hz
+            gate_spacing_m = cfg.gate_spacing_m
+            sqi_threshold = cfg.sqi_threshold
+            sig_threshold = cfg.sig_threshold
+            ccor_threshold = cfg.ccor_threshold
+            log_threshold = cfg.log_threshold
+            rfi_filter = cfg.rfi_filter
+        else:
+            n_gates = 1000
+            n_pulses = 64
+            prf_hz = ray.prf_hz if ray is not None else 1000.0
+            gate_spacing_m = 150.0
+            sqi_threshold = 0.25
+            sig_threshold = 3.0
+            ccor_threshold = 1.0
+            log_threshold = 2.0
+            rfi_filter = 0
+
+        return DspInternalStatusSnapshot(
+            connected=dsp.connected,
+            uptime_s=uptime_s,
+            phase=phase,
+            severity=severity,
+            last_error=last_error,
+            n_rx_channels=n_rx_channels,
+            capability_flags=capability_flags,
+            bite_flags=bite_flags,
+            config_seq=config_seq,
+            rays_in=rays_in,
+            rays_out=rays_out,
+            rays_dropped=rays_dropped,
+            queue_depth=queue_depth,
+            bins_ok=bins_ok,
+            bins_total=bins_total,
+            trigger_period_cmd_ns=trigger_period_cmd_ns,
+            trigger_period_meas_ns=trigger_period_meas_ns,
+            noise_floor_dbm=noise_floor_dbm,
+            dc_offset_i=dc_offset_i,
+            dc_offset_q=dc_offset_q,
+            n_gates=n_gates,
+            n_pulses=n_pulses,
+            prf_hz=prf_hz,
+            gate_spacing_m=gate_spacing_m,
+            sqi_threshold=sqi_threshold,
+            sig_threshold=sig_threshold,
+            ccor_threshold=ccor_threshold,
+            log_threshold=log_threshold,
+            rfi_filter=rfi_filter,
+        )
+
+    @app.get("/api/dsp/internal-status", response_model=DspInternalStatusSnapshot)
+    async def get_dsp_internal_status() -> DspInternalStatusSnapshot:
+        return _dsp_internal_status()
+
+    @app.post("/api/dsp/reset-counters", response_model=DspResetCountersResponse)
+    async def reset_dsp_counters() -> DspResetCountersResponse:
+        if _effective_maintenance().level != AccessLevel.MANT:
+            raise HTTPException(
+                status_code=403,
+                detail="se requiere nivel de mantenimiento para esta operación",
+            )
+        await dsp.reset_counters()
+        now = datetime.now(timezone.utc)
+        app.state.event_seq += 1
+        event = OperatorEventMessage(
+            seq=app.state.event_seq,
+            at_wall=now,
+            kind="dsp_reset_counters",
+            actor="operator",
+            payload={},
+        )
+        await _broadcast(app, event)
+        return DspResetCountersResponse(
+            status="ok",
+            message="Contadores del DSP reiniciados correctamente",
+        )
 
     @app.get("/api/system-info", response_model=SystemInfo)
     async def get_system_info() -> SystemInfo:
@@ -521,6 +716,45 @@ def create_app(
             ),
         )
 
+    async def _execute_zero_check() -> RoutineResult:
+        res = await run_zero_check(hal)
+        now = datetime.now(timezone.utc)
+        app.state.zero_check_last_result = res
+        if res.outcome == RoutineOutcome.SUCCESS:
+            app.state.zero_check_last_run_at_wall = now
+            app.state.zero_check_next_run_at_wall = now + timedelta(seconds=app.state.zero_check_interval_s)
+            for step in res.steps:
+                if "Noise High Channel:" in step.detail:
+                    try:
+                        val_str = step.detail.split(":")[1].replace("dBm", "").strip()
+                        app.state.zero_check_noise_high_dbm = float(val_str)
+                    except ValueError:
+                        pass
+                elif "Noise Low Channel:" in step.detail:
+                    try:
+                        val_str = step.detail.split(":")[1].replace("dBm", "").strip()
+                        app.state.zero_check_noise_low_dbm = float(val_str)
+                    except ValueError:
+                        pass
+        return res
+
+    @app.get("/api/zero-check", response_model=ZeroCheckSnapshot)
+    async def get_zero_check() -> ZeroCheckSnapshot:
+        return ZeroCheckSnapshot(
+            last_run_at_wall=app.state.zero_check_last_run_at_wall,
+            next_run_at_wall=app.state.zero_check_next_run_at_wall,
+            interval_s=app.state.zero_check_interval_s,
+            enabled=True,
+            noise_high_dbm=app.state.zero_check_noise_high_dbm,
+            noise_low_dbm=app.state.zero_check_noise_low_dbm,
+            last_result=app.state.zero_check_last_result,
+        )
+
+    @app.post("/api/control/zero-check", response_model=ControlJobAccepted, status_code=202)
+    async def zero_check() -> ControlJobAccepted:
+        _require_active_control()
+        return _start_control_job("zero_check", _execute_zero_check())
+
     @app.get("/api/antenna/step-config", response_model=AntennaStepConfig)
     async def get_antenna_step_config() -> AntennaStepConfig:
         return app.state.antenna_step_config
@@ -666,6 +900,58 @@ def create_app(
         app.state.power_limits_path.parent.mkdir(parents=True, exist_ok=True)
         app.state.power_limits_path.write_text(app.state.power_limits.model_dump_json())
         return app.state.power_limits
+
+    @app.get("/api/sector-blanking", response_model=SectorBlankingProfile)
+    async def get_sector_blanking() -> SectorBlankingProfile:
+        return app.state.sector_blanking
+
+    @app.post("/api/sector-blanking/set", response_model=SectorBlankingProfile)
+    async def set_sector_blanking(profile: SectorBlankingProfile) -> SectorBlankingProfile:
+        app.state.sector_blanking = profile
+        return app.state.sector_blanking
+
+    @app.post("/api/sector-blanking/save", response_model=SectorBlankingProfile)
+    async def save_sector_blanking() -> SectorBlankingProfile:
+        app.state.sector_blanking_path.parent.mkdir(parents=True, exist_ok=True)
+        app.state.sector_blanking_path.write_text(app.state.sector_blanking.model_dump_json())
+        return app.state.sector_blanking
+
+    @app.get("/api/config/profile/current", response_model=RcpConfigProfile)
+    async def get_config_profile_current() -> RcpConfigProfile:
+        return _get_current_profile()
+
+    @app.get("/api/config/profile/saved", response_model=RcpConfigProfile)
+    async def get_config_profile_saved() -> RcpConfigProfile:
+        return app.state.saved_profile
+
+    @app.post("/api/config/profile/set", response_model=RcpConfigProfile)
+    async def set_config_profile(profile: RcpConfigProfile) -> RcpConfigProfile:
+        _apply_profile(profile)
+        return _get_current_profile()
+
+    @app.post("/api/config/profile/save", response_model=RcpConfigProfile)
+    async def save_config_profile() -> RcpConfigProfile:
+        if await _read_radiating():
+            raise HTTPException(
+                status_code=409,
+                detail="no se puede guardar el perfil mientras el radar esta radiando -- apague radiacion primero",
+            )
+        current = _get_current_profile()
+        app.state.saved_profile = current
+        app.state.config_profile_path.parent.mkdir(parents=True, exist_ok=True)
+        app.state.config_profile_path.write_text(current.model_dump_json())
+        return current
+
+    @app.post("/api/config/profile/restore", response_model=RcpConfigProfile)
+    async def restore_config_profile() -> RcpConfigProfile:
+        _apply_profile(app.state.saved_profile)
+        return _get_current_profile()
+
+    @app.post("/api/config/profile/factory", response_model=RcpConfigProfile)
+    async def factory_config_profile() -> RcpConfigProfile:
+        factory_profile = RcpConfigProfile()
+        _apply_profile(factory_profile)
+        return _get_current_profile()
 
     def _save_scan_worksheet() -> None:
         app.state.scan_worksheet_path.parent.mkdir(parents=True, exist_ok=True)

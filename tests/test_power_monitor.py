@@ -15,10 +15,18 @@ from adapters.hal_sim import SimulatedHAL
 
 
 @pytest.fixture
-def client():
+def client(tmp_path):
     hal = SimulatedHAL()
     dsp = MomentStreamReceiver()
-    app = create_app(hal, dsp, dsp_bind_host="127.0.0.1", dsp_port=0)
+    app = create_app(
+        hal,
+        dsp,
+        dsp_bind_host="127.0.0.1",
+        dsp_port=0,
+        scan_worksheet_path=tmp_path / "scan_worksheet.json",
+        power_limits_path=tmp_path / "power_limits.json",
+        config_profile_path=tmp_path / "config_profile.json",
+    )
     with TestClient(app) as test_client:
         yield test_client
 

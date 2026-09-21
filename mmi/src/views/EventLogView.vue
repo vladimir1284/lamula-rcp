@@ -17,6 +17,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useGateway } from '@/composables/useGateway'
+import { providePanelExportData } from '@/composables/usePanelExport'
+import { copyToClipboard, exportToJson } from '@/lib/exportUtils'
 import type { OperatorEventMessage } from '@/types/mmi'
 
 const { messages } = useGateway()
@@ -61,6 +63,8 @@ const events = computed<(OperatorEventMessage & { severity: Severity })[]>(() =>
     .reverse(),
 )
 
+providePanelExportData(() => events.value)
+
 function clear() {
   const last = messages.value.filter((m) => m.type === 'event').at(-1)
   clearedBeforeSeq.value = last?.type === 'event' ? last.seq : clearedBeforeSeq.value
@@ -70,20 +74,11 @@ async function copyAll() {
   const text = events.value
     .map((e) => `${e.at_wall}\t${e.severity}\t${e.kind}\t${e.actor}\t${JSON.stringify(e.payload)}`)
     .join('\n')
-  await navigator.clipboard.writeText(text)
+  await copyToClipboard(text)
 }
 
 function exportAll() {
-  const text = events.value
-    .map((e) => `${e.at_wall}\t${e.severity}\t${e.kind}\t${e.actor}\t${JSON.stringify(e.payload)}`)
-    .join('\n')
-  const blob = new Blob([text], { type: 'text/plain' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `event-log-${new Date().toISOString()}.tsv`
-  a.click()
-  URL.revokeObjectURL(url)
+  exportToJson(events.value, `event-log-${new Date().toISOString()}`)
 }
 </script>
 

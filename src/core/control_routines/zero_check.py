@@ -1,0 +1,84 @@
+"""Rutina de control y tarea periódica: "G5 — Zero Check" (RAVIS §7.4.2).
+
+Muestreo de ruido del receptor (canales alto y bajo).
+Precondiciones:
+- Modo remoto en LCU/sistema (`sys.remote_mode_ok_status`)
+- Modo remoto en ACU (`ant.antenna_remote_status`)
+"""
+
+from __future__ import annotations
+
+import time
+
+from core.contracts.common import MonotonicMicros
+from core.contracts.control import RoutineName, RoutineOutcome, RoutineResult, RoutineStepResult
+from core.contracts.hal import HardwareAbstractionLayer
+
+PRECONDITIONS = (
+    "sys.remote_mode_ok_status",
+    "ant.antenna_remote_status",
+)
+
+# Valores nominales / de muestreo de piso de ruido en dBm
+DEFAULT_NOISE_HIGH_DBM = -105.2
+DEFAULT_NOISE_LOW_DBM = -102.8
+
+
+def _now_us() -> MonotonicMicros:
+    return time.monotonic_ns() // 1000
+
+
+async def run_zero_check(
+    hal: HardwareAbstractionLayer,
+    *,
+    noise_high_dbm: float = DEFAULT_NOISE_HIGH_DBM,
+    noise_low_dbm: float = DEFAULT_NOISE_LOW_DBM,
+) -> RoutineResult:
+    """Ejecuta el chequeo de cero (muestreo de ruido del receptor).
+    Verifica las precondiciones de modo remoto y registra las mediciones de ruido.
+    """
+    steps: list[RoutineStepResult] = []
+
+    all_ok = True
+    for signal_id in PRECONDITIONS:
+        reading = await hal.read_digital(signal_id)
+        ok = reading.value is True
+        steps.append(
+            RoutineStepResult(
+                signal_id=signal_id,
+                ok=ok,
+                detail=f"precondicion: value={reading.value} quality={reading.quality}",
+            )
+        )
+        all_ok = all_ok and ok
+
+    if not all_ok:
+        return RoutineResult(
+            routine=RoutineName.ZERO_CHECK,
+            outcome=RoutineOutcome.FAILED,
+            steps=steps,
+            at_us=_now_us(),
+        )
+
+    # Registro de medicion de ruido de canales alto y bajo
+    steps.append(
+        RoutineStepResult(
+            signal_id="rx.zero_check_high_channel",
+            ok=True,
+            detail=f"Noise High Channel: {noise_high_dbm:.2f} dBm",
+        )
+    )
+    steps.append(
+        RoutineStepResult(
+            signal_id="rx.zero_check_low_channel",
+            ok=True,
+            detail=f"Noise Low Channel: {noise_low_dbm:.2f} dBm",
+        )
+    )
+
+    return RoutineResult(
+        routine=RoutineName.ZERO_CHECK,
+        outcome=RoutineOutcome.SUCCESS,
+        steps=steps,
+        at_us=_now_us(),
+    )

@@ -24,11 +24,15 @@ import type {
   BiteFaultSummary,
   ControlAuthorityState,
   ControlJobStatusResponse,
+  DspInternalStatusSnapshot,
+  DspResetCountersResponse,
   DspStreamStatus,
   MaintenanceState,
   PowerMeasurementLimits,
   PowerMonitorSnapshot,
   ProcessMonitorSnapshot,
+  RcpConfigProfile,
+  SectorBlankingProfile,
   RoutineResult,
   SetControlModeRequest,
   SystemInfo,
@@ -37,8 +41,9 @@ import type {
   TrendStatus,
   UnlockMaintenanceRequest,
   WsMessage,
+  ZeroCheckSnapshot,
 } from '@/types/mmi'
-import type { ScanCutResult } from '@/types/scan'
+import type { ScanCut, ScanCutResult } from '@/types/scan'
 import type { LampState } from '@/types/shell'
 import type { SessionInfo } from './useGateway'
 
@@ -73,6 +78,60 @@ const trendStartedAt = ref<string | null>(null)
 const trendData = ref<TrendSeries[]>([])
 const powerLimits = ref<PowerMeasurementLimits | null>(null)
 const powerRadiating = ref(false)
+const sectorBlankingProfile = ref<SectorBlankingProfile>({
+  enabled: false,
+  sectors: Array.from({ length: 8 }, () => ({
+    in_use: false,
+    az_start_deg: 0,
+    az_end_deg: 45,
+    el_start_deg: -90,
+    el_end_deg: 90,
+  })),
+})
+
+const mockWorksheet = ref<ScanCut[]>([
+  {
+    mode: 'ppi',
+    elevation_deg: 0.5,
+    azimuth_start_deg: 0,
+    azimuth_end_deg: 360,
+    prf_hz: 1000,
+    pulse_width_us: 1.0,
+    moments: ['UZ', 'CZ', 'V', 'W'],
+  },
+  {
+    mode: 'rhi',
+    azimuth_deg: 45,
+    elevation_start_deg: 0,
+    elevation_end_deg: 90,
+    prf_hz: 800,
+    pulse_width_us: 2.0,
+    moments: ['UZ', 'V', 'ZDR'],
+  },
+])
+
+const mockCurrentProfile = ref<RcpConfigProfile>({
+  power_limits: { forward_limit_kw: 250, reverse_limit_kw: 15, vswr_limit: 1.5 },
+  antenna_step_config: { azimuth_step_deg: 1.0, elevation_step_deg: 1.0 },
+  sector_blanking: {
+    enabled: true,
+    sectors: [{ in_use: true, az_start_deg: 45, az_end_deg: 90, el_start_deg: 0, el_end_deg: 30 }],
+  },
+  thresholds: {
+    log_threshold_db: 1.0,
+    csr_threshold_db: -18.0,
+    sqi_threshold: 0.3,
+    speckle_remover: true,
+  },
+  clutter_filter: {
+    doppler_filter_id: 1,
+    doppler_type_db: 'default',
+    fft_filter_enabled: false,
+    statistical_filter_enabled: false,
+  },
+})
+
+const mockSavedProfile = ref<RcpConfigProfile>(JSON.parse(JSON.stringify(mockCurrentProfile.value)))
 
 const antenna = shallowRef<AntennaMessage['position'] | null>({
   az_deg: 123.4,
@@ -333,6 +392,75 @@ async function fetchPowerMonitor(): Promise<PowerMonitorSnapshot> {
   }
 }
 
+async function fetchZeroCheck(): Promise<ZeroCheckSnapshot> {
+  await delay(80)
+  return {
+    last_run_at_wall: iso(15 * 60_000),
+    next_run_at_wall: iso(-45 * 60_000),
+    interval_s: 3600,
+    enabled: true,
+    noise_high_dbm: -105.2,
+    noise_low_dbm: -102.8,
+    last_result: {
+      routine: 'zero_check',
+      outcome: 'success',
+      steps: [
+        { signal_id: 'sys.remote_mode_ok_status', ok: true, detail: 'precondicion ok' },
+        { signal_id: 'ant.antenna_remote_status', ok: true, detail: 'precondicion ok' },
+        { signal_id: 'rx.zero_check_high_channel', ok: true, detail: 'Noise High Channel: -105.20 dBm' },
+        { signal_id: 'rx.zero_check_low_channel', ok: true, detail: 'Noise Low Channel: -102.80 dBm' },
+      ],
+      at_us: (now - 15 * 60_000) * 1000,
+    },
+  }
+}
+
+async function fetchDspInternalStatus(): Promise<DspInternalStatusSnapshot> {
+  await delay(100)
+  return {
+    connected: dsp.value?.connected ?? true,
+    uptime_s: 142850,
+    phase: 1,
+    severity: 0,
+    last_error: 0,
+    n_rx_channels: 2,
+    capability_flags: 511,
+    bite_flags: 0,
+    config_seq: 14,
+    rays_in: dsp.value?.radials_received ?? 48213,
+    rays_out: dsp.value?.radials_received ?? 48213,
+    rays_dropped: 0,
+    queue_depth: 2,
+    bins_ok: 48213000,
+    bins_total: 48213000,
+    trigger_period_cmd_ns: 1000000,
+    trigger_period_meas_ns: 1000002,
+    noise_floor_dbm: [-112.4, -112.1, -112.0, -112.5],
+    dc_offset_i: [0.0012, 0.0018, 0.0010, 0.0015],
+    dc_offset_q: [0.0011, 0.0013, 0.0009, 0.0012],
+    n_gates: 1000,
+    n_pulses: 64,
+    prf_hz: 1000.0,
+    gate_spacing_m: 150.0,
+    sqi_threshold: 0.25,
+    sig_threshold: 3.0,
+    ccor_threshold: 1.0,
+    log_threshold: 2.0,
+    rfi_filter: 0,
+  }
+}
+
+async function resetDspCounters(): Promise<DspResetCountersResponse> {
+  await delay(150)
+  if (dsp.value) {
+    dsp.value = { ...dsp.value, radials_received: 0 }
+  }
+  return {
+    status: 'ok',
+    message: 'Contadores del DSP reiniciados correctamente (mock)',
+  }
+}
+
 async function setPowerLimits(limits: PowerMeasurementLimits): Promise<PowerMeasurementLimits> {
   await delay(80)
   powerLimits.value = { ...limits }
@@ -350,6 +478,71 @@ async function savePowerLimits(): Promise<PowerMeasurementLimits> {
     )
   }
   return { ...powerLimits.value }
+}
+
+async function fetchSectorBlanking(): Promise<SectorBlankingProfile> {
+  await delay(80)
+  return JSON.parse(JSON.stringify(sectorBlankingProfile.value)) as SectorBlankingProfile
+}
+
+async function setSectorBlanking(profile: SectorBlankingProfile): Promise<SectorBlankingProfile> {
+  await delay(80)
+  sectorBlankingProfile.value = JSON.parse(JSON.stringify(profile))
+  return JSON.parse(JSON.stringify(sectorBlankingProfile.value))
+}
+
+async function saveSectorBlanking(): Promise<SectorBlankingProfile> {
+  await delay(150)
+  return JSON.parse(JSON.stringify(sectorBlankingProfile.value))
+}
+
+async function fetchScanWorksheet(): Promise<ScanCut[]> {
+  await delay(100)
+  return [...mockWorksheet.value]
+}
+
+async function fetchConfigProfileCurrent(): Promise<RcpConfigProfile> {
+  await delay(80)
+  return JSON.parse(JSON.stringify(mockCurrentProfile.value))
+}
+
+async function fetchConfigProfileSaved(): Promise<RcpConfigProfile> {
+  await delay(80)
+  return JSON.parse(JSON.stringify(mockSavedProfile.value))
+}
+
+async function setConfigProfile(profile: RcpConfigProfile): Promise<RcpConfigProfile> {
+  await delay(100)
+  mockCurrentProfile.value = JSON.parse(JSON.stringify(profile))
+  return JSON.parse(JSON.stringify(mockCurrentProfile.value))
+}
+
+async function saveConfigProfile(): Promise<RcpConfigProfile> {
+  await delay(150)
+  if (powerRadiating.value) {
+    throw new Error('POST /api/config/profile/save: HTTP 409 — no se puede guardar el perfil mientras el radar esta radiando')
+  }
+  mockSavedProfile.value = JSON.parse(JSON.stringify(mockCurrentProfile.value))
+  return JSON.parse(JSON.stringify(mockSavedProfile.value))
+}
+
+async function restoreConfigProfile(): Promise<RcpConfigProfile> {
+  await delay(100)
+  mockCurrentProfile.value = JSON.parse(JSON.stringify(mockSavedProfile.value))
+  return JSON.parse(JSON.stringify(mockCurrentProfile.value))
+}
+
+async function factoryConfigProfile(): Promise<RcpConfigProfile> {
+  await delay(100)
+  const factory: RcpConfigProfile = {
+    power_limits: null,
+    antenna_step_config: { azimuth_step_deg: 1.0, elevation_step_deg: 1.0 },
+    sector_blanking: { enabled: false, sectors: [] },
+    thresholds: { log_threshold_db: 1.0, csr_threshold_db: -18.0, sqi_threshold: 0.3, speckle_remover: true },
+    clutter_filter: { doppler_filter_id: 1, doppler_type_db: 'default', fft_filter_enabled: false, statistical_filter_enabled: false },
+  }
+  mockCurrentProfile.value = factory
+  return JSON.parse(JSON.stringify(mockCurrentProfile.value))
 }
 
 async function lockMaintenance(): Promise<MaintenanceState> {
@@ -435,8 +628,21 @@ export function useGateway() {
     clearTrend,
     fetchTrendData,
     fetchPowerMonitor,
+    fetchZeroCheck,
     setPowerLimits,
     savePowerLimits,
+    fetchSectorBlanking,
+    setSectorBlanking,
+    saveSectorBlanking,
+    fetchScanWorksheet,
+    fetchConfigProfileCurrent,
+    fetchConfigProfileSaved,
+    setConfigProfile,
+    saveConfigProfile,
+    restoreConfigProfile,
+    factoryConfigProfile,
+    fetchDspInternalStatus,
+    resetDspCounters,
     runControlJob,
     cancelControlJob,
     send,

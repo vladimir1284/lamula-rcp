@@ -22,9 +22,15 @@ import MaintenanceUnlockView from '@/views/MaintenanceUnlockView.vue'
 import PowerMonitorView from '@/views/PowerMonitorView.vue'
 import ProcessMonitorView from '@/views/ProcessMonitorView.vue'
 import StateTrendPlotView from '@/views/StateTrendPlotView.vue'
+import DspSetupHubView from '@/views/DspSetupHubView.vue'
+import ScanParameterPopup from '@/components/domain/ScanParameterPopup.vue'
+import DspInternalStatusView from '@/views/DspInternalStatusView.vue'
 import SystemInformationView from '@/views/SystemInformationView.vue'
+import SectorBlankingView from '@/views/SectorBlankingView.vue'
 import SystemStatusView from '@/views/SystemStatusView.vue'
 import SystemVisualizationView from '@/views/SystemVisualizationView.vue'
+import ZeroCheckView from '@/views/ZeroCheckView.vue'
+import ConfigProfilesView from '@/views/ConfigProfilesView.vue'
 import { GATEWAY_HTTP, useGateway } from '@/composables/useGateway'
 import type { IndicatorState, MosaicPreset, ViewOption } from '@/types/shell'
 
@@ -53,18 +59,24 @@ const viewCatalog: ViewOption[] = [
   { id: 'process-monitor', label: 'B5 RCP Process Monitor', available: true },
   { id: 'power-monitor', label: 'B7 Power Monitor (VSWR)', available: true },
   { id: 'system-status', label: 'B10 System Status', available: true },
+  { id: 'dsp-internal-status', label: 'E12 DSP Internal Status', available: true },
   { id: 'bite-messages', label: 'B8 BiTE Messages', available: true },
   { id: 'bite-review', label: 'B9 BiTE Review', available: true },
   { id: 'antenna-control', label: 'C1 Antenna Control', available: true },
   { id: 'scan-worksheet', label: 'C3 Scan Worksheet', available: true },
   { id: 'control-routines', label: 'C4 Control Routine Runner', available: true },
+  { id: 'sector-blanking', label: 'C5 Sector Blanking Editor', available: true },
   { id: 'connection', label: 'A2 Connection', available: true },
   { id: 'maintenance-unlock', label: 'A4 Maintenance Unlock', available: true },
   { id: 'event-log', label: 'A5 Event Log', available: true },
   { id: 'system-information', label: 'A7 System Information', available: true },
+  { id: 'dsp-setup-hub', label: 'E1 DSP Setup Hub', available: true },
+  { id: 'config-profiles', label: 'E11 Config Profiles', available: true },
   { id: 'ascope', label: 'D2 ASCOPE', available: true },
   { id: 'ppi', label: 'D3 PPI', available: true },
   { id: 'rhi', label: 'D4 RHI', available: true },
+  { id: 'zero-check', label: 'G5 Zero Check', available: true },
+  { id: 'scan-parameter-popup', label: 'D8 Scan Parameter Popup', available: true },
   { id: 'sun-position', label: 'H1 Sun Position', available: false },
   { id: 'itsg-control', label: 'I2 ITSG Control', available: false },
   { id: 'calibration-log', label: 'G8 Calibration Log', available: false },
@@ -232,17 +244,23 @@ onMounted(() => {
     <template #process-monitor><ProcessMonitorView /></template>
     <template #power-monitor><PowerMonitorView /></template>
     <template #system-status><SystemStatusView /></template>
+    <template #dsp-internal-status><DspInternalStatusView /></template>
     <template #bite-messages><BiteMessagesView /></template>
     <template #bite-review><BiteReviewView /></template>
     <template #antenna-control><AntennaControlView /></template>
     <template #scan-worksheet><ScanWorksheetView /></template>
     <template #control-routines><ControlCenterView /></template>
+    <template #sector-blanking><SectorBlankingView /></template>
     <template #connection><ConnectionView /></template>
     <template #maintenance-unlock><MaintenanceUnlockView /></template>
     <template #event-log><EventLogView /></template>
     <template #system-information><SystemInformationView /></template>
+    <template #dsp-setup-hub><DspSetupHubView /></template>
+    <template #config-profiles><ConfigProfilesView /></template>
     <template #ascope="{ panel }"><AscopeView :frozen="panel.frozen" /></template>
     <template #ppi="{ panel }"><PpiView :frozen="panel.frozen" /></template>
     <template #rhi="{ panel }"><RhiView :frozen="panel.frozen" /></template>
+    <template #zero-check><ZeroCheckView /></template>
+    <template #scan-parameter-popup><div class="flex h-full w-full items-center justify-center p-4"><ScanParameterPopup /></div></template>
   </AppShell>
 </template>

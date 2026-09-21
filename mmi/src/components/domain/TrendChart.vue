@@ -43,7 +43,7 @@ const timeBounds = computed(() => {
     return { min: now - 10000, max: now }
   }
   const times = allSamples.value.map((s) => new Date(s.at_wall).getTime())
-  let min = Math.min(...times)
+  const min = Math.min(...times)
   let max = Math.max(...times)
   if (max === min) max = min + 1000
   return { min, max }

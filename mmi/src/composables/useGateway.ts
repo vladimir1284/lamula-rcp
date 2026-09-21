@@ -21,11 +21,15 @@ import type {
   ControlAuthorityState,
   ControlJobAccepted,
   ControlJobStatusResponse,
+  DspInternalStatusSnapshot,
+  DspResetCountersResponse,
   DspStreamStatus,
   MaintenanceState,
   PowerMeasurementLimits,
   PowerMonitorSnapshot,
   ProcessMonitorSnapshot,
+  RcpConfigProfile,
+  SectorBlankingProfile,
   SetControlModeRequest,
   SystemInfo,
   SystemStatusSnapshot,
@@ -33,7 +37,9 @@ import type {
   TrendStatus,
   UnlockMaintenanceRequest,
   WsMessage,
+  ZeroCheckSnapshot,
 } from '@/types/mmi'
+import type { ScanCut } from '@/types/scan'
 import { STALE_TIMEOUT_MS } from '@/types/shell'
 import type { LampState } from '@/types/shell'
 
@@ -246,6 +252,26 @@ async function fetchPowerMonitor(): Promise<PowerMonitorSnapshot> {
   return (await res.json()) as PowerMonitorSnapshot
 }
 
+async function fetchZeroCheck(): Promise<ZeroCheckSnapshot> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/zero-check`)
+  if (!res.ok) throw new Error(`GET /api/zero-check: HTTP ${res.status}`)
+  return (await res.json()) as ZeroCheckSnapshot
+}
+
+async function fetchDspInternalStatus(): Promise<DspInternalStatusSnapshot> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/dsp/internal-status`)
+  if (!res.ok) throw new Error(`GET /api/dsp/internal-status: HTTP ${res.status}`)
+  return (await res.json()) as DspInternalStatusSnapshot
+}
+
+async function resetDspCounters(): Promise<DspResetCountersResponse> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/dsp/reset-counters`, {
+    method: 'POST',
+  })
+  if (!res.ok) throw new Error(`POST /api/dsp/reset-counters: HTTP ${res.status}`)
+  return (await res.json()) as DspResetCountersResponse
+}
+
 async function setPowerLimits(limits: PowerMeasurementLimits): Promise<PowerMeasurementLimits> {
   const res = await fetch(`${GATEWAY_HTTP}/api/power-monitor/limits`, {
     method: 'POST',
@@ -257,6 +283,92 @@ async function setPowerLimits(limits: PowerMeasurementLimits): Promise<PowerMeas
     throw new Error(`POST /api/power-monitor/limits: HTTP ${res.status} — ${detail}`)
   }
   return (await res.json()) as PowerMeasurementLimits
+}
+
+async function fetchSectorBlanking(): Promise<SectorBlankingProfile> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/sector-blanking`)
+  if (!res.ok) throw new Error(`GET /api/sector-blanking: HTTP ${res.status}`)
+  return (await res.json()) as SectorBlankingProfile
+}
+
+async function setSectorBlanking(profile: SectorBlankingProfile): Promise<SectorBlankingProfile> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/sector-blanking/set`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(profile),
+  })
+  if (!res.ok) {
+    const detail = await res.text()
+    throw new Error(`POST /api/sector-blanking/set: HTTP ${res.status} — ${detail}`)
+  }
+  return (await res.json()) as SectorBlankingProfile
+}
+
+async function saveSectorBlanking(): Promise<SectorBlankingProfile> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/sector-blanking/save`, { method: 'POST' })
+  if (!res.ok) {
+    const detail = await res.text()
+    throw new Error(`POST /api/sector-blanking/save: HTTP ${res.status} — ${detail}`)
+  }
+  return (await res.json()) as SectorBlankingProfile
+}
+
+async function fetchScanWorksheet(): Promise<ScanCut[]> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/scan/worksheet`)
+  if (!res.ok) throw new Error(`GET /api/scan/worksheet: HTTP ${res.status}`)
+  return (await res.json()) as ScanCut[]
+}
+
+async function fetchConfigProfileCurrent(): Promise<RcpConfigProfile> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/config/profile/current`)
+  if (!res.ok) throw new Error(`GET /api/config/profile/current: HTTP ${res.status}`)
+  return (await res.json()) as RcpConfigProfile
+}
+
+async function fetchConfigProfileSaved(): Promise<RcpConfigProfile> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/config/profile/saved`)
+  if (!res.ok) throw new Error(`GET /api/config/profile/saved: HTTP ${res.status}`)
+  return (await res.json()) as RcpConfigProfile
+}
+
+async function setConfigProfile(profile: RcpConfigProfile): Promise<RcpConfigProfile> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/config/profile/set`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(profile),
+  })
+  if (!res.ok) {
+    const detail = await res.text()
+    throw new Error(`POST /api/config/profile/set: HTTP ${res.status} — ${detail}`)
+  }
+  return (await res.json()) as RcpConfigProfile
+}
+
+async function saveConfigProfile(): Promise<RcpConfigProfile> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/config/profile/save`, { method: 'POST' })
+  if (!res.ok) {
+    const detail = await res.text()
+    throw new Error(`POST /api/config/profile/save: HTTP ${res.status} — ${detail}`)
+  }
+  return (await res.json()) as RcpConfigProfile
+}
+
+async function restoreConfigProfile(): Promise<RcpConfigProfile> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/config/profile/restore`, { method: 'POST' })
+  if (!res.ok) {
+    const detail = await res.text()
+    throw new Error(`POST /api/config/profile/restore: HTTP ${res.status} — ${detail}`)
+  }
+  return (await res.json()) as RcpConfigProfile
+}
+
+async function factoryConfigProfile(): Promise<RcpConfigProfile> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/config/profile/factory`, { method: 'POST' })
+  if (!res.ok) {
+    const detail = await res.text()
+    throw new Error(`POST /api/config/profile/factory: HTTP ${res.status} — ${detail}`)
+  }
+  return (await res.json()) as RcpConfigProfile
 }
 
 async function savePowerLimits(): Promise<PowerMeasurementLimits> {
@@ -439,8 +551,21 @@ export function useGateway() {
     clearTrend,
     fetchTrendData,
     fetchPowerMonitor,
+    fetchZeroCheck,
     setPowerLimits,
     savePowerLimits,
+    fetchSectorBlanking,
+    setSectorBlanking,
+    saveSectorBlanking,
+    fetchScanWorksheet,
+    fetchConfigProfileCurrent,
+    fetchConfigProfileSaved,
+    setConfigProfile,
+    saveConfigProfile,
+    restoreConfigProfile,
+    factoryConfigProfile,
+    fetchDspInternalStatus,
+    resetDspCounters,
     runControlJob,
     cancelControlJob,
     send,

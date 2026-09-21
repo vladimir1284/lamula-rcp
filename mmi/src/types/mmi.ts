@@ -60,6 +60,43 @@ export interface DspStreamStatus {
   last_radial_at_wall: string | null
 }
 
+export interface DspInternalStatusSnapshot {
+  connected: boolean
+  uptime_s: number
+  phase: number
+  severity: number
+  last_error: number
+  n_rx_channels: number
+  capability_flags: number
+  bite_flags: number
+  config_seq: number
+  rays_in: number
+  rays_out: number
+  rays_dropped: number
+  queue_depth: number
+  bins_ok: number
+  bins_total: number
+  trigger_period_cmd_ns: number
+  trigger_period_meas_ns: number
+  noise_floor_dbm: number[]
+  dc_offset_i: number[]
+  dc_offset_q: number[]
+  n_gates: number
+  n_pulses: number
+  prf_hz: number
+  gate_spacing_m: number
+  sqi_threshold: number
+  sig_threshold: number
+  ccor_threshold: number
+  log_threshold: number
+  rfi_filter: number
+}
+
+export interface DspResetCountersResponse {
+  status: string
+  message: string
+}
+
 export type BiteTransition = 'fault' | 'cleared'
 
 export interface BiteFaultSummary {
@@ -182,10 +219,54 @@ export interface TrendStatus {
   signal_ids: string[]
 }
 
+export interface CalibrationLogEntry {
+  at_wall: string
+  severity: 'info' | 'warn' | 'error'
+  procedure: string
+  actor: string
+  message: string
+  detail?: string | null
+}
+
+export interface BlankingSector {
+  in_use: boolean
+  az_start_deg: number
+  az_end_deg: number
+  el_start_deg: number
+  el_end_deg: number
+}
+
+export interface SectorBlankingProfile {
+  enabled: boolean
+  sectors: BlankingSector[]
+}
+
+export interface ThresholdsConfig {
+  log_threshold_db: number
+  csr_threshold_db: number
+  sqi_threshold: number
+  speckle_remover: boolean
+}
+
+export interface ClutterFilterConfig {
+  doppler_filter_id: number
+  doppler_type_db: string
+  fft_filter_enabled: boolean
+  statistical_filter_enabled: boolean
+}
+
 export interface PowerMeasurementLimits {
   forward_limit_kw: number
   reverse_limit_kw: number
   vswr_limit: number
+}
+
+export interface RcpConfigProfile {
+  power_limits: PowerMeasurementLimits | null
+  antenna_step_config: AntennaStepConfig
+  sector_blanking: SectorBlankingProfile
+  thresholds: ThresholdsConfig
+  clutter_filter: ClutterFilterConfig
 }
 
 export interface PowerMonitorSnapshot {
@@ -195,6 +276,16 @@ export interface PowerMonitorSnapshot {
   bus_ok: boolean
   radiating: boolean
   limits: PowerMeasurementLimits | null
+}
+
+export interface ZeroCheckSnapshot {
+  last_run_at_wall: string | null
+  next_run_at_wall: string | null
+  interval_s: number
+  enabled: boolean
+  noise_high_dbm: number | null
+  noise_low_dbm: number | null
+  last_result: RoutineResult | null
 }
 
 // D-12: los seis POST /api/control/* ya no bloquean hasta que la rutina
