@@ -71,6 +71,9 @@ from core.contracts.mmi import (
     StatusMessage,
     SystemInfo,
     SystemStatusSnapshot,
+    ThresholdGlobalValues,
+    ThresholdMatrixRow,
+    ThresholdMatrixSnapshot,
     TransmitterPowerOnRequest,
     TrendChannelSample,
     TrendSeries,
@@ -623,6 +626,48 @@ def create_app(
             return (await hal.read_digital("tx.radiating_status")).value
         except Exception:
             return False
+
+    @app.get("/api/thresholds-matrix", response_model=ThresholdMatrixSnapshot)
+    async def get_thresholds_matrix() -> ThresholdMatrixSnapshot:
+        globals_data = ThresholdGlobalValues(
+            sqi_threshold=0.35,
+            log_threshold=2.0,
+            ccor_threshold=15.0,
+            sig_threshold=5.0,
+        )
+        parameters = [
+            "DBZ",
+            "DBT",
+            "VEL",
+            "WID",
+            "ZDR",
+            "KDP",
+            "PHIDP",
+            "RHOHV",
+            "SQI",
+            "LDRH",
+            "RHOH",
+            "PHIH",
+            "LDRV",
+            "RHOV",
+            "PHIV",
+            "HCLASS",
+            "SNR",
+            "DBZA",
+            "DBTA",
+        ]
+        rows = [
+            ThresholdMatrixRow(
+                parameter=param,
+                log_db=None,
+                ccor_db=None,
+                sig_db=None,
+                sqi=None,
+                pmi=None,
+            )
+            for param in parameters
+        ]
+        return ThresholdMatrixSnapshot(globals=globals_data, rows=rows)
 
     @app.get("/api/power-monitor", response_model=PowerMonitorSnapshot)
     async def get_power_monitor() -> PowerMonitorSnapshot:

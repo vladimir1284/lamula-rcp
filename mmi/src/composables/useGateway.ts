@@ -29,6 +29,7 @@ import type {
   SetControlModeRequest,
   SystemInfo,
   SystemStatusSnapshot,
+  ThresholdMatrixSnapshot,
   TrendSeries,
   TrendStatus,
   UnlockMaintenanceRequest,
@@ -240,6 +241,12 @@ async function fetchTrendData(): Promise<TrendSeries[]> {
   return (await res.json()) as TrendSeries[]
 }
 
+async function fetchThresholdsMatrix(): Promise<ThresholdMatrixSnapshot> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/thresholds-matrix`)
+  if (!res.ok) throw new Error(`GET /api/thresholds-matrix: HTTP ${res.status}`)
+  return (await res.json()) as ThresholdMatrixSnapshot
+}
+
 async function fetchPowerMonitor(): Promise<PowerMonitorSnapshot> {
   const res = await fetch(`${GATEWAY_HTTP}/api/power-monitor`)
   if (!res.ok) throw new Error(`GET /api/power-monitor: HTTP ${res.status}`)
@@ -438,6 +445,7 @@ export function useGateway() {
     continueTrend,
     clearTrend,
     fetchTrendData,
+    fetchThresholdsMatrix,
     fetchPowerMonitor,
     setPowerLimits,
     savePowerLimits,

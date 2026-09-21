@@ -272,6 +272,27 @@ class SystemStatusSnapshot(BaseModel):
     active_bite_faults: list[BiteFaultSummary] = Field(default_factory=list)
 
 
+class ThresholdGlobalValues(BaseModel):
+    sqi_threshold: float | None = None
+    log_threshold: float | None = None
+    ccor_threshold: float | None = None
+    sig_threshold: float | None = None
+
+
+class ThresholdMatrixRow(BaseModel):
+    parameter: str
+    log_db: float | None = None
+    ccor_db: float | None = None
+    sig_db: float | None = None
+    sqi: float | None = None
+    pmi: float | None = None
+
+
+class ThresholdMatrixSnapshot(BaseModel):
+    globals: ThresholdGlobalValues
+    rows: list[ThresholdMatrixRow] = Field(default_factory=list)
+
+
 # --- WebSocket ----------------------------------------------------------
 # Sobre discriminado por "type", siguiendo el mismo patron de canal
 # unico usado ya en docs/interfaces/websocket.md de `radar_emulator`

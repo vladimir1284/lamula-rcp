@@ -33,6 +33,7 @@ import type {
   SetControlModeRequest,
   SystemInfo,
   SystemStatusSnapshot,
+  ThresholdMatrixSnapshot,
   TrendSeries,
   TrendStatus,
   UnlockMaintenanceRequest,
@@ -318,6 +319,47 @@ async function fetchTrendData(): Promise<TrendSeries[]> {
   return trendData.value
 }
 
+async function fetchThresholdsMatrix(): Promise<ThresholdMatrixSnapshot> {
+  await delay(100)
+  const parameters = [
+    'DBZ',
+    'DBT',
+    'VEL',
+    'WID',
+    'ZDR',
+    'KDP',
+    'PHIDP',
+    'RHOHV',
+    'SQI',
+    'LDRH',
+    'RHOH',
+    'PHIH',
+    'LDRV',
+    'RHOV',
+    'PHIV',
+    'HCLASS',
+    'SNR',
+    'DBZA',
+    'DBTA',
+  ]
+  return {
+    globals: {
+      sqi_threshold: 0.35,
+      log_threshold: 2.0,
+      ccor_threshold: 15.0,
+      sig_threshold: 5.0,
+    },
+    rows: parameters.map((param) => ({
+      parameter: param,
+      log_db: null,
+      ccor_db: null,
+      sig_db: null,
+      sqi: null,
+      pmi: null,
+    })),
+  }
+}
+
 async function fetchPowerMonitor(): Promise<PowerMonitorSnapshot> {
   await delay(80)
   const forward = 210 + Math.sin(Date.now() / 3000) * 5
@@ -434,6 +476,7 @@ export function useGateway() {
     continueTrend,
     clearTrend,
     fetchTrendData,
+    fetchThresholdsMatrix,
     fetchPowerMonitor,
     setPowerLimits,
     savePowerLimits,

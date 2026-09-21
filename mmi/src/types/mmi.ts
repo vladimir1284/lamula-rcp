@@ -197,6 +197,27 @@ export interface PowerMonitorSnapshot {
   limits: PowerMeasurementLimits | null
 }
 
+export interface ThresholdGlobalValues {
+  sqi_threshold: number | null
+  log_threshold: number | null
+  ccor_threshold: number | null
+  sig_threshold: number | null
+}
+
+export interface ThresholdMatrixRow {
+  parameter: string
+  log_db: number | null
+  ccor_db: number | null
+  sig_db: number | null
+  sqi: number | null
+  pmi: number | null
+}
+
+export interface ThresholdMatrixSnapshot {
+  globals: ThresholdGlobalValues
+  rows: ThresholdMatrixRow[]
+}
+
 // D-12: los seis POST /api/control/* ya no bloquean hasta que la rutina
 // termina -- devuelven un job (202) y el llamador sondea su estado.
 export type ControlJobStatus = 'running' | 'done'
