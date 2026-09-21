@@ -29,7 +29,7 @@ const hubItems = ref<SetupHubItem[]>([
     description: 'Matriz de 19 parámetros × 5 umbrales y banderas TCF (solo lectura).',
     dirty: false,
     access: 'MANT',
-    available: false,
+    available: true,
   },
   {
     id: 'clutter-filters',

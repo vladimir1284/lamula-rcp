@@ -25,6 +25,7 @@ import StateTrendPlotView from '@/views/StateTrendPlotView.vue'
 import DspSetupHubView from '@/views/DspSetupHubView.vue'
 import ScanParameterPopup from '@/components/domain/ScanParameterPopup.vue'
 import DspInternalStatusView from '@/views/DspInternalStatusView.vue'
+import ThresholdsMatrixView from '@/views/ThresholdsMatrixView.vue'
 import SystemInformationView from '@/views/SystemInformationView.vue'
 import SectorBlankingView from '@/views/SectorBlankingView.vue'
 import SystemStatusView from '@/views/SystemStatusView.vue'
@@ -59,6 +60,7 @@ const viewCatalog: ViewOption[] = [
   { id: 'process-monitor', label: 'B5 RCP Process Monitor', available: true },
   { id: 'power-monitor', label: 'B7 Power Monitor (VSWR)', available: true },
   { id: 'system-status', label: 'B10 System Status', available: true },
+  { id: 'thresholds-matrix', label: 'E3 Thresholds Matrix (Vp)', available: true },
   { id: 'dsp-internal-status', label: 'E12 DSP Internal Status', available: true },
   { id: 'bite-messages', label: 'B8 BiTE Messages', available: true },
   { id: 'bite-review', label: 'B9 BiTE Review', available: true },
@@ -244,6 +246,7 @@ onMounted(() => {
     <template #process-monitor><ProcessMonitorView /></template>
     <template #power-monitor><PowerMonitorView /></template>
     <template #system-status><SystemStatusView /></template>
+    <template #thresholds-matrix><ThresholdsMatrixView /></template>
     <template #dsp-internal-status><DspInternalStatusView /></template>
     <template #bite-messages><BiteMessagesView /></template>
     <template #bite-review><BiteReviewView /></template>
