@@ -12,6 +12,7 @@
 //
 // Selector nativo <select>, mismo criterio que PanelFrame.vue: ui/ no tiene
 // primitivo Select todavía.
+import ScanParameterPopup from '@/components/domain/ScanParameterPopup.vue'
 import { Button } from '@/components/ui/button'
 import { DATA_KINDS, type DataKind } from '@/lib/mockRadar'
 
@@ -103,23 +104,26 @@ const ZOOMS = [1, 2, 4]
       </select>
     </label>
 
-    <div class="ml-auto flex gap-1" role="radiogroup" aria-label="Fuente de datos">
-      <Button
-        size="xs"
-        :variant="source === 'radar' ? 'secondary' : 'outline'"
-        title="Radar en vivo"
-        @click="$emit('update:source', 'radar')"
-      >
-        Radar
-      </Button>
-      <Button
-        size="xs"
-        :variant="source === 'file' ? 'secondary' : 'outline'"
-        title="Fichero (no implementado, mock)"
-        @click="$emit('update:source', 'file')"
-      >
-        Fichero
-      </Button>
+    <div class="ml-auto flex items-center gap-1">
+      <div class="flex gap-1" role="radiogroup" aria-label="Fuente de datos">
+        <Button
+          size="xs"
+          :variant="source === 'radar' ? 'secondary' : 'outline'"
+          title="Radar en vivo"
+          @click="$emit('update:source', 'radar')"
+        >
+          Radar
+        </Button>
+        <Button
+          size="xs"
+          :variant="source === 'file' ? 'secondary' : 'outline'"
+          title="Fichero (no implementado, mock)"
+          @click="$emit('update:source', 'file')"
+        >
+          Fichero
+        </Button>
+      </div>
+      <ScanParameterPopup />
     </div>
   </div>
 </template>

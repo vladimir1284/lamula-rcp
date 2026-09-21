@@ -36,6 +36,7 @@ import type {
   WsMessage,
   ZeroCheckSnapshot,
 } from '@/types/mmi'
+import type { ScanCut } from '@/types/scan'
 import { STALE_TIMEOUT_MS } from '@/types/shell'
 import type { LampState } from '@/types/shell'
 
@@ -295,6 +296,12 @@ async function saveSectorBlanking(): Promise<SectorBlankingProfile> {
   return (await res.json()) as SectorBlankingProfile
 }
 
+async function fetchScanWorksheet(): Promise<ScanCut[]> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/scan/worksheet`)
+  if (!res.ok) throw new Error(`GET /api/scan/worksheet: HTTP ${res.status}`)
+  return (await res.json()) as ScanCut[]
+}
+
 async function savePowerLimits(): Promise<PowerMeasurementLimits> {
   const res = await fetch(`${GATEWAY_HTTP}/api/power-monitor/limits/save`, { method: 'POST' })
   if (!res.ok) {
@@ -481,6 +488,7 @@ export function useGateway() {
     fetchSectorBlanking,
     setSectorBlanking,
     saveSectorBlanking,
+    fetchScanWorksheet,
     runControlJob,
     cancelControlJob,
     send,
