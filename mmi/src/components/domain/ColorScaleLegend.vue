@@ -1,15 +1,28 @@
 <script setup lang="ts">
-// Leyenda de escala de color para D3/D4 (PPI/RHI). Gradiente CSS puro sobre
-// los mismos custom properties de main.css (D6) -- a diferencia del canvas
-// del plot, un `linear-gradient(var(--x), ...)` en CSS sí resuelve el token
-// sin pasar por JS.
+// Leyenda de escala de color para D3/D4 (PPI/RHI). Gradiente CSS continuo sobre
+// la escala activa (resuelta mediante buildActiveScale / customScale) -- D6
 import { computed } from 'vue'
-import { paletteVars } from '@/lib/dataPalette'
+import { buildActiveScale } from '@/lib/dataPalette'
 import type { DataKind } from '@/lib/mockRadar'
 
-const props = defineProps<{ kind: DataKind }>()
+const props = defineProps<{
+  kind: DataKind
+  customScale?: string[]
+}>()
 
-const gradient = computed(() => `linear-gradient(to top, ${paletteVars(props.kind).map((v) => `var(${v})`).join(', ')})`)
+const activeScale = computed<string[]>(() => {
+  if (props.customScale && props.customScale.length > 0) {
+    return props.customScale
+  }
+  return buildActiveScale(props.kind, 64)
+})
+
+const gradient = computed(() => {
+  const colors = activeScale.value
+  if (colors.length === 0) return 'none'
+  return `linear-gradient(to top, ${colors.join(', ')})`
+})
+
 const isSigned = computed(() => props.kind === 'velocity')
 </script>
 

@@ -1,16 +1,9 @@
 <script setup lang="ts">
-// D2 ASCOPE (docs/diseno/inventario-ui.md) -- "camino 1" acordado: solo UI +
-// datos sintéticos en Storybook, sin backend real (no hay stream de
-// momentos RCP<->MMI todavía, ver src/core/contracts/mmi.py, DspStreamStatus).
-//
-// `frozen` llega del panel que aloja esta vista (App.vue reenvía
-// `panel.frozen` del slot con nombre) -- es el mismo ❄ de PanelFrame, no un
-// segundo control duplicado (ver nota en DataViewToolbar.vue). Congela el
-// barrido sintético sin tocar otras instancias de esta vista en otros
-// paneles, que es exactamente el requisito de D2.
+// D2 ASCOPE (docs/diseno/inventario-ui.md) -- D6: usa escala continua interpolada `buildActiveScale`.
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import CursorReadout from '@/components/domain/CursorReadout.vue'
 import DataViewToolbar from '@/components/domain/DataViewToolbar.vue'
+import { buildActiveScale, colorForValueContinuous } from '@/lib/dataPalette'
 import { generateGates, GATE_COUNT, MAX_RANGE_KM, type DataKind } from '@/lib/mockRadar'
 
 const props = withDefaults(defineProps<{ frozen?: boolean }>(), { frozen: false })
@@ -20,18 +13,20 @@ const resolution = ref(64)
 const zoom = ref(1)
 const source = ref<'radar' | 'file'>('radar')
 const axisUnit = ref<'km' | 'us'>('km')
-const pan = ref(0) // 0..1, borde izquierdo de la ventana visible cuando zoom > 1
+const pan = ref(0)
 
-const SCOPE_BG = '#0d0d0d' // fijo, no sigue el tema -- ver main.css, "Data palettes..."
+const SCOPE_BG = '#0d0d0d'
 
 const wrapEl = ref<HTMLDivElement | null>(null)
 const canvasEl = ref<HTMLCanvasElement | null>(null)
 let ro: ResizeObserver | null = null
 let timer: ReturnType<typeof setInterval> | null = null
 
-const angle = ref(0) // azimut sintético en grados
+const angle = ref(0)
 const tick = ref(0)
 let lastGates: number[] = generateGates(dataType.value, 0)
+
+const activeScale = ref<string[]>(buildActiveScale(dataType.value, 256))
 
 const cursor = ref<{ rangeKm: number; azimuthDeg: number; elevationDeg: number; value: number; kind: DataKind } | null>(null)
 
@@ -64,13 +59,15 @@ function draw() {
   const signed = dataType.value === 'velocity'
   const baselineY = signed ? h / 2 : h - 4
 
-  ctx.strokeStyle = 'oklch(0.7 0.15 195)'
+  // Para A-Scope, se utiliza el color correspondiente al valor medio o máximo para la traza
+  const traceColor = colorForValueContinuous(activeScale.value, dataType.value, 0.75)
+  ctx.strokeStyle = traceColor
   ctx.lineWidth = Math.max(1, dpr())
   ctx.beginPath()
   for (let i = startGate; i < endGate; i++) {
     const v = quantize(lastGates[i] ?? 0, resolution.value)
     const x = ((i - startGate) / Math.max(1, endGate - startGate - 1)) * w
-    const amp = signed ? v : v
+    const amp = v
     const y = signed ? baselineY - amp * (h / 2 - 4) : h - 4 - amp * (h - 8)
     if (i === startGate) ctx.moveTo(x, y)
     else ctx.lineTo(x, y)
@@ -99,9 +96,17 @@ function step() {
   draw()
 }
 
+function reloadScale() {
+  activeScale.value = buildActiveScale(dataType.value, 256)
+  draw()
+}
+
 const toolbarRefreshRate = ref(1)
 
-watch([dataType, resolution, zoom, pan], draw)
+watch([dataType, resolution, zoom, pan], () => {
+  activeScale.value = buildActiveScale(dataType.value, 256)
+  draw()
+})
 
 function onCanvasClick(ev: MouseEvent) {
   const canvas = canvasEl.value
@@ -146,6 +151,7 @@ onBeforeUnmount(() => {
       v-model:axis-unit="axisUnit"
       show-refresh-rate
       show-axis-unit
+      @color-composer-updated="reloadScale"
     />
     <div class="flex min-h-0 flex-1 gap-1.5">
       <div ref="wrapEl" class="relative min-h-0 flex-1">

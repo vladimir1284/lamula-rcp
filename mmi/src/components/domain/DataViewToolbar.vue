@@ -10,8 +10,9 @@
 // mismo control dos veces. Las vistas D2/D3/D4 reciben `frozen` como prop
 // (ver App.vue) y lo usan para pausar su propio loop de datos.
 //
-// Selector nativo <select>, mismo criterio que PanelFrame.vue: ui/ no tiene
-// primitivo Select todavía.
+// D6: Botón Color Composer integrado como drawer / modal en la barra de herramientas.
+import { ref } from 'vue'
+import ColorComposer from '@/components/domain/ColorComposer.vue'
 import ScanParameterPopup from '@/components/domain/ScanParameterPopup.vue'
 import { Button } from '@/components/ui/button'
 import { DATA_KINDS, type DataKind } from '@/lib/mockRadar'
@@ -30,17 +31,28 @@ withDefaults(
   { showRefreshRate: false, refreshRate: 1, showAxisUnit: false, axisUnit: 'km' },
 )
 
-defineEmits<{
+const emit = defineEmits<{
   'update:dataType': [value: DataKind]
   'update:resolution': [value: number]
   'update:zoom': [value: number]
   'update:source': [value: 'radar' | 'file']
   'update:refreshRate': [value: number]
   'update:axisUnit': [value: 'km' | 'us']
+  'color-composer-updated': []
 }>()
 
 const RESOLUTIONS = [16, 64, 256]
 const ZOOMS = [1, 2, 4]
+
+const showComposer = ref(false)
+
+function onComposerKindUpdate(newKind: DataKind) {
+  emit('update:dataType', newKind)
+}
+
+function onPaletteChanged() {
+  emit('color-composer-updated')
+}
 </script>
 
 <template>
@@ -105,6 +117,15 @@ const ZOOMS = [1, 2, 4]
     </label>
 
     <div class="ml-auto flex items-center gap-1">
+      <Button
+        size="xs"
+        variant="outline"
+        title="Editar paleta de color (D6)"
+        @click="showComposer = true"
+      >
+        🎨 Color
+      </Button>
+
       <div class="flex gap-1" role="radiogroup" aria-label="Fuente de datos">
         <Button
           size="xs"
@@ -124,6 +145,29 @@ const ZOOMS = [1, 2, 4]
         </Button>
       </div>
       <ScanParameterPopup />
+    </div>
+
+    <!-- Drawer / Popup Modal de Color Composer -->
+    <div
+      v-if="showComposer"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs"
+      @click.self="showComposer = false"
+    >
+      <div class="relative max-h-[90vh] w-full max-w-lg overflow-y-auto">
+        <ColorComposer
+          :initial-kind="dataType"
+          @update:kind="onComposerKindUpdate"
+          @palette-changed="onPaletteChanged"
+        />
+        <Button
+          size="xs"
+          variant="ghost"
+          class="absolute right-3 top-3 h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+          @click="showComposer = false"
+        >
+          ✕
+        </Button>
+      </div>
     </div>
   </div>
 </template>
