@@ -28,6 +28,8 @@ import type {
   PowerMeasurementLimits,
   PowerMonitorSnapshot,
   ProcessMonitorSnapshot,
+  RadarConstantParameters,
+  RadarConstantSnapshot,
   RcpConfigProfile,
   SectorBlankingProfile,
   SetControlModeRequest,
@@ -380,6 +382,34 @@ async function savePowerLimits(): Promise<PowerMeasurementLimits> {
   return (await res.json()) as PowerMeasurementLimits
 }
 
+async function fetchRadarConstant(): Promise<RadarConstantSnapshot> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/radar-constant`)
+  if (!res.ok) throw new Error(`GET /api/radar-constant: HTTP ${res.status}`)
+  return (await res.json()) as RadarConstantSnapshot
+}
+
+async function setRadarConstant(params: RadarConstantParameters): Promise<RadarConstantSnapshot> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/radar-constant`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  })
+  if (!res.ok) {
+    const detail = await res.text()
+    throw new Error(`POST /api/radar-constant: HTTP ${res.status} — ${detail}`)
+  }
+  return (await res.json()) as RadarConstantSnapshot
+}
+
+async function saveRadarConstant(): Promise<RadarConstantSnapshot> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/radar-constant/save`, { method: 'POST' })
+  if (!res.ok) {
+    const detail = await res.text()
+    throw new Error(`POST /api/radar-constant/save: HTTP ${res.status} — ${detail}`)
+  }
+  return (await res.json()) as RadarConstantSnapshot
+}
+
 async function lockMaintenance(): Promise<MaintenanceState> {
   const res = await fetch(`${GATEWAY_HTTP}/api/maintenance/lock`, {
     method: 'POST',
@@ -566,6 +596,9 @@ export function useGateway() {
     factoryConfigProfile,
     fetchDspInternalStatus,
     resetDspCounters,
+    fetchRadarConstant,
+    setRadarConstant,
+    saveRadarConstant,
     runControlJob,
     cancelControlJob,
     send,
