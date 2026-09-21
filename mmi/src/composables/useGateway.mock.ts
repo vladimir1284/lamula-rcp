@@ -29,6 +29,7 @@ import type {
   PowerMeasurementLimits,
   PowerMonitorSnapshot,
   ProcessMonitorSnapshot,
+  RcpConfigProfile,
   SectorBlankingProfile,
   RoutineResult,
   SetControlModeRequest,
@@ -106,6 +107,29 @@ const mockWorksheet = ref<ScanCut[]>([
     moments: ['UZ', 'V', 'ZDR'],
   },
 ])
+
+const mockCurrentProfile = ref<RcpConfigProfile>({
+  power_limits: { forward_limit_kw: 250, reverse_limit_kw: 15, vswr_limit: 1.5 },
+  antenna_step_config: { azimuth_step_deg: 1.0, elevation_step_deg: 1.0 },
+  sector_blanking: {
+    enabled: true,
+    sectors: [{ in_use: true, az_start_deg: 45, az_end_deg: 90, el_start_deg: 0, el_end_deg: 30 }],
+  },
+  thresholds: {
+    log_threshold_db: 1.0,
+    csr_threshold_db: -18.0,
+    sqi_threshold: 0.3,
+    speckle_remover: true,
+  },
+  clutter_filter: {
+    doppler_filter_id: 1,
+    doppler_type_db: 'default',
+    fft_filter_enabled: false,
+    statistical_filter_enabled: false,
+  },
+})
+
+const mockSavedProfile = ref<RcpConfigProfile>(JSON.parse(JSON.stringify(mockCurrentProfile.value)))
 
 const antenna = shallowRef<AntennaMessage['position'] | null>({
   az_deg: 123.4,
@@ -429,6 +453,50 @@ async function fetchScanWorksheet(): Promise<ScanCut[]> {
   return [...mockWorksheet.value]
 }
 
+async function fetchConfigProfileCurrent(): Promise<RcpConfigProfile> {
+  await delay(80)
+  return JSON.parse(JSON.stringify(mockCurrentProfile.value))
+}
+
+async function fetchConfigProfileSaved(): Promise<RcpConfigProfile> {
+  await delay(80)
+  return JSON.parse(JSON.stringify(mockSavedProfile.value))
+}
+
+async function setConfigProfile(profile: RcpConfigProfile): Promise<RcpConfigProfile> {
+  await delay(100)
+  mockCurrentProfile.value = JSON.parse(JSON.stringify(profile))
+  return JSON.parse(JSON.stringify(mockCurrentProfile.value))
+}
+
+async function saveConfigProfile(): Promise<RcpConfigProfile> {
+  await delay(150)
+  if (powerRadiating.value) {
+    throw new Error('POST /api/config/profile/save: HTTP 409 — no se puede guardar el perfil mientras el radar esta radiando')
+  }
+  mockSavedProfile.value = JSON.parse(JSON.stringify(mockCurrentProfile.value))
+  return JSON.parse(JSON.stringify(mockSavedProfile.value))
+}
+
+async function restoreConfigProfile(): Promise<RcpConfigProfile> {
+  await delay(100)
+  mockCurrentProfile.value = JSON.parse(JSON.stringify(mockSavedProfile.value))
+  return JSON.parse(JSON.stringify(mockCurrentProfile.value))
+}
+
+async function factoryConfigProfile(): Promise<RcpConfigProfile> {
+  await delay(100)
+  const factory: RcpConfigProfile = {
+    power_limits: null,
+    antenna_step_config: { azimuth_step_deg: 1.0, elevation_step_deg: 1.0 },
+    sector_blanking: { enabled: false, sectors: [] },
+    thresholds: { log_threshold_db: 1.0, csr_threshold_db: -18.0, sqi_threshold: 0.3, speckle_remover: true },
+    clutter_filter: { doppler_filter_id: 1, doppler_type_db: 'default', fft_filter_enabled: false, statistical_filter_enabled: false },
+  }
+  mockCurrentProfile.value = factory
+  return JSON.parse(JSON.stringify(mockCurrentProfile.value))
+}
+
 async function lockMaintenance(): Promise<MaintenanceState> {
   await delay(300)
   maintenance.value = {
@@ -519,6 +587,12 @@ export function useGateway() {
     setSectorBlanking,
     saveSectorBlanking,
     fetchScanWorksheet,
+    fetchConfigProfileCurrent,
+    fetchConfigProfileSaved,
+    setConfigProfile,
+    saveConfigProfile,
+    restoreConfigProfile,
+    factoryConfigProfile,
     runControlJob,
     cancelControlJob,
     send,
