@@ -33,6 +33,7 @@ import SystemStatusView from '@/views/SystemStatusView.vue'
 import SystemVisualizationView from '@/views/SystemVisualizationView.vue'
 import ZeroCheckView from '@/views/ZeroCheckView.vue'
 import TxPowerCalibrationView from '@/views/TxPowerCalibrationView.vue'
+import SinglePointCalibrationView from '@/views/SinglePointCalibrationView.vue'
 import ConfigProfilesView from '@/views/ConfigProfilesView.vue'
 import CalibrationHubView from '@/views/CalibrationHubView.vue'
 import { GATEWAY_HTTP, useGateway } from '@/composables/useGateway'
@@ -84,6 +85,7 @@ const viewCatalog: ViewOption[] = [
   { id: 'calibration-hub', label: 'G1 Calibration Hub', available: true },
   { id: 'zero-check', label: 'G5 Zero Check', available: true },
   { id: 'tx-power-calibration', label: 'G3 TX Power Calibration', available: true },
+  { id: 'single-point-calibration', label: 'G4 Single Point Calibration', available: true },
   { id: 'scan-parameter-popup', label: 'D8 Scan Parameter Popup', available: true },
   { id: 'sun-position', label: 'H1 Sun Position', available: false },
   { id: 'itsg-control', label: 'I2 ITSG Control', available: false },
@@ -273,6 +275,7 @@ onMounted(() => {
     <template #calibration-hub="{ setView }"><CalibrationHubView @navigate="setView" /></template>
     <template #zero-check><ZeroCheckView /></template>
     <template #tx-power-calibration><TxPowerCalibrationView /></template>
+    <template #single-point-calibration><SinglePointCalibrationView /></template>
     <template #scan-parameter-popup><div class="flex h-full w-full items-center justify-center p-4"><ScanParameterPopup /></div></template>
   </AppShell>
 </template>

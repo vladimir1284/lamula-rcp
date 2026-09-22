@@ -29,6 +29,7 @@ import type {
   DspResetCountersResponse,
   DspStreamStatus,
   MaintenanceState,
+  MeasuredRadarConstant,
   PowerMeasurementLimits,
   PowerMonitorSnapshot,
   ProcessMonitorSnapshot,
@@ -631,6 +632,15 @@ async function saveRadarConstant(): Promise<RadarConstantSnapshot> {
   }
 }
 
+async function saveSinglePointCalibrationResult(_jobId: string): Promise<MeasuredRadarConstant> {
+  await delay(150)
+  return {
+    radar_constant_db: 68.5,
+    mode: 'auto',
+    measured_at: new Date().toISOString(),
+  }
+}
+
 async function lockMaintenance(): Promise<MaintenanceState> {
   await delay(300)
   maintenance.value = {
@@ -692,6 +702,31 @@ async function runControlJob<T>(
       error: null,
     }
     onJobStatus?.(statusResp)
+  }
+
+  if (path.includes('single-point-calibration')) {
+    const statusResp: ControlJobStatusResponse = {
+      job_id: jobId,
+      routine: 'single_point_calibration',
+      status: 'done',
+      current_step: 3,
+      total_steps: 3,
+      result: {
+        routine: 'single_point_calibration',
+        outcome: 'success',
+        steps: [
+          { signal_id: 'sys.remote_mode_ok_status', ok: true, detail: 'precondicion: value=True' },
+          { signal_id: 'ant.antenna_remote_status', ok: true, detail: 'precondicion: value=True' },
+          { signal_id: 'rx.single_point_noise_high_dbm', ok: true, detail: 'Noise High Channel: -105.20 dBm' },
+          { signal_id: 'rx.single_point_noise_low_dbm', ok: true, detail: 'Noise Low Channel: -102.80 dBm' },
+          { signal_id: 'rx.single_point_radar_constant_db', ok: true, detail: 'Calculated Radar Constant: 68.50 dB' },
+        ],
+        at_us: Date.now() * 1000,
+      },
+      error: null,
+    }
+    onJobStatus?.(statusResp)
+    return statusResp.result as T
   }
 
   await delay(300)
@@ -776,6 +811,7 @@ export function useGateway() {
     fetchRadarConstant,
     setRadarConstant,
     saveRadarConstant,
+    saveSinglePointCalibrationResult,
     advanceControlJobStep,
     runControlJob,
     cancelControlJob,

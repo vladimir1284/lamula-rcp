@@ -26,6 +26,7 @@ import type {
   DspResetCountersResponse,
   DspStreamStatus,
   MaintenanceState,
+  MeasuredRadarConstant,
   PowerMeasurementLimits,
   PowerMonitorSnapshot,
   ProcessMonitorSnapshot,
@@ -417,6 +418,19 @@ async function saveRadarConstant(): Promise<RadarConstantSnapshot> {
   return (await res.json()) as RadarConstantSnapshot
 }
 
+async function saveSinglePointCalibrationResult(jobId: string): Promise<MeasuredRadarConstant> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/control/single-point-calibration/${jobId}/save-result`, {
+    method: 'POST',
+  })
+  if (!res.ok) {
+    const detail = await res.text()
+    throw new Error(
+      `POST /api/control/single-point-calibration/${jobId}/save-result: HTTP ${res.status} — ${detail}`,
+    )
+  }
+  return (await res.json()) as MeasuredRadarConstant
+}
+
 async function lockMaintenance(): Promise<MaintenanceState> {
   const res = await fetch(`${GATEWAY_HTTP}/api/maintenance/lock`, {
     method: 'POST',
@@ -626,6 +640,7 @@ export function useGateway() {
     fetchRadarConstant,
     setRadarConstant,
     saveRadarConstant,
+    saveSinglePointCalibrationResult,
     advanceControlJobStep,
     runControlJob,
     cancelControlJob,

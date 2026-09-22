@@ -4,6 +4,7 @@ from .antenna_unit_power_on import run_antenna_unit_power_on
 from .general_power_on import run_general_power_on
 from .receiver_power_on import run_receiver_power_on
 from .transmitter_power_on import run_transmitter_power_on
+from .single_point_calibration_auto import run_single_point_calibration
 from .tx_power_calibration import run_tx_power_calibration
 from .zero_check import run_zero_check
 

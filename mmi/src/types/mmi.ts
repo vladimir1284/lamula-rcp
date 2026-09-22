@@ -161,6 +161,20 @@ export interface AntennaUnitPowerOnRequest {
   confirm_timeout_s: number
 }
 
+export type SinglePointCalibrationMode = 'auto' | 'external'
+
+export interface SinglePointCalibrationRequest {
+  mode: SinglePointCalibrationMode
+  injected_power_dbm?: number | null
+  measured_radar_constant_db?: number | null
+}
+
+export interface MeasuredRadarConstant {
+  radar_constant_db: number
+  mode: SinglePointCalibrationMode
+  measured_at: string
+}
+
 export interface AntennaMovementRequest {
   axis: AntennaAxis
   voltage_reference: number
