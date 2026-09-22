@@ -39,6 +39,7 @@ import CalibrationHubView from '@/views/CalibrationHubView.vue'
 import ClutterFiltersView from '@/views/ClutterFiltersView.vue'
 import TriggerSetupPwView from '@/views/TriggerSetupPwView.vue'
 import ProcessingOptionsView from '@/views/ProcessingOptionsView.vue'
+import TxSamplingAdjustView from '@/views/TxSamplingAdjustView.vue'
 import { GATEWAY_HTTP, useGateway } from '@/composables/useGateway'
 import type { IndicatorState, MosaicPreset, ViewOption } from '@/types/shell'
 
@@ -96,7 +97,7 @@ const viewCatalog: ViewOption[] = [
   { id: 'sun-position', label: 'H1 Sun Position', available: false },
   { id: 'itsg-control', label: 'I2 ITSG Control', available: false },
   { id: 'calibration-log', label: 'G8 Calibration Log', available: false },
-  { id: 'rsp-tx-rx-adjust', label: 'G2 TX/RX Adjustment', available: false },
+  { id: 'rsp-tx-rx-adjust', label: 'G2 TX Sampling Adjust', available: true },
   { id: 'mb-setup', label: 'E7 Burst Pulse & AFC (Mb)', available: false },
   { id: 'pb-plot', label: 'F1 Burst Pulse Timing (Pb)', available: false },
 ]
@@ -285,6 +286,7 @@ onMounted(() => {
     <template #clutter-filters><ClutterFiltersView /></template>
     <template #trigger-setup-pw><TriggerSetupPwView /></template>
     <template #processing-options><ProcessingOptionsView /></template>
+    <template #rsp-tx-rx-adjust><TxSamplingAdjustView /></template>
     <template #scan-parameter-popup><div class="flex h-full w-full items-center justify-center p-4"><ScanParameterPopup /></div></template>
   </AppShell>
 </template>
