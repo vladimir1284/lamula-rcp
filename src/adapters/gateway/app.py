@@ -21,6 +21,7 @@ import asyncio
 import json
 import math
 import os
+import re
 import psutil
 import tomllib
 import uuid
@@ -63,6 +64,7 @@ from core.contracts.mmi import (
     DspStreamStatus,
     HeartbeatMessage,
     MaintenanceState,
+    MeasuredRadarConstant,
     OperatorEventMessage,
     OperatorMode,
     ClutterFilterConfig,
@@ -183,6 +185,7 @@ def create_app(
     sector_blanking_path: Path = Path("data/sector_blanking.json"),
     config_profile_path: Path = Path("data/config_profile.json"),
     radar_constant_path: Path = Path("data/radar_constant.json"),
+    measured_radar_constant_path: Path = Path("data/measured_radar_constant.json"),
 ) -> FastAPI:
     async def _bite_poll_loop(app: FastAPI) -> None:
         while True:
@@ -316,6 +319,13 @@ def create_app(
         )
     except (FileNotFoundError, ValueError):
         app.state.radar_constant_params = DEFAULT_RADAR_CONSTANT_PARAMS
+    app.state.measured_radar_constant_path = measured_radar_constant_path
+    try:
+        app.state.measured_radar_constant: MeasuredRadarConstant | None = MeasuredRadarConstant.model_validate_json(
+            measured_radar_constant_path.read_text()
+        )
+    except (FileNotFoundError, ValueError):
+        app.state.measured_radar_constant = None
     # Jobs asincronos de los seis POST /api/control/* (ver _start_control_job mas
     # abajo) -- dict ordinario, el orden de inserccion de Python 3.7+ es lo que
     # usa el tope de historial para descartar el mas viejo. En memoria, se pierde
@@ -951,6 +961,65 @@ def create_app(
         app.state.control_job_inputs[job_id] = input_queue
         accepted = _start_control_job("single_point_calibration", coro, job_id=job_id)
         return accepted
+
+    _SINGLE_POINT_RESULT_SIGNAL_IDS = {
+        "rx.single_point_radar_constant_db": "auto",
+        "rx.single_point_radar_constant": "external",
+    }
+
+    @app.post(
+        "/api/control/single-point-calibration/{job_id}/save-result",
+        response_model=MeasuredRadarConstant,
+    )
+    async def save_single_point_calibration_result(job_id: str) -> MeasuredRadarConstant:
+        # PEND-RCP-18 (docs/alcance/pendientes.md): persiste el valor medido por G4
+        # aparte de `RadarConstantParameters`/G7 -- no hay todavia decision de si
+        # este numero debe alimentar el calculo operacional que llega al DSP/DRX.
+        if _effective_maintenance().level != AccessLevel.MANT:
+            raise HTTPException(
+                status_code=403,
+                detail="se requiere nivel de mantenimiento MANT para guardar la calibración de punto único",
+            )
+
+        job = app.state.control_jobs.get(job_id)
+        if job is None:
+            raise HTTPException(status_code=404, detail="job no encontrado")
+        if (
+            job.routine != "single_point_calibration"
+            or job.status != ControlJobStatus.DONE
+            or job.result is None
+            or job.result.outcome != RoutineOutcome.SUCCESS
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail="el job no tiene un resultado exitoso de calibración de punto único para guardar",
+            )
+
+        radar_constant_db: float | None = None
+        mode = "auto"
+        for step in job.result.steps:
+            scenario = _SINGLE_POINT_RESULT_SIGNAL_IDS.get(step.signal_id)
+            if scenario is None:
+                continue
+            match = re.search(r"(-?\d+(?:\.\d+)?)\s*dB\s*$", step.detail)
+            if match:
+                mode = scenario
+                radar_constant_db = float(match.group(1))
+        if radar_constant_db is None:
+            raise HTTPException(
+                status_code=422,
+                detail="no se pudo extraer la constante de radar medida del resultado del job",
+            )
+
+        measured = MeasuredRadarConstant(
+            radar_constant_db=radar_constant_db,
+            mode=mode,
+            measured_at=datetime.now(timezone.utc),
+        )
+        app.state.measured_radar_constant = measured
+        app.state.measured_radar_constant_path.parent.mkdir(parents=True, exist_ok=True)
+        app.state.measured_radar_constant_path.write_text(measured.model_dump_json())
+        return measured
 
     @app.get("/api/antenna/step-config", response_model=AntennaStepConfig)
     async def get_antenna_step_config() -> AntennaStepConfig:

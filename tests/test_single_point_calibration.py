@@ -68,6 +68,7 @@ def client(tmp_path):
         dsp_bind_host="127.0.0.1",
         dsp_port=0,
         power_limits_path=tmp_path / "power_limits.json",
+        measured_radar_constant_path=tmp_path / "measured_radar_constant.json",
     )
     with TestClient(app) as test_client:
         yield test_client
@@ -193,3 +194,56 @@ def test_single_point_calibration_endpoint_external_workflow(client: TestClient)
 
     assert job_data["status"] == "done"
     assert job_data["result"]["outcome"] == "success"
+
+
+@pytest.mark.anyio
+async def test_single_point_calibration_log_detail_uses_measured_value_external():
+    hal = MockHAL(remote_ok=True)
+    logged: list = []
+
+    async def mock_input():
+        return {"injected_power_dbm": -25.0, "measured_radar_constant_db": 69.1}
+
+    await run_single_point_calibration(
+        hal,
+        mode="external",
+        step_input_func=mock_input,
+        record_log_func=logged.append,
+    )
+    final_entry = logged[-1]
+    assert "69.10 dB" in final_entry.detail
+    assert "68.50" not in final_entry.detail
+
+
+def test_single_point_calibration_save_result(client: TestClient):
+    client.post("/api/maintenance/unlock", json={"password": "mant1234", "actor": "tester", "duration_s": 300})
+    client.post("/api/control", json={"mode": "active", "actor": "tester"})
+
+    res = client.post("/api/control/single-point-calibration", json={"mode": "auto"})
+    job_id = res.json()["job_id"]
+
+    status_data = None
+    for _ in range(20):
+        job_res = client.get(f"/api/control/jobs/{job_id}")
+        status_data = job_res.json()
+        if status_data["status"] == "done":
+            break
+        time.sleep(0.05)
+    assert status_data["status"] == "done"
+
+    save_res = client.post(f"/api/control/single-point-calibration/{job_id}/save-result")
+    assert save_res.status_code == 200
+    saved = save_res.json()
+    assert saved["mode"] == "auto"
+    assert saved["radar_constant_db"] == pytest.approx(68.50)
+
+
+def test_single_point_calibration_save_result_requires_mant(client: TestClient):
+    res = client.post("/api/control/single-point-calibration/unknown-job/save-result")
+    assert res.status_code == 403
+
+
+def test_single_point_calibration_save_result_unknown_job(client: TestClient):
+    client.post("/api/maintenance/unlock", json={"password": "mant1234", "actor": "tester", "duration_s": 300})
+    res = client.post("/api/control/single-point-calibration/unknown-job/save-result")
+    assert res.status_code == 404

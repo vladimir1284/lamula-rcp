@@ -29,6 +29,7 @@ import type {
   DspResetCountersResponse,
   DspStreamStatus,
   MaintenanceState,
+  MeasuredRadarConstant,
   PowerMeasurementLimits,
   PowerMonitorSnapshot,
   ProcessMonitorSnapshot,
@@ -631,6 +632,15 @@ async function saveRadarConstant(): Promise<RadarConstantSnapshot> {
   }
 }
 
+async function saveSinglePointCalibrationResult(_jobId: string): Promise<MeasuredRadarConstant> {
+  await delay(150)
+  return {
+    radar_constant_db: 68.5,
+    mode: 'auto',
+    measured_at: new Date().toISOString(),
+  }
+}
+
 async function lockMaintenance(): Promise<MaintenanceState> {
   await delay(300)
   maintenance.value = {
@@ -716,6 +726,7 @@ async function runControlJob<T>(
       error: null,
     }
     onJobStatus?.(statusResp)
+    return statusResp.result as T
   }
 
   await delay(300)
@@ -800,6 +811,7 @@ export function useGateway() {
     fetchRadarConstant,
     setRadarConstant,
     saveRadarConstant,
+    saveSinglePointCalibrationResult,
     advanceControlJobStep,
     runControlJob,
     cancelControlJob,

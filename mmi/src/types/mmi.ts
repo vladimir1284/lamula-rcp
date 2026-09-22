@@ -169,6 +169,12 @@ export interface SinglePointCalibrationRequest {
   measured_radar_constant_db?: number | null
 }
 
+export interface MeasuredRadarConstant {
+  radar_constant_db: number
+  mode: SinglePointCalibrationMode
+  measured_at: string
+}
+
 export interface AntennaMovementRequest {
   axis: AntennaAxis
   voltage_reference: number

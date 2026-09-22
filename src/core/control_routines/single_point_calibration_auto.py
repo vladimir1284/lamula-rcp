@@ -7,6 +7,10 @@ Soporta dos escenarios:
 Precondiciones:
 - Modo remoto en LCU/sistema (`sys.remote_mode_ok_status`)
 - Modo remoto en ACU (`ant.antenna_remote_status`)
+
+Ver PEND-RCP-17 y PEND-RCP-18 en docs/alcance/pendientes.md: el escenario automatico
+usa valores fijos (no hay HAL real para generador/medicion interna todavia), y el
+resultado medido no se propaga aun al calculo operacional de constante de radar (G7).
 """
 
 from __future__ import annotations
@@ -131,7 +135,12 @@ async def run_single_point_calibration(
             )
         )
     else:
-        # Escenario Automático (Generador Interno)
+        # Escenario Automático (Generador Interno).
+        # PEND-RCP-17 (docs/alcance/pendientes.md): estos valores son provisionales,
+        # no lecturas reales -- no hay todavia punto Modbus/HAL para comandar el
+        # generador interno ni para leer el resultado de la medicion (ver hal_sim
+        # signal_catalog). No reemplazar por lecturas de HAL sin antes confirmar
+        # esos puntos con el proyecto DRX.
         noise_high_dbm = -105.20
         noise_low_dbm = -102.80
         signal_high_dbm = -30.10
@@ -190,6 +199,9 @@ async def run_single_point_calibration(
             )
         )
 
+    radar_constant_db = (
+        measured_radar_constant_db if mode == "external" else calculated_radar_constant_db
+    )
     if record_log_func:
         record_log_func(
             CalibrationLogEntry(
@@ -198,7 +210,7 @@ async def run_single_point_calibration(
                 procedure="Single Point Calibration",
                 actor=actor,
                 message=f"Calibración de punto único ({mode}) finalizada con éxito",
-                detail=f"Constante de Radar: 68.50 dB",
+                detail=f"Constante de Radar: {radar_constant_db:.2f} dB",
             )
         )
 

@@ -3,35 +3,23 @@ import { ref, onMounted, computed } from 'vue'
 import WizardStepper, { type WizardStepItem } from '@/components/domain/WizardStepper.vue'
 import OperatorPromptDialog from '@/components/domain/OperatorPromptDialog.vue'
 import UnsavedResultBanner from '@/components/domain/UnsavedResultBanner.vue'
-import type {
-  CalibrationLogEntry,
-  RoutineResult,
-  SinglePointCalibrationMode,
-} from '@/types/mmi'
+import { useGateway } from '@/composables/useGateway'
+import type { CalibrationLogEntry, ControlJobStatusResponse, RoutineResult, SinglePointCalibrationMode } from '@/types/mmi'
 
-const props = defineProps<{
-  hasActiveControl?: boolean
-  isMaintenanceUnlocked?: boolean
-  startCalibration?: (mode: SinglePointCalibrationMode) => Promise<string>
-  pollJobStatus?: (jobId: string) => Promise<{
-    status: 'running' | 'awaiting_operator_input' | 'done'
-    current_step?: number | null
-    total_steps?: number | null
-    step_name?: string | null
-    prompt?: string | null
-    result?: RoutineResult | null
-    error?: string | null
-  }>
-  submitJobStep?: (jobId: string, data: Record<string, unknown>) => Promise<void>
-  saveRadarConstant?: () => Promise<void>
-  getCalibrationLog?: () => Promise<CalibrationLogEntry[]>
-}>()
+const {
+  control,
+  maintenance,
+  halConnected,
+  fetchCalibrationLog,
+  advanceControlJobStep,
+  runControlJob,
+  saveSinglePointCalibrationResult,
+} = useGateway()
 
 const mode = ref<SinglePointCalibrationMode>('auto')
 const running = ref(false)
 const currentJobId = ref<string | null>(null)
 const stepIndex = ref(1)
-const totalSteps = ref(3)
 const promptOpen = ref(false)
 const promptTitle = ref('')
 const promptMessage = ref('')
@@ -39,16 +27,25 @@ const promptLabel = ref<string | undefined>()
 const promptDefaultValue = ref<number | undefined>()
 const promptInputKey = ref<string>('')
 
-const resultVolatile = ref(false)
 const isSaved = ref(true)
+const savingResult = ref(false)
 const routineResult = ref<RoutineResult | null>(null)
 const calibrationLogs = ref<CalibrationLogEntry[]>([])
+const error = ref<string | null>(null)
 
-const preconditionList = ref([
-  { id: 'MANT', label: 'Modo Mantenimiento activo (MANT)', ok: computed(() => props.isMaintenanceUnlocked ?? true) },
-  { id: 'ACTIVE', label: 'Autoridad de Control activa (ACTIVE)', ok: computed(() => props.hasActiveControl ?? true) },
-  { id: 'REMOTE', label: 'ACU / LCU en Modo Remoto', ok: ref(true) },
+// Precondiciones tomadas del estado real del gateway, no de props -- mismo
+// patron que TxPowerCalibrationView.vue (G3).
+const isMaintenanceUnlocked = computed(() => maintenance.value?.level === 'MANT')
+const isControlActive = computed(() => control.value?.mode === 'active')
+const isRemoteOk = computed(() => halConnected.value !== false)
+
+const preconditionList = computed(() => [
+  { id: 'MANT', label: 'Modo Mantenimiento activo (MANT)', ok: isMaintenanceUnlocked.value },
+  { id: 'ACTIVE', label: 'Autoridad de Control activa (ACTIVE)', ok: isControlActive.value },
+  { id: 'REMOTE', label: 'ACU / LCU en Modo Remoto', ok: isRemoteOk.value },
 ])
+
+const canExecute = computed(() => isMaintenanceUnlocked.value && isControlActive.value && isRemoteOk.value)
 
 const stepsAutoRaw = [
   'Verificación de Precondiciones',
@@ -80,39 +77,12 @@ const currentSteps = computed<WizardStepItem[]>(() => {
   })
 })
 
-onMounted(async () => {
-  await loadLogs()
-})
-
 async function loadLogs() {
-  if (props.getCalibrationLog) {
-    calibrationLogs.value = await props.getCalibrationLog()
-  }
+  calibrationLogs.value = await fetchCalibrationLog()
 }
 
-async function handleStart() {
-  if (!props.startCalibration || !props.pollJobStatus) return
-  running.value = true
-  stepIndex.value = 1
-  resultVolatile.value = false
-  isSaved.value = true
-  routineResult.value = null
-
-  try {
-    const jobId = await props.startCalibration(mode.value)
-    currentJobId.value = jobId
-    await poll(jobId)
-  } catch (err) {
-    running.value = false
-  }
-}
-
-async function poll(jobId: string) {
-  if (!props.pollJobStatus) return
-  const job = await props.pollJobStatus(jobId)
-
+function handleJobStatus(job: ControlJobStatusResponse) {
   if (job.current_step) stepIndex.value = job.current_step
-  if (job.total_steps) totalSteps.value = job.total_steps
 
   if (job.status === 'awaiting_operator_input') {
     promptTitle.value = job.step_name || 'Entrada del Operador Requerida'
@@ -127,31 +97,51 @@ async function poll(jobId: string) {
       promptInputKey.value = 'measured_radar_constant_db'
     }
     promptOpen.value = true
-  } else if (job.status === 'done') {
-    running.value = false
-    routineResult.value = job.result ?? null
-    if (job.result?.outcome === 'success') {
+  }
+}
+
+async function handleStart() {
+  if (!canExecute.value || running.value) return
+  running.value = true
+  error.value = null
+  stepIndex.value = 1
+  isSaved.value = true
+  routineResult.value = null
+  currentJobId.value = null
+
+  try {
+    routineResult.value = await runControlJob<RoutineResult>(
+      '/api/control/single-point-calibration',
+      { mode: mode.value },
+      (id) => {
+        currentJobId.value = id
+      },
+      handleJobStatus,
+    )
+    if (routineResult.value?.outcome === 'success') {
       stepIndex.value = currentSteps.value.length
-      resultVolatile.value = true
       isSaved.value = false
     }
     await loadLogs()
-  } else if (job.status === 'running') {
-    setTimeout(() => poll(jobId), 500)
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : String(e)
+  } finally {
+    running.value = false
   }
 }
 
 async function handlePromptConfirm(val: number | null) {
   promptOpen.value = false
-  if (currentJobId.value && props.submitJobStep) {
-    const payload: Record<string, unknown> = {}
-    if (promptInputKey.value) {
-      payload[promptInputKey.value] = val
-    }
-    await props.submitJobStep(currentJobId.value, payload)
-    if (currentJobId.value) {
-      await poll(currentJobId.value)
-    }
+  if (!currentJobId.value) return
+  const payload: Record<string, unknown> = {}
+  if (promptInputKey.value) {
+    payload[promptInputKey.value] = val
+  }
+  try {
+    await advanceControlJobStep(currentJobId.value, payload)
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : String(e)
+    running.value = false
   }
 }
 
@@ -161,12 +151,22 @@ function handlePromptCancel() {
 }
 
 async function handleSave() {
-  if (props.saveRadarConstant) {
-    await props.saveRadarConstant()
+  if (!currentJobId.value) return
+  savingResult.value = true
+  error.value = null
+  try {
+    await saveSinglePointCalibrationResult(currentJobId.value)
     isSaved.value = true
-    await loadLogs()
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : String(e)
+  } finally {
+    savingResult.value = false
   }
 }
+
+onMounted(async () => {
+  await loadLogs()
+})
 </script>
 
 <template>
@@ -186,6 +186,11 @@ async function handleSave() {
           RAVIS §7.4.2 / §14.3
         </span>
       </div>
+    </div>
+
+    <!-- Banner de error si existe -->
+    <div v-if="error" class="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-xs text-destructive">
+      {{ error }}
     </div>
 
     <!-- Persistent Unsaved Banner -->
@@ -272,7 +277,7 @@ async function handleSave() {
         <div class="pt-4 border-t dark:border-slate-700">
           <button
             type="button"
-            :disabled="running"
+            :disabled="running || !canExecute"
             class="w-full rounded-md bg-emerald-600 py-2.5 px-4 text-sm font-semibold text-white shadow hover:bg-emerald-700 disabled:opacity-50"
             @click="handleStart"
           >
