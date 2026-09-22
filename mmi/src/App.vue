@@ -33,6 +33,7 @@ import SystemStatusView from '@/views/SystemStatusView.vue'
 import SystemVisualizationView from '@/views/SystemVisualizationView.vue'
 import ZeroCheckView from '@/views/ZeroCheckView.vue'
 import ConfigProfilesView from '@/views/ConfigProfilesView.vue'
+import TxSamplingAdjustView from '@/views/TxSamplingAdjustView.vue'
 import { GATEWAY_HTTP, useGateway } from '@/composables/useGateway'
 import type { IndicatorState, MosaicPreset, ViewOption } from '@/types/shell'
 
@@ -84,7 +85,7 @@ const viewCatalog: ViewOption[] = [
   { id: 'sun-position', label: 'H1 Sun Position', available: false },
   { id: 'itsg-control', label: 'I2 ITSG Control', available: false },
   { id: 'calibration-log', label: 'G8 Calibration Log', available: false },
-  { id: 'rsp-tx-rx-adjust', label: 'G2 TX/RX Adjustment', available: false },
+  { id: 'rsp-tx-rx-adjust', label: 'G2 TX Sampling Adjust', available: true },
   { id: 'mb-setup', label: 'E7 Burst Pulse & AFC (Mb)', available: false },
   { id: 'pb-plot', label: 'F1 Burst Pulse Timing (Pb)', available: false },
 ]
@@ -268,5 +269,6 @@ onMounted(() => {
     <template #rhi="{ panel }"><RhiView :frozen="panel.frozen" /></template>
     <template #zero-check><ZeroCheckView /></template>
     <template #scan-parameter-popup><div class="flex h-full w-full items-center justify-center p-4"><ScanParameterPopup /></div></template>
+    <template #rsp-tx-rx-adjust><TxSamplingAdjustView /></template>
   </AppShell>
 </template>

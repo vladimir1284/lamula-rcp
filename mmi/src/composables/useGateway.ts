@@ -37,6 +37,8 @@ import type {
   SystemStatusSnapshot,
   TrendSeries,
   TrendStatus,
+  TxSamplingAdjustParams,
+  TxSamplingAdjustSnapshot,
   UnlockMaintenanceRequest,
   WsMessage,
   ZeroCheckSnapshot,
@@ -252,6 +254,33 @@ async function fetchPowerMonitor(): Promise<PowerMonitorSnapshot> {
   const res = await fetch(`${GATEWAY_HTTP}/api/power-monitor`)
   if (!res.ok) throw new Error(`GET /api/power-monitor: HTTP ${res.status}`)
   return (await res.json()) as PowerMonitorSnapshot
+}
+
+async function fetchTxSamplingAdjust(): Promise<TxSamplingAdjustSnapshot> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/tx-sampling-adjust`)
+  if (!res.ok) throw new Error(`GET /api/tx-sampling-adjust: HTTP ${res.status}`)
+  return (await res.json()) as TxSamplingAdjustSnapshot
+}
+
+async function setTxSamplingAdjust(params: TxSamplingAdjustParams): Promise<TxSamplingAdjustParams> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/tx-sampling-adjust`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  })
+  if (!res.ok) throw new Error(`POST /api/tx-sampling-adjust: HTTP ${res.status}`)
+  return (await res.json()) as TxSamplingAdjustParams
+}
+
+async function saveTxSamplingAdjust(): Promise<TxSamplingAdjustParams> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/tx-sampling-adjust/save`, {
+    method: 'POST',
+  })
+  if (!res.ok) {
+    const detail = await res.json().catch(() => ({}))
+    throw new Error(detail.detail || `POST /api/tx-sampling-adjust/save: HTTP ${res.status}`)
+  }
+  return (await res.json()) as TxSamplingAdjustParams
 }
 
 async function fetchZeroCheck(): Promise<ZeroCheckSnapshot> {
@@ -584,6 +613,9 @@ export function useGateway() {
     fetchZeroCheck,
     setPowerLimits,
     savePowerLimits,
+    fetchTxSamplingAdjust,
+    setTxSamplingAdjust,
+    saveTxSamplingAdjust,
     fetchSectorBlanking,
     setSectorBlanking,
     saveSectorBlanking,

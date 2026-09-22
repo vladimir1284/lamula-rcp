@@ -402,6 +402,30 @@ class ZeroCheckSnapshot(BaseModel):
     last_result: RoutineResult | None = None
 
 
+class TxSamplingAdjustParams(BaseModel):
+    """Parametros de ajuste de muestreo TX (G2)."""
+
+    tx_sample: float
+    tx_frequency_mhz: float
+    commanded_lo_freq_mhz: float
+    tx_start_sample: float
+    tx_stop_sample: float
+
+
+class TxSamplingAdjustSnapshot(BaseModel):
+    """Snapshot de ajuste de muestreo TX (G2) con lecturas vivas de Modbus + parametros
+    comandados."""
+
+    tx_sample_readout: float | None = None
+    tx_frequency_readout_mhz: float | None = None
+    commanded_lo_freq_readout_mhz: float | None = None
+    tx_start_sample_readout: float | None = None
+    tx_stop_sample_readout: float | None = None
+    bus_ok: bool = True
+    radiating: bool = False
+    params: TxSamplingAdjustParams | None = None
+
+
 # --- WebSocket ----------------------------------------------------------
 # Sobre discriminado por "type", siguiendo el mismo patron de canal
 # unico usado ya en docs/interfaces/websocket.md de `radar_emulator`

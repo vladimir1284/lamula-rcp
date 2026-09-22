@@ -41,6 +41,8 @@ import type {
   SystemStatusSnapshot,
   TrendSeries,
   TrendStatus,
+  TxSamplingAdjustParams,
+  TxSamplingAdjustSnapshot,
   UnlockMaintenanceRequest,
   WsMessage,
   ZeroCheckSnapshot,
@@ -429,6 +431,39 @@ async function fetchPowerMonitor(): Promise<PowerMonitorSnapshot> {
   }
 }
 
+const mockTxSamplingParams = ref<TxSamplingAdjustParams>({
+  tx_sample: 128,
+  tx_frequency_mhz: 2800,
+  commanded_lo_freq_mhz: 2770,
+  tx_start_sample: 32,
+  tx_stop_sample: 256,
+})
+
+async function fetchTxSamplingAdjust(): Promise<TxSamplingAdjustSnapshot> {
+  await delay(80)
+  return {
+    tx_sample_readout: mockTxSamplingParams.value.tx_sample,
+    tx_frequency_readout_mhz: mockTxSamplingParams.value.tx_frequency_mhz,
+    commanded_lo_freq_readout_mhz: mockTxSamplingParams.value.commanded_lo_freq_mhz,
+    tx_start_sample_readout: mockTxSamplingParams.value.tx_start_sample,
+    tx_stop_sample_readout: mockTxSamplingParams.value.tx_stop_sample,
+    bus_ok: true,
+    radiating: false,
+    params: { ...mockTxSamplingParams.value },
+  }
+}
+
+async function setTxSamplingAdjust(params: TxSamplingAdjustParams): Promise<TxSamplingAdjustParams> {
+  await delay(120)
+  mockTxSamplingParams.value = { ...params }
+  return mockTxSamplingParams.value
+}
+
+async function saveTxSamplingAdjust(): Promise<TxSamplingAdjustParams> {
+  await delay(150)
+  return mockTxSamplingParams.value
+}
+
 async function fetchZeroCheck(): Promise<ZeroCheckSnapshot> {
   await delay(80)
   return {
@@ -693,6 +728,9 @@ export function useGateway() {
     fetchZeroCheck,
     setPowerLimits,
     savePowerLimits,
+    fetchTxSamplingAdjust,
+    setTxSamplingAdjust,
+    saveTxSamplingAdjust,
     fetchSectorBlanking,
     setSectorBlanking,
     saveSectorBlanking,
