@@ -34,6 +34,7 @@ import SystemVisualizationView from '@/views/SystemVisualizationView.vue'
 import ZeroCheckView from '@/views/ZeroCheckView.vue'
 import TxPowerCalibrationView from '@/views/TxPowerCalibrationView.vue'
 import ConfigProfilesView from '@/views/ConfigProfilesView.vue'
+import CalibrationHubView from '@/views/CalibrationHubView.vue'
 import { GATEWAY_HTTP, useGateway } from '@/composables/useGateway'
 import type { IndicatorState, MosaicPreset, ViewOption } from '@/types/shell'
 
@@ -80,6 +81,7 @@ const viewCatalog: ViewOption[] = [
   { id: 'ascope', label: 'D2 ASCOPE', available: true },
   { id: 'ppi', label: 'D3 PPI', available: true },
   { id: 'rhi', label: 'D4 RHI', available: true },
+  { id: 'calibration-hub', label: 'G1 Calibration Hub', available: true },
   { id: 'zero-check', label: 'G5 Zero Check', available: true },
   { id: 'tx-power-calibration', label: 'G3 TX Power Calibration', available: true },
   { id: 'scan-parameter-popup', label: 'D8 Scan Parameter Popup', available: true },
@@ -268,6 +270,7 @@ onMounted(() => {
     <template #ascope="{ panel }"><AscopeView :frozen="panel.frozen" /></template>
     <template #ppi="{ panel }"><PpiView :frozen="panel.frozen" /></template>
     <template #rhi="{ panel }"><RhiView :frozen="panel.frozen" /></template>
+    <template #calibration-hub="{ panel }"><CalibrationHubView @navigate="panel.setView" /></template>
     <template #zero-check><ZeroCheckView /></template>
     <template #tx-power-calibration><TxPowerCalibrationView /></template>
     <template #scan-parameter-popup><div class="flex h-full w-full items-center justify-center p-4"><ScanParameterPopup /></div></template>
