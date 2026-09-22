@@ -354,6 +354,24 @@ export interface PowerMonitorSnapshot {
   limits: PowerMeasurementLimits | null
 }
 
+export interface TxSamplingAdjustParams {
+  tx_start_sample: number
+  tx_stop_sample: number
+  tx_sample: number
+  tx_frequency: number
+  commanded_lo_freq: number
+}
+
+export interface TxSamplingAdjustSnapshot {
+  params: TxSamplingAdjustParams
+  tx_start_sample_read: number | null
+  tx_stop_sample_read: number | null
+  tx_sample_read: number | null
+  tx_frequency_read: number | null
+  commanded_lo_freq_read: number | null
+  bus_ok: boolean
+}
+
 export interface ZeroCheckSnapshot {
   last_run_at_wall: string | null
   next_run_at_wall: string | null

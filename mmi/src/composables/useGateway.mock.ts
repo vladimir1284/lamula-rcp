@@ -46,6 +46,8 @@ import type {
   TrendSeries,
   TrendStatus,
   TriggerSetupPwSettings,
+  TxSamplingAdjustParams,
+  TxSamplingAdjustSnapshot,
   UnlockMaintenanceRequest,
   WsMessage,
   ZeroCheckSnapshot,
@@ -176,6 +178,14 @@ const mockCurrentProfile = ref<RcpConfigProfile>({
 })
 
 const mockSavedProfile = ref<RcpConfigProfile>(JSON.parse(JSON.stringify(mockCurrentProfile.value)))
+
+const mockTxSamplingParams = ref<TxSamplingAdjustParams>({
+  tx_start_sample: 10,
+  tx_stop_sample: 50,
+  tx_sample: 16,
+  tx_frequency: 30.0,
+  commanded_lo_freq: 5600.0,
+})
 
 const radarConstantParams = ref<RadarConstantParameters>({
   pulse_width_us: 1.0,
@@ -680,6 +690,30 @@ async function factoryConfigProfile(): Promise<RcpConfigProfile> {
   return JSON.parse(JSON.stringify(mockCurrentProfile.value))
 }
 
+async function fetchTxSamplingAdjust(): Promise<TxSamplingAdjustSnapshot> {
+  await delay(80)
+  return {
+    params: { ...mockTxSamplingParams.value },
+    tx_start_sample_read: 10,
+    tx_stop_sample_read: 50,
+    tx_sample_read: 16,
+    tx_frequency_read: 30.0,
+    commanded_lo_freq_read: 5600.0,
+    bus_ok: true,
+  }
+}
+
+async function setTxSamplingAdjust(params: TxSamplingAdjustParams): Promise<TxSamplingAdjustParams> {
+  await delay(80)
+  mockTxSamplingParams.value = { ...params }
+  return { ...mockTxSamplingParams.value }
+}
+
+async function saveTxSamplingAdjust(): Promise<TxSamplingAdjustParams> {
+  await delay(150)
+  return { ...mockTxSamplingParams.value }
+}
+
 async function fetchRadarConstant(): Promise<RadarConstantSnapshot> {
   await delay(80)
   return {
@@ -887,6 +921,9 @@ export function useGateway() {
     setTriggerSetupPw,
     fetchProcessingOptions,
     setProcessingOptions,
+    fetchTxSamplingAdjust,
+    setTxSamplingAdjust,
+    saveTxSamplingAdjust,
     fetchRadarConstant,
     setRadarConstant,
     saveRadarConstant,

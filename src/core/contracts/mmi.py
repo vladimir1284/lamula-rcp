@@ -324,6 +324,30 @@ class PowerMonitorSnapshot(BaseModel):
     limits: PowerMeasurementLimits | None
 
 
+class TxSamplingAdjustParams(BaseModel):
+    """Parámetros comandados/configurados para el ajuste de muestreo TX (G2)."""
+
+    tx_start_sample: float = Field(default=10.0, description="Muestra de inicio de transmisión (unidades de 29 ns)")
+    tx_stop_sample: float = Field(default=50.0, description="Muestra de fin de transmisión (unidades de 29 ns)")
+    tx_sample: float = Field(default=16.0, description="Número de muestras/pulsos TX")
+    tx_frequency: float = Field(default=30.0, description="Frecuencia intermedia TX (MHz)")
+    commanded_lo_freq: float = Field(default=5600.0, description="Frecuencia nominal LO comandada (MHz)")
+
+
+class TxSamplingAdjustSnapshot(BaseModel):
+    """Snapshot de lectura/telemetría para el ajuste de muestreo TX (G2).
+    Lecturas HAL en `None` si la lectura no es OK (stale/error de bus).
+    """
+
+    params: TxSamplingAdjustParams
+    tx_start_sample_read: float | None = None
+    tx_stop_sample_read: float | None = None
+    tx_sample_read: float | None = None
+    tx_frequency_read: float | None = None
+    commanded_lo_freq_read: float | None = None
+    bus_ok: bool = True
+
+
 class ScanCutExecutionRequest(BaseModel):
     """`POST /api/scan/worksheet/{index}/execute` -- espejo de los kwargs de
     `core.scan_controller.run_scan_cut` (sin `cut`, ya identificado por

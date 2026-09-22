@@ -42,6 +42,8 @@ import type {
   TrendSeries,
   TrendStatus,
   TriggerSetupPwSettings,
+  TxSamplingAdjustParams,
+  TxSamplingAdjustSnapshot,
   UnlockMaintenanceRequest,
   WsMessage,
   ZeroCheckSnapshot,
@@ -450,6 +452,34 @@ async function savePowerLimits(): Promise<PowerMeasurementLimits> {
   return (await res.json()) as PowerMeasurementLimits
 }
 
+async function fetchTxSamplingAdjust(): Promise<TxSamplingAdjustSnapshot> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/tx-sampling-adjust`)
+  if (!res.ok) throw new Error(`GET /api/tx-sampling-adjust: HTTP ${res.status}`)
+  return (await res.json()) as TxSamplingAdjustSnapshot
+}
+
+async function setTxSamplingAdjust(params: TxSamplingAdjustParams): Promise<TxSamplingAdjustParams> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/tx-sampling-adjust`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  })
+  if (!res.ok) {
+    const detail = await res.text()
+    throw new Error(`POST /api/tx-sampling-adjust: HTTP ${res.status} — ${detail}`)
+  }
+  return (await res.json()) as TxSamplingAdjustParams
+}
+
+async function saveTxSamplingAdjust(): Promise<TxSamplingAdjustParams> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/tx-sampling-adjust/save`, { method: 'POST' })
+  if (!res.ok) {
+    const detail = await res.text()
+    throw new Error(`POST /api/tx-sampling-adjust/save: HTTP ${res.status} — ${detail}`)
+  }
+  return (await res.json()) as TxSamplingAdjustParams
+}
+
 async function fetchRadarConstant(): Promise<RadarConstantSnapshot> {
   const res = await fetch(`${GATEWAY_HTTP}/api/radar-constant`)
   if (!res.ok) throw new Error(`GET /api/radar-constant: HTTP ${res.status}`)
@@ -703,6 +733,9 @@ export function useGateway() {
     setTriggerSetupPw,
     fetchProcessingOptions,
     setProcessingOptions,
+    fetchTxSamplingAdjust,
+    setTxSamplingAdjust,
+    saveTxSamplingAdjust,
     fetchRadarConstant,
     setRadarConstant,
     saveRadarConstant,

@@ -94,6 +94,8 @@ from core.contracts.mmi import (
     TrendSeries,
     TrendStartRequest,
     TrendStatus,
+    TxSamplingAdjustParams,
+    TxSamplingAdjustSnapshot,
     UnlockMaintenanceRequest,
     WizardStepInputRequest,
     WsMessage,
@@ -189,6 +191,7 @@ def create_app(
     config_profile_path: Path = Path("data/config_profile.json"),
     radar_constant_path: Path = Path("data/radar_constant.json"),
     measured_radar_constant_path: Path = Path("data/measured_radar_constant.json"),
+    tx_sampling_path: Path = Path("data/tx_sampling_adjust.json"),
 ) -> FastAPI:
     async def _bite_poll_loop(app: FastAPI) -> None:
         while True:
@@ -329,6 +332,14 @@ def create_app(
         )
     except (FileNotFoundError, ValueError):
         app.state.measured_radar_constant = None
+
+    app.state.tx_sampling_path = tx_sampling_path
+    try:
+        app.state.tx_sampling_params: TxSamplingAdjustParams = TxSamplingAdjustParams.model_validate_json(
+            tx_sampling_path.read_text()
+        )
+    except (FileNotFoundError, ValueError):
+        app.state.tx_sampling_params = TxSamplingAdjustParams()
     # Jobs asincronos de los seis POST /api/control/* (ver _start_control_job mas
     # abajo) -- dict ordinario, el orden de inserccion de Python 3.7+ es lo que
     # usa el tope de historial para descartar el mas viejo. En memoria, se pierde
@@ -1272,6 +1283,42 @@ def create_app(
         app.state.power_limits_path.parent.mkdir(parents=True, exist_ok=True)
         app.state.power_limits_path.write_text(app.state.power_limits.model_dump_json())
         return app.state.power_limits
+
+    @app.get("/api/tx-sampling-adjust", response_model=TxSamplingAdjustSnapshot)
+    async def get_tx_sampling_adjust() -> TxSamplingAdjustSnapshot:
+        async def _read_val(sig: str) -> float | None:
+            try:
+                reading = await hal.read_analog(sig)
+            except Exception:
+                return None
+            return reading.value if reading.quality == SignalQuality.OK else None
+
+        tx_start = await _read_val("tx.tx_start_sample_sample")
+        tx_stop = await _read_val("tx.tx_stop_sample_sample")
+        tx_sample = await _read_val("tx.tx_sample_sample")
+        tx_freq = await _read_val("tx.tx_frequency_sample")
+        cmd_lo = await _read_val("tx.commanded_lo_freq_sample")
+
+        return TxSamplingAdjustSnapshot(
+            params=app.state.tx_sampling_params,
+            tx_start_sample_read=tx_start,
+            tx_stop_sample_read=tx_stop,
+            tx_sample_read=tx_sample,
+            tx_frequency_read=tx_freq,
+            commanded_lo_freq_read=cmd_lo,
+            bus_ok=hal.is_connected(),
+        )
+
+    @app.post("/api/tx-sampling-adjust", response_model=TxSamplingAdjustParams)
+    async def set_tx_sampling_adjust(params: TxSamplingAdjustParams) -> TxSamplingAdjustParams:
+        app.state.tx_sampling_params = params
+        return app.state.tx_sampling_params
+
+    @app.post("/api/tx-sampling-adjust/save", response_model=TxSamplingAdjustParams)
+    async def save_tx_sampling_adjust() -> TxSamplingAdjustParams:
+        app.state.tx_sampling_path.parent.mkdir(parents=True, exist_ok=True)
+        app.state.tx_sampling_path.write_text(app.state.tx_sampling_params.model_dump_json())
+        return app.state.tx_sampling_params
 
     @app.get("/api/sector-blanking", response_model=SectorBlankingProfile)
     async def get_sector_blanking() -> SectorBlankingProfile:
