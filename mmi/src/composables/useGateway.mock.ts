@@ -23,6 +23,7 @@ import type {
   AntennaStepConfig,
   BiteFaultSummary,
   CalibrationLogEntry,
+  ClutterFilterSettings,
   ControlAuthorityState,
   ControlJobStatusResponse,
   DspInternalStatusSnapshot,
@@ -32,6 +33,7 @@ import type {
   MeasuredRadarConstant,
   PowerMeasurementLimits,
   PowerMonitorSnapshot,
+  ProcessingOptionsSettings,
   ProcessMonitorSnapshot,
   RadarConstantParameters,
   RadarConstantSnapshot,
@@ -43,6 +45,7 @@ import type {
   SystemStatusSnapshot,
   TrendSeries,
   TrendStatus,
+  TriggerSetupPwSettings,
   UnlockMaintenanceRequest,
   WsMessage,
   ZeroCheckSnapshot,
@@ -113,6 +116,43 @@ const mockWorksheet = ref<ScanCut[]>([
     moments: ['UZ', 'V', 'ZDR'],
   },
 ])
+
+const mockClutterFilters = ref<ClutterFilterSettings>({
+  clutter_filter: 'gmap',
+  clutter_width_ms: 1.0,
+  fixed_win: 0,
+  fixed_width_pts: 5,
+  fixed_edge_pts: 2,
+  variable_hunt_pts: 3,
+  secondary_sqi_slope: 0.0,
+  secondary_sqi_offset: 0.0,
+})
+
+const mockTriggerSetupPw = ref<TriggerSetupPwSettings>({
+  selected_pulse_width: 'medium',
+  gate_spacing_m: 150.0,
+  prf_hz: 1000.0,
+  external_pretrigger_delay_us: 0.0,
+  current_noise_level_dbm: -110.0,
+  powerup_noise_level_dbm: -112.0,
+  triggers: [
+    { trigger_index: 1, name: 'Trig 1 (Tx)', start_us: 0.0, width_us: 1.0, high: true, prt_term_enabled: false },
+    { trigger_index: 2, name: 'Trig 2 (Rx)', start_us: 0.5, width_us: 1.0, high: true, prt_term_enabled: false },
+    { trigger_index: 3, name: 'Trig 3 (Aux)', start_us: 1.0, width_us: 2.0, high: true, prt_term_enabled: false },
+    { trigger_index: 4, name: 'Trig 4 (Spare)', start_us: 2.0, width_us: 2.0, high: false, prt_term_enabled: false },
+  ],
+})
+
+const mockProcessingOptions = ref<ProcessingOptionsSettings>({
+  spectral_window: 'user',
+  r2_processing: 'never',
+  clutter_microsuppression: 'never',
+  ppp_autocorrels: 'user',
+  unfold_velocity: 'always',
+  process_custom_trigs: 'never',
+  interference_filter: 'none',
+  phidp_offset_deg: 0.0,
+})
 
 const mockCurrentProfile = ref<RcpConfigProfile>({
   power_limits: { forward_limit_kw: 250, reverse_limit_kw: 15, vswr_limit: 1.5 },
@@ -523,6 +563,39 @@ async function resetDspCounters(): Promise<DspResetCountersResponse> {
   }
 }
 
+async function fetchClutterFilters(): Promise<ClutterFilterSettings> {
+  await delay(80)
+  return JSON.parse(JSON.stringify(mockClutterFilters.value))
+}
+
+async function setClutterFilters(settings: ClutterFilterSettings): Promise<ClutterFilterSettings> {
+  await delay(100)
+  mockClutterFilters.value = JSON.parse(JSON.stringify(settings))
+  return JSON.parse(JSON.stringify(mockClutterFilters.value))
+}
+
+async function fetchTriggerSetupPw(): Promise<TriggerSetupPwSettings> {
+  await delay(80)
+  return JSON.parse(JSON.stringify(mockTriggerSetupPw.value))
+}
+
+async function setTriggerSetupPw(settings: TriggerSetupPwSettings): Promise<TriggerSetupPwSettings> {
+  await delay(100)
+  mockTriggerSetupPw.value = JSON.parse(JSON.stringify(settings))
+  return JSON.parse(JSON.stringify(mockTriggerSetupPw.value))
+}
+
+async function fetchProcessingOptions(): Promise<ProcessingOptionsSettings> {
+  await delay(80)
+  return JSON.parse(JSON.stringify(mockProcessingOptions.value))
+}
+
+async function setProcessingOptions(settings: ProcessingOptionsSettings): Promise<ProcessingOptionsSettings> {
+  await delay(100)
+  mockProcessingOptions.value = JSON.parse(JSON.stringify(settings))
+  return JSON.parse(JSON.stringify(mockProcessingOptions.value))
+}
+
 async function setPowerLimits(limits: PowerMeasurementLimits): Promise<PowerMeasurementLimits> {
   await delay(80)
   powerLimits.value = { ...limits }
@@ -808,6 +881,12 @@ export function useGateway() {
     factoryConfigProfile,
     fetchDspInternalStatus,
     resetDspCounters,
+    fetchClutterFilters,
+    setClutterFilters,
+    fetchTriggerSetupPw,
+    setTriggerSetupPw,
+    fetchProcessingOptions,
+    setProcessingOptions,
     fetchRadarConstant,
     setRadarConstant,
     saveRadarConstant,

@@ -36,6 +36,9 @@ import TxPowerCalibrationView from '@/views/TxPowerCalibrationView.vue'
 import SinglePointCalibrationView from '@/views/SinglePointCalibrationView.vue'
 import ConfigProfilesView from '@/views/ConfigProfilesView.vue'
 import CalibrationHubView from '@/views/CalibrationHubView.vue'
+import ClutterFiltersView from '@/views/ClutterFiltersView.vue'
+import TriggerSetupPwView from '@/views/TriggerSetupPwView.vue'
+import ProcessingOptionsView from '@/views/ProcessingOptionsView.vue'
 import { GATEWAY_HTTP, useGateway } from '@/composables/useGateway'
 import type { IndicatorState, MosaicPreset, ViewOption } from '@/types/shell'
 
@@ -66,6 +69,9 @@ const viewCatalog: ViewOption[] = [
   { id: 'radar-constant', label: 'G7 Radar Constant Parameters', available: true },
   { id: 'system-status', label: 'B10 System Status', available: true },
   { id: 'thresholds-matrix', label: 'E3 Thresholds Matrix (Vp)', available: true },
+  { id: 'clutter-filters', label: 'E4 Clutter Filters (Mf)', available: true },
+  { id: 'trigger-setup-pw', label: 'E6 Trigger Setup por Pulse Width (Mt<n>)', available: true },
+  { id: 'processing-options', label: 'E2 Processing Options (Mp)', available: true },
   { id: 'dsp-internal-status', label: 'E12 DSP Internal Status', available: true },
   { id: 'bite-messages', label: 'B8 BiTE Messages', available: true },
   { id: 'bite-review', label: 'B9 BiTE Review', available: true },
@@ -276,6 +282,9 @@ onMounted(() => {
     <template #zero-check><ZeroCheckView /></template>
     <template #tx-power-calibration><TxPowerCalibrationView /></template>
     <template #single-point-calibration><SinglePointCalibrationView /></template>
+    <template #clutter-filters><ClutterFiltersView /></template>
+    <template #trigger-setup-pw><TriggerSetupPwView /></template>
+    <template #processing-options><ProcessingOptionsView /></template>
     <template #scan-parameter-popup><div class="flex h-full w-full items-center justify-center p-4"><ScanParameterPopup /></div></template>
   </AppShell>
 </template>

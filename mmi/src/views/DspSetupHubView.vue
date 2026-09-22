@@ -12,14 +12,14 @@ const emit = defineEmits<{
 // Definición de las vistas de la familia E (Setup DSP) y F (Ajuste asistido)
 const hubItems = ref<SetupHubItem[]>([
   {
-    id: 'mp-processing-options',
+    id: 'processing-options',
     code: 'E2',
     title: 'Processing Options (Mp)',
     family: 'Setup DSP',
     description: 'Espectros, algoritmos R2/microsupresión, series temporales, polarimetría y KDP.',
-    dirty: true,
+    dirty: false,
     access: 'MANT',
-    available: false,
+    available: true,
   },
   {
     id: 'thresholds-matrix',
@@ -39,7 +39,7 @@ const hubItems = ref<SetupHubItem[]>([
     description: 'Filtros de clutter fijos, variables y modelo gaussiano con anchos Doppler.',
     dirty: false,
     access: 'MANT',
-    available: false,
+    available: true,
   },
   {
     id: 'trigger-setup-general',
@@ -59,7 +59,7 @@ const hubItems = ref<SetupHubItem[]>([
     description: 'Tabla de retardo y anchura de triggers (solo lectura de alineación).',
     dirty: false,
     access: 'MANT',
-    available: false,
+    available: true,
   },
   {
     id: 'mb-setup',
