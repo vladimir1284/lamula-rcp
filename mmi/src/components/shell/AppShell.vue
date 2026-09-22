@@ -164,7 +164,12 @@ function duplicateCurrent() {
             @update:view-id="setPanelView(i, $event)"
             @toggle-freeze="toggleFreeze(i)"
           >
-            <slot :name="panel.viewId ?? '__empty__'" :panel="panel" :view-id="panel.viewId">
+            <slot
+              :name="panel.viewId ?? '__empty__'"
+              :panel="panel"
+              :view-id="panel.viewId"
+              :set-view="(id: string) => setPanelView(i, id)"
+            >
               <div class="flex h-full items-center justify-center text-xs text-muted-foreground">
                 (vista de relleno: {{ panel.viewId ?? 'ninguna' }})
               </div>

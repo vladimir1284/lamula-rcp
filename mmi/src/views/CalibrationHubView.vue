@@ -29,7 +29,6 @@ const zeroCheckSnapshot = ref<ZeroCheckSnapshot | null>(null)
 const radarConstantSnapshot = ref<RadarConstantSnapshot | null>(null)
 const logs = ref<CalibrationLogEntry[]>([])
 const error = ref<string | null>(null)
-const busy = ref(false)
 
 let pollTimer: ReturnType<typeof setInterval> | null = null
 
@@ -182,7 +181,7 @@ onUnmounted(() => {
               {{ logs.length }}
             </div>
             <span class="text-[11px] text-muted-foreground">
-              Último evento: {{ logs.length > 0 ? formatDate(logs[0].at_wall) : 'Sin entradas' }}
+              Último evento: {{ logs[0] ? formatDate(logs[0].at_wall) : 'Sin entradas' }}
             </span>
           </div>
         </CardContent>

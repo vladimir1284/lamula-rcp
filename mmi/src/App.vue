@@ -270,7 +270,7 @@ onMounted(() => {
     <template #ascope="{ panel }"><AscopeView :frozen="panel.frozen" /></template>
     <template #ppi="{ panel }"><PpiView :frozen="panel.frozen" /></template>
     <template #rhi="{ panel }"><RhiView :frozen="panel.frozen" /></template>
-    <template #calibration-hub="{ panel }"><CalibrationHubView @navigate="panel.setView" /></template>
+    <template #calibration-hub="{ setView }"><CalibrationHubView @navigate="setView" /></template>
     <template #zero-check><ZeroCheckView /></template>
     <template #tx-power-calibration><TxPowerCalibrationView /></template>
     <template #scan-parameter-popup><div class="flex h-full w-full items-center justify-center p-4"><ScanParameterPopup /></div></template>
