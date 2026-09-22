@@ -27,4 +27,4 @@ mmi-check:
 storybook:
 	pnpm --prefix mmi run build-storybook
 
-check: lint test docs
+check: lint test docs mmi-check

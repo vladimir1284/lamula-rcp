@@ -20,9 +20,26 @@ jobs:
       - name: Entorno de Python
         run: uv sync --no-install-project --group dev
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+          cache-dependency-path: 'mmi/pnpm-lock.yaml'
+
+      - name: Entorno de mmi
+        run: pnpm --prefix mmi install --frozen-lockfile
+
       # `check_vendored_contract.py` solo avisa —no falla— cuando el repositorio
       # del DSP no esta montado al lado, que es siempre el caso en CI. Lo que si
       # comprueba aqui es que las copias vendorizadas siguen coincidiendo con su
       # ancla por hash: es la barrera contra que un formateador las reescriba.
+      #
+      # Incluye mmi-check (vue-tsc --build): sin el, un error de tipos en
+      # mmi/src (p. ej. slot scope inexistente) pasa CI en verde -- PR #21 lo
+      # demostro (panel.setView no existia en PanelState y nadie lo agarro).
       - name: Gates
         run: make check
