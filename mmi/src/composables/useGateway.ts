@@ -18,6 +18,7 @@ import type {
   AntennaMessage,
   AntennaStepConfig,
   BiteFaultSummary,
+  CalibrationLogEntry,
   ControlAuthorityState,
   ControlJobAccepted,
   ControlJobStatusResponse,
@@ -254,6 +255,12 @@ async function fetchPowerMonitor(): Promise<PowerMonitorSnapshot> {
   return (await res.json()) as PowerMonitorSnapshot
 }
 
+async function fetchCalibrationLog(): Promise<CalibrationLogEntry[]> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/calibration-log`)
+  if (!res.ok) throw new Error(`GET /api/calibration-log: HTTP ${res.status}`)
+  return (await res.json()) as CalibrationLogEntry[]
+}
+
 async function fetchZeroCheck(): Promise<ZeroCheckSnapshot> {
   const res = await fetch(`${GATEWAY_HTTP}/api/zero-check`)
   if (!res.ok) throw new Error(`GET /api/zero-check: HTTP ${res.status}`)
@@ -433,7 +440,25 @@ async function lockMaintenance(): Promise<MaintenanceState> {
 // dejar el fetch original colgado.
 const CONTROL_JOB_POLL_INTERVAL_MS = 400
 
-async function runControlJob<T>(path: string, body?: unknown, onJobId?: (jobId: string) => void): Promise<T> {
+async function advanceControlJobStep(jobId: string, data: Record<string, unknown>): Promise<ControlJobStatusResponse> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/control/jobs/${jobId}/step`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ data }),
+  })
+  if (!res.ok) {
+    const detail = await res.text()
+    throw new Error(`POST /api/control/jobs/${jobId}/step: HTTP ${res.status} — ${detail}`)
+  }
+  return (await res.json()) as ControlJobStatusResponse
+}
+
+async function runControlJob<T>(
+  path: string,
+  body?: unknown,
+  onJobId?: (jobId: string) => void,
+  onJobStatus?: (job: ControlJobStatusResponse) => void,
+): Promise<T> {
   const res = await fetch(`${GATEWAY_HTTP}${path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -450,6 +475,7 @@ async function runControlJob<T>(path: string, body?: unknown, onJobId?: (jobId: 
     const jobRes = await fetch(`${GATEWAY_HTTP}/api/control/jobs/${accepted.job_id}`)
     if (!jobRes.ok) throw new Error(`GET /api/control/jobs/${accepted.job_id}: HTTP ${jobRes.status}`)
     const job = (await jobRes.json()) as ControlJobStatusResponse
+    onJobStatus?.(job)
     if (job.status === 'done') {
       if (job.error) throw new Error(`job ${job.job_id} (${job.routine}) fallo: ${job.error}`)
       return job.result as T
@@ -581,6 +607,7 @@ export function useGateway() {
     clearTrend,
     fetchTrendData,
     fetchPowerMonitor,
+    fetchCalibrationLog,
     fetchZeroCheck,
     setPowerLimits,
     savePowerLimits,
@@ -599,6 +626,7 @@ export function useGateway() {
     fetchRadarConstant,
     setRadarConstant,
     saveRadarConstant,
+    advanceControlJobStep,
     runControlJob,
     cancelControlJob,
     send,
