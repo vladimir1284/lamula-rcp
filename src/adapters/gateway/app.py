@@ -68,6 +68,9 @@ from core.contracts.mmi import (
     OperatorEventMessage,
     OperatorMode,
     ClutterFilterConfig,
+    ClutterFilterSettings,
+    TriggerSetupPwSettings,
+    ProcessingOptionsSettings,
     PowerMeasurementLimits,
     PowerMonitorSnapshot,
     RadarConstantParameters,
@@ -365,6 +368,9 @@ def create_app(
     app.state.config_profile_path = config_profile_path
     app.state.thresholds = ThresholdsConfig()
     app.state.clutter_filter = ClutterFilterConfig()
+    app.state.clutter_filter_settings = ClutterFilterSettings()
+    app.state.trigger_pw_settings = TriggerSetupPwSettings()
+    app.state.processing_options_settings = ProcessingOptionsSettings()
 
     def _get_current_profile() -> RcpConfigProfile:
         return RcpConfigProfile(
@@ -555,6 +561,49 @@ def create_app(
     @app.get("/api/dsp/internal-status", response_model=DspInternalStatusSnapshot)
     async def get_dsp_internal_status() -> DspInternalStatusSnapshot:
         return _dsp_internal_status()
+
+    @app.get("/api/dsp/clutter-filters", response_model=ClutterFilterSettings)
+    async def get_clutter_filters() -> ClutterFilterSettings:
+        cfg = dsp.latest_config
+        settings = app.state.clutter_filter_settings
+        if cfg is not None:
+            filter_map = {0: "none", 1: "gmap", 2: "notch"}
+            if isinstance(cfg.clutter_filter, int) and cfg.clutter_filter in filter_map:
+                settings.clutter_filter = filter_map[cfg.clutter_filter]  # type: ignore[assignment]
+            settings.clutter_width_ms = cfg.clutter_width_ms
+        return settings
+
+    @app.post("/api/dsp/clutter-filters", response_model=ClutterFilterSettings)
+    async def set_clutter_filters(settings: ClutterFilterSettings) -> ClutterFilterSettings:
+        app.state.clutter_filter_settings = settings
+        return settings
+
+    @app.get("/api/dsp/trigger-setup-pw", response_model=TriggerSetupPwSettings)
+    async def get_trigger_setup_pw() -> TriggerSetupPwSettings:
+        cfg = dsp.latest_config
+        settings = app.state.trigger_pw_settings
+        if cfg is not None:
+            settings.gate_spacing_m = cfg.gate_spacing_m
+            settings.prf_hz = cfg.prf_hz
+        return settings
+
+    @app.post("/api/dsp/trigger-setup-pw", response_model=TriggerSetupPwSettings)
+    async def set_trigger_setup_pw(settings: TriggerSetupPwSettings) -> TriggerSetupPwSettings:
+        app.state.trigger_pw_settings = settings
+        return settings
+
+    @app.get("/api/dsp/processing-options", response_model=ProcessingOptionsSettings)
+    async def get_processing_options() -> ProcessingOptionsSettings:
+        cfg = dsp.latest_config
+        settings = app.state.processing_options_settings
+        if cfg is not None and hasattr(cfg, "phidp_offset_deg"):
+            settings.phidp_offset_deg = cfg.phidp_offset_deg
+        return settings
+
+    @app.post("/api/dsp/processing-options", response_model=ProcessingOptionsSettings)
+    async def set_processing_options(settings: ProcessingOptionsSettings) -> ProcessingOptionsSettings:
+        app.state.processing_options_settings = settings
+        return settings
 
     @app.post("/api/dsp/reset-counters", response_model=DspResetCountersResponse)
     async def reset_dsp_counters() -> DspResetCountersResponse:

@@ -201,6 +201,54 @@ class ClutterFilterConfig(BaseModel):
     statistical_filter_enabled: bool = False
 
 
+class ClutterFilterSettings(BaseModel):
+    clutter_filter: Literal["none", "gmap", "notch"] = "gmap"
+    clutter_width_ms: float = Field(1.0, ge=0.0, le=50.0, description="Ancho de clutter en m/s (Modelo Gaussiano #5-#7)")
+    fixed_win: int = Field(0, description="Ventana del filtro fijo (#1-#3)")
+    fixed_width_pts: int = Field(5, description="Ancho en puntos del filtro fijo")
+    fixed_edge_pts: int = Field(2, description="Puntos de borde del filtro fijo")
+    variable_hunt_pts: int = Field(3, description="Puntos de búsqueda del filtro variable (#4)")
+    secondary_sqi_slope: float = 0.0
+    secondary_sqi_offset: float = 0.0
+
+
+class TriggerTimingRow(BaseModel):
+    trigger_index: int
+    name: str
+    start_us: float
+    width_us: float
+    high: bool = True
+    prt_term_enabled: bool = False
+
+
+class TriggerSetupPwSettings(BaseModel):
+    selected_pulse_width: Literal["short", "medium", "long"] = "medium"
+    gate_spacing_m: float = Field(150.0, ge=1.0, le=5000.0)
+    prf_hz: float = Field(1000.0, ge=50.0, le=20000.0)
+    external_pretrigger_delay_us: float = 0.0
+    current_noise_level_dbm: float = -110.0
+    powerup_noise_level_dbm: float = -112.0
+    triggers: list[TriggerTimingRow] = Field(
+        default_factory=lambda: [
+            TriggerTimingRow(trigger_index=1, name="Trig 1 (Tx)", start_us=0.0, width_us=1.0, high=True),
+            TriggerTimingRow(trigger_index=2, name="Trig 2 (Rx)", start_us=0.5, width_us=1.0, high=True),
+            TriggerTimingRow(trigger_index=3, name="Trig 3 (Aux)", start_us=1.0, width_us=2.0, high=True),
+            TriggerTimingRow(trigger_index=4, name="Trig 4 (Spare)", start_us=2.0, width_us=2.0, high=False),
+        ]
+    )
+
+
+class ProcessingOptionsSettings(BaseModel):
+    spectral_window: Literal["user", "rect", "hamming", "blackman"] = "user"
+    r2_processing: Literal["never", "user", "always"] = "never"
+    clutter_microsuppression: Literal["never", "user", "always"] = "never"
+    ppp_autocorrels: Literal["never", "user", "always"] = "user"
+    unfold_velocity: Literal["never", "user", "always"] = "always"
+    process_custom_trigs: Literal["never", "user", "always"] = "never"
+    interference_filter: Literal["none", "alg1", "alg2", "alg3"] = "none"
+    phidp_offset_deg: float = 0.0
+
+
 class PowerMeasurementLimits(BaseModel):
     """Limites editables por el operador (B7, RAVIS Sec.7.7) -- volatiles hasta
     `POST /api/power-monitor/limits/save` los persiste (mismo criterio que

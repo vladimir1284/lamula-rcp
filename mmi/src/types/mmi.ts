@@ -269,6 +269,47 @@ export interface ClutterFilterConfig {
   statistical_filter_enabled: boolean
 }
 
+export interface ClutterFilterSettings {
+  clutter_filter: 'none' | 'gmap' | 'notch'
+  clutter_width_ms: number
+  fixed_win: number
+  fixed_width_pts: number
+  fixed_edge_pts: number
+  variable_hunt_pts: number
+  secondary_sqi_slope: number
+  secondary_sqi_offset: number
+}
+
+export interface TriggerTimingRow {
+  trigger_index: number
+  name: string
+  start_us: number
+  width_us: number
+  high: boolean
+  prt_term_enabled: boolean
+}
+
+export interface TriggerSetupPwSettings {
+  selected_pulse_width: 'short' | 'medium' | 'long'
+  gate_spacing_m: number
+  prf_hz: number
+  external_pretrigger_delay_us: number
+  current_noise_level_dbm: number
+  powerup_noise_level_dbm: number
+  triggers: TriggerTimingRow[]
+}
+
+export interface ProcessingOptionsSettings {
+  spectral_window: 'user' | 'rect' | 'hamming' | 'blackman'
+  r2_processing: 'never' | 'user' | 'always'
+  clutter_microsuppression: 'never' | 'user' | 'always'
+  ppp_autocorrels: 'never' | 'user' | 'always'
+  unfold_velocity: 'never' | 'user' | 'always'
+  process_custom_trigs: 'never' | 'user' | 'always'
+  interference_filter: 'none' | 'alg1' | 'alg2' | 'alg3'
+  phidp_offset_deg: number
+}
+
 export interface RadarConstantParameters {
   pulse_width_us: number
   zero_check_high_dbm: number

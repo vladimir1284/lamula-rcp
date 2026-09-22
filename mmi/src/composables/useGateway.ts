@@ -19,6 +19,7 @@ import type {
   AntennaStepConfig,
   BiteFaultSummary,
   CalibrationLogEntry,
+  ClutterFilterSettings,
   ControlAuthorityState,
   ControlJobAccepted,
   ControlJobStatusResponse,
@@ -29,6 +30,7 @@ import type {
   MeasuredRadarConstant,
   PowerMeasurementLimits,
   PowerMonitorSnapshot,
+  ProcessingOptionsSettings,
   ProcessMonitorSnapshot,
   RadarConstantParameters,
   RadarConstantSnapshot,
@@ -39,6 +41,7 @@ import type {
   SystemStatusSnapshot,
   TrendSeries,
   TrendStatus,
+  TriggerSetupPwSettings,
   UnlockMaintenanceRequest,
   WsMessage,
   ZeroCheckSnapshot,
@@ -272,6 +275,63 @@ async function fetchDspInternalStatus(): Promise<DspInternalStatusSnapshot> {
   const res = await fetch(`${GATEWAY_HTTP}/api/dsp/internal-status`)
   if (!res.ok) throw new Error(`GET /api/dsp/internal-status: HTTP ${res.status}`)
   return (await res.json()) as DspInternalStatusSnapshot
+}
+
+async function fetchClutterFilters(): Promise<ClutterFilterSettings> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/dsp/clutter-filters`)
+  if (!res.ok) throw new Error(`GET /api/dsp/clutter-filters: HTTP ${res.status}`)
+  return (await res.json()) as ClutterFilterSettings
+}
+
+async function setClutterFilters(settings: ClutterFilterSettings): Promise<ClutterFilterSettings> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/dsp/clutter-filters`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(settings),
+  })
+  if (!res.ok) {
+    const detail = await res.text()
+    throw new Error(`POST /api/dsp/clutter-filters: HTTP ${res.status} — ${detail}`)
+  }
+  return (await res.json()) as ClutterFilterSettings
+}
+
+async function fetchTriggerSetupPw(): Promise<TriggerSetupPwSettings> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/dsp/trigger-setup-pw`)
+  if (!res.ok) throw new Error(`GET /api/dsp/trigger-setup-pw: HTTP ${res.status}`)
+  return (await res.json()) as TriggerSetupPwSettings
+}
+
+async function setTriggerSetupPw(settings: TriggerSetupPwSettings): Promise<TriggerSetupPwSettings> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/dsp/trigger-setup-pw`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(settings),
+  })
+  if (!res.ok) {
+    const detail = await res.text()
+    throw new Error(`POST /api/dsp/trigger-setup-pw: HTTP ${res.status} — ${detail}`)
+  }
+  return (await res.json()) as TriggerSetupPwSettings
+}
+
+async function fetchProcessingOptions(): Promise<ProcessingOptionsSettings> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/dsp/processing-options`)
+  if (!res.ok) throw new Error(`GET /api/dsp/processing-options: HTTP ${res.status}`)
+  return (await res.json()) as ProcessingOptionsSettings
+}
+
+async function setProcessingOptions(settings: ProcessingOptionsSettings): Promise<ProcessingOptionsSettings> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/dsp/processing-options`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(settings),
+  })
+  if (!res.ok) {
+    const detail = await res.text()
+    throw new Error(`POST /api/dsp/processing-options: HTTP ${res.status} — ${detail}`)
+  }
+  return (await res.json()) as ProcessingOptionsSettings
 }
 
 async function resetDspCounters(): Promise<DspResetCountersResponse> {
@@ -637,6 +697,12 @@ export function useGateway() {
     factoryConfigProfile,
     fetchDspInternalStatus,
     resetDspCounters,
+    fetchClutterFilters,
+    setClutterFilters,
+    fetchTriggerSetupPw,
+    setTriggerSetupPw,
+    fetchProcessingOptions,
+    setProcessingOptions,
     fetchRadarConstant,
     setRadarConstant,
     saveRadarConstant,
