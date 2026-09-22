@@ -64,7 +64,7 @@ async function handleSave() {
   try {
     settings.value.selected_pulse_width = activePw.value
     settings.value = await setTriggerSetupPw(settings.value)
-    message.value = 'Configuración de espaciado de celda guardada correctamente.'
+    message.value = 'Selección de ancho de pulso guardada. gate_spacing_m/prf_hz son solo lectura (dato real del DSP).'
   } catch (err) {
     isError.value = true
     message.value = err instanceof Error ? err.message : 'Error al guardar configuración'
@@ -135,43 +135,40 @@ onMounted(() => {
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <!-- Real Parameter: Gate Spacing (Dato Real) -->
       <ParameterGroupCard
-        title="Máscara de Rango y PRF (Dato Real)"
-        :description="`Parámetros espaciales activos para el perfil de pulso ${pwProfiles[activePw].label}`"
+        title="Máscara de Rango y PRF (Dato Real, solo lectura)"
+        :description="`Parámetros espaciales activos reportados por el DSP para el perfil de pulso ${pwProfiles[activePw].label}`"
       >
         <div class="space-y-4">
           <div class="space-y-1.5">
             <div class="flex items-center justify-between">
               <label class="text-xs font-medium text-foreground">Range Mask Spacing (gate_spacing_m)</label>
-              <Badge variant="outline" class="border-emerald-500/50 text-emerald-500 text-[10px]">Dato real</Badge>
+              <Badge variant="outline" class="border-emerald-500/50 text-emerald-500 text-[10px]">Dato real (solo lectura)</Badge>
             </div>
             <div class="flex items-center gap-2">
               <Input
-                v-model.number="settings.gate_spacing_m"
+                :model-value="settings.gate_spacing_m"
                 type="number"
-                step="5"
-                min="1"
-                max="5000"
+                disabled
                 class="h-8 font-mono text-xs"
               />
               <span class="text-muted-foreground font-mono">m</span>
             </div>
             <p class="text-[11px] text-muted-foreground">
-              Espaciado físico de celda de rango configurado en el procesador DSP.
+              Espaciado físico de celda de rango reportado por el DSP. No editable: no existe
+              escritura RCP→DSP para este campo hoy.
             </p>
           </div>
 
           <div class="space-y-1.5">
             <div class="flex items-center justify-between">
               <label class="text-xs font-medium text-foreground">Pulse Repetition Frequency (prf_hz)</label>
-              <Badge variant="outline" class="border-emerald-500/50 text-emerald-500 text-[10px]">Dato real</Badge>
+              <Badge variant="outline" class="border-emerald-500/50 text-emerald-500 text-[10px]">Dato real (solo lectura)</Badge>
             </div>
             <div class="flex items-center gap-2">
               <Input
-                v-model.number="settings.prf_hz"
+                :model-value="settings.prf_hz"
                 type="number"
-                step="10"
-                min="50"
-                max="20000"
+                disabled
                 class="h-8 font-mono text-xs"
               />
               <span class="text-muted-foreground font-mono">Hz</span>

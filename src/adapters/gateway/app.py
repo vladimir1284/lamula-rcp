@@ -575,6 +575,17 @@ def create_app(
 
     @app.post("/api/dsp/clutter-filters", response_model=ClutterFilterSettings)
     async def set_clutter_filters(settings: ClutterFilterSettings) -> ClutterFilterSettings:
+        # `clutter_filter`/`clutter_width_ms` son telemetria del DSP (RcpDspConfig,
+        # `dsp.latest_config`, sin path de escritura RCP->DSP hoy -- ver
+        # docs/diseno/pendientes-p1.md "familia E"). Solo se persisten en memoria
+        # los campos maquetados (#1-#4); los reales se re-derivan de la telemetria
+        # para que este endpoint no pueda hacer creer que quedaron guardados.
+        cfg = dsp.latest_config
+        if cfg is not None:
+            filter_map = {0: "none", 1: "gmap", 2: "notch"}
+            if isinstance(cfg.clutter_filter, int) and cfg.clutter_filter in filter_map:
+                settings.clutter_filter = filter_map[cfg.clutter_filter]  # type: ignore[assignment]
+            settings.clutter_width_ms = cfg.clutter_width_ms
         app.state.clutter_filter_settings = settings
         return settings
 
@@ -589,6 +600,14 @@ def create_app(
 
     @app.post("/api/dsp/trigger-setup-pw", response_model=TriggerSetupPwSettings)
     async def set_trigger_setup_pw(settings: TriggerSetupPwSettings) -> TriggerSetupPwSettings:
+        # `gate_spacing_m`/`prf_hz` son telemetria del DSP -- mismo criterio que
+        # `set_clutter_filters`: no hay path de escritura, se re-derivan de
+        # `dsp.latest_config` en vez de aceptar el valor enviado como si fuera a
+        # aplicarse al hardware.
+        cfg = dsp.latest_config
+        if cfg is not None:
+            settings.gate_spacing_m = cfg.gate_spacing_m
+            settings.prf_hz = cfg.prf_hz
         app.state.trigger_pw_settings = settings
         return settings
 
@@ -602,6 +621,11 @@ def create_app(
 
     @app.post("/api/dsp/processing-options", response_model=ProcessingOptionsSettings)
     async def set_processing_options(settings: ProcessingOptionsSettings) -> ProcessingOptionsSettings:
+        # `phidp_offset_deg` es telemetria del DSP -- mismo criterio que
+        # `set_clutter_filters`/`set_trigger_setup_pw`.
+        cfg = dsp.latest_config
+        if cfg is not None and hasattr(cfg, "phidp_offset_deg"):
+            settings.phidp_offset_deg = cfg.phidp_offset_deg
         app.state.processing_options_settings = settings
         return settings
 

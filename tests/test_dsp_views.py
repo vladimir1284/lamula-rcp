@@ -1,6 +1,7 @@
 """Pruebas para las vistas E4 (clutter-filters), E6 (trigger-setup-pw) y E2 (processing-options)."""
 
 import pytest
+from contract.vendor import dsp_rcp_v0_1 as wire
 from fastapi.testclient import TestClient
 
 from adapters.dsp import MomentStreamReceiver
@@ -88,3 +89,61 @@ def test_processing_options_get_and_set(client):
     updated = post_res.json()
     assert updated["r2_processing"] == "always"
     assert updated["phidp_offset_deg"] == 12.5
+
+
+def test_set_endpoints_cannot_override_real_dsp_fields(client):
+    """`clutter_width_ms`/`gate_spacing_m`/`prf_hz`/`phidp_offset_deg` llegan de
+    `dsp.latest_config` (telemetria del DSP, sin path de escritura RCP->DSP hoy,
+    ver docs/diseno/pendientes-p1.md). Un POST con un valor distinto no debe
+    poder "guardar" un valor que despues un GET desmentiria."""
+    dsp = client.app.state.dsp
+    dsp._latest_config = wire.Config(clutter_filter=1, gate_spacing_m=150.0, prf_hz=1000.0, clutter_width_ms=1.0, phidp_offset_deg=0.0)
+
+    clutter_payload = {
+        "clutter_filter": "notch",
+        "clutter_width_ms": 20.0,
+        "fixed_win": 0,
+        "fixed_width_pts": 5,
+        "fixed_edge_pts": 2,
+        "variable_hunt_pts": 3,
+        "secondary_sqi_slope": 0.0,
+        "secondary_sqi_offset": 0.0,
+    }
+    res = client.post("/api/dsp/clutter-filters", json=clutter_payload)
+    assert res.status_code == 200
+    body = res.json()
+    assert body["clutter_filter"] == "gmap"
+    assert body["clutter_width_ms"] == 1.0
+    assert client.get("/api/dsp/clutter-filters").json() == body
+
+    trigger_payload = {
+        "selected_pulse_width": "short",
+        "gate_spacing_m": 999.0,
+        "prf_hz": 9999.0,
+        "external_pretrigger_delay_us": 0.0,
+        "current_noise_level_dbm": -110.0,
+        "powerup_noise_level_dbm": -112.0,
+        "triggers": [],
+    }
+    res = client.post("/api/dsp/trigger-setup-pw", json=trigger_payload)
+    assert res.status_code == 200
+    body = res.json()
+    assert body["gate_spacing_m"] == 150.0
+    assert body["prf_hz"] == 1000.0
+    assert client.get("/api/dsp/trigger-setup-pw").json() == body
+
+    processing_payload = {
+        "spectral_window": "rect",
+        "r2_processing": "always",
+        "clutter_microsuppression": "user",
+        "ppp_autocorrels": "never",
+        "unfold_velocity": "user",
+        "process_custom_trigs": "never",
+        "interference_filter": "alg1",
+        "phidp_offset_deg": 42.0,
+    }
+    res = client.post("/api/dsp/processing-options", json=processing_payload)
+    assert res.status_code == 200
+    body = res.json()
+    assert body["phidp_offset_deg"] == 0.0
+    assert client.get("/api/dsp/processing-options").json() == body

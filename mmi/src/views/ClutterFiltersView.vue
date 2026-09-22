@@ -8,7 +8,7 @@ import ConditionalFieldGroup from '@/components/domain/ConditionalFieldGroup.vue
 import { useGateway } from '@/composables/useGateway'
 import type { ClutterFilterSettings } from '@/types/mmi'
 
-const { fetchClutterFilters, setClutterFilters } = useGateway()
+const { fetchClutterFilters } = useGateway()
 
 const settings = ref<ClutterFilterSettings>({
   clutter_filter: 'gmap',
@@ -22,7 +22,6 @@ const settings = ref<ClutterFilterSettings>({
 })
 
 const loading = ref(false)
-const saving = ref(false)
 const message = ref<string | null>(null)
 const isError = ref(false)
 
@@ -40,21 +39,6 @@ async function loadData() {
   }
 }
 
-async function handleSave() {
-  saving.value = true
-  message.value = null
-  isError.value = false
-  try {
-    settings.value = await setClutterFilters(settings.value)
-    message.value = 'Configuración de filtros de clutter actualizada correctamente.'
-  } catch (err) {
-    isError.value = true
-    message.value = err instanceof Error ? err.message : 'Error al guardar configuración'
-  } finally {
-    saving.value = false
-  }
-}
-
 onMounted(() => {
   loadData()
 })
@@ -67,19 +51,17 @@ onMounted(() => {
       <div>
         <div class="flex items-center gap-2">
           <h2 class="text-base font-bold tracking-tight">E4 — Clutter Filters (Mf)</h2>
-          <Badge variant="outline" class="text-xs">Setup DSP</Badge>
+          <Badge variant="outline" class="text-xs">Setup DSP / Solo lectura</Badge>
         </div>
         <p class="text-xs text-muted-foreground mt-0.5">
-          Filtros de clutter fijos, variables y modelo gaussiano (GMAP) con anchos Doppler.
+          Filtros de clutter fijos, variables y modelo gaussiano (GMAP) con anchos Doppler. Sin
+          canal de escritura RCP→DSP hoy: vista de monitoreo, no de configuración.
         </p>
       </div>
 
       <div class="flex items-center gap-2">
         <Button variant="outline" size="sm" :disabled="loading" @click="loadData">
           Refrescar
-        </Button>
-        <Button size="sm" :disabled="saving" @click="handleSave">
-          Aplicar Cambios
         </Button>
       </div>
     </div>
@@ -101,15 +83,18 @@ onMounted(() => {
       >
         <div class="space-y-4">
           <div class="space-y-1.5">
-            <label class="text-xs font-medium text-foreground">Tipo de Filtro Algorítmico</label>
+            <div class="flex items-center justify-between">
+              <label class="text-xs font-medium text-foreground">Tipo de Filtro Algorítmico</label>
+              <Badge variant="outline" class="border-emerald-500/50 text-emerald-500 text-[10px]">Dato real (solo lectura)</Badge>
+            </div>
             <div class="flex gap-2">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
+                disabled
                 class="flex-1 text-xs"
                 :class="settings.clutter_filter === 'gmap' ? 'border-primary bg-primary/10 text-primary font-bold' : ''"
-                @click="settings.clutter_filter = 'gmap'"
               >
                 GMAP (Gaussiano)
               </Button>
@@ -117,9 +102,9 @@ onMounted(() => {
                 type="button"
                 variant="outline"
                 size="sm"
+                disabled
                 class="flex-1 text-xs"
                 :class="settings.clutter_filter === 'notch' ? 'border-primary bg-primary/10 text-primary font-bold' : ''"
-                @click="settings.clutter_filter = 'notch'"
               >
                 Notch
               </Button>
@@ -127,33 +112,36 @@ onMounted(() => {
                 type="button"
                 variant="outline"
                 size="sm"
+                disabled
                 class="flex-1 text-xs"
                 :class="settings.clutter_filter === 'none' ? 'border-primary bg-primary/10 text-primary font-bold' : ''"
-                @click="settings.clutter_filter = 'none'"
               >
                 Desactivado
               </Button>
             </div>
+            <p class="text-[11px] text-muted-foreground">
+              Filtro activo reportado por el DSP. El RCP no tiene hoy un canal para escribirlo
+              (docs/diseno/pendientes-p1.md, familia E).
+            </p>
           </div>
 
           <div class="space-y-1.5">
             <div class="flex items-center justify-between">
               <label class="text-xs font-medium text-foreground">Spectrum Width (clutter_width_ms)</label>
-              <Badge variant="outline" class="border-emerald-500/50 text-emerald-500 text-[10px]">Dato real</Badge>
+              <Badge variant="outline" class="border-emerald-500/50 text-emerald-500 text-[10px]">Dato real (solo lectura)</Badge>
             </div>
             <div class="flex items-center gap-2">
               <Input
-                v-model.number="settings.clutter_width_ms"
+                :model-value="settings.clutter_width_ms"
                 type="number"
-                step="0.1"
-                min="0"
-                max="50"
+                disabled
                 class="h-8 font-mono text-xs"
               />
               <span class="text-muted-foreground font-mono">m/s</span>
             </div>
             <p class="text-[11px] text-muted-foreground">
-              Ancho espectral del modelo de clutter gaussiano en metros por segundo.
+              Ancho espectral del modelo de clutter gaussiano en metros por segundo, reportado por
+              el DSP. No editable: no existe escritura RCP→DSP para este campo hoy.
             </p>
           </div>
         </div>

@@ -192,21 +192,20 @@ onMounted(() => {
           <div class="space-y-1.5">
             <div class="flex items-center justify-between">
               <label class="text-xs font-medium text-foreground">PhiDP Offset (deg)</label>
-              <Badge variant="outline" class="border-emerald-500/50 text-emerald-500 text-[10px]">phidp_offset_deg</Badge>
+              <Badge variant="outline" class="border-emerald-500/50 text-emerald-500 text-[10px]">Dato real (solo lectura)</Badge>
             </div>
             <div class="flex items-center gap-2">
               <Input
-                v-model.number="settings.phidp_offset_deg"
+                :model-value="settings.phidp_offset_deg"
                 type="number"
-                step="0.5"
-                min="-180"
-                max="180"
+                disabled
                 class="h-8 font-mono text-xs"
               />
               <span class="text-muted-foreground font-mono">deg</span>
             </div>
             <p class="text-[11px] text-muted-foreground">
-              Desfasaje estático de sistema aplicado a la fase diferencial cruzada ΦDP.
+              Desfasaje estático de sistema aplicado a la fase diferencial cruzada ΦDP, reportado
+              por el DSP. No editable: no existe escritura RCP→DSP para este campo hoy.
             </p>
           </div>
         </ParameterGroupCard>
