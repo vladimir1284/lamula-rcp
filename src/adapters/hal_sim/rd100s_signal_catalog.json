@@ -1891,5 +1891,140 @@
       "conventional": "000024",
       "access": "rw"
     }
+  },
+  {
+    "id": "tx.tx_sample",
+    "subsystem": "tx",
+    "kind": "AI",
+    "type": "float",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 6,
+      "space": "holding",
+      "address": 0,
+      "conventional": "400001",
+      "access": "r"
+    },
+    "units": "samples",
+    "range": [
+      0.0,
+      1024.0
+    ],
+    "raw": {
+      "encoding": "int16",
+      "raw_range": [
+        0,
+        65535
+      ],
+      "note": "PENDIENTE: confirmar codificacion y rango crudo del modulo real (PEND-30 en radar_emulator: modulo/unit_id sin confirmar en inventario real)"
+    }
+  },
+  {
+    "id": "tx.tx_frequency",
+    "subsystem": "tx",
+    "kind": "AI",
+    "type": "float",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 6,
+      "space": "holding",
+      "address": 1,
+      "conventional": "400002",
+      "access": "r"
+    },
+    "units": "MHz",
+    "range": [
+      2700.0,
+      2900.0
+    ],
+    "raw": {
+      "encoding": "int16",
+      "raw_range": [
+        0,
+        65535
+      ],
+      "note": "PENDIENTE: confirmar codificacion y rango crudo del modulo real (PEND-30 en radar_emulator: modulo/unit_id sin confirmar en inventario real)"
+    }
+  },
+  {
+    "id": "tx.commanded_lo_freq",
+    "subsystem": "tx",
+    "kind": "AI",
+    "type": "float",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 6,
+      "space": "holding",
+      "address": 2,
+      "conventional": "400003",
+      "access": "r"
+    },
+    "units": "MHz",
+    "range": [
+      2700.0,
+      2900.0
+    ],
+    "raw": {
+      "encoding": "int16",
+      "raw_range": [
+        0,
+        65535
+      ],
+      "note": "PENDIENTE: confirmar codificacion y rango crudo del modulo real (PEND-30 en radar_emulator: modulo/unit_id sin confirmar en inventario real)"
+    }
+  },
+  {
+    "id": "tx.tx_start_sample",
+    "subsystem": "tx",
+    "kind": "AI",
+    "type": "float",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 6,
+      "space": "holding",
+      "address": 3,
+      "conventional": "400004",
+      "access": "r"
+    },
+    "units": "samples",
+    "range": [
+      0.0,
+      1024.0
+    ],
+    "raw": {
+      "encoding": "int16",
+      "raw_range": [
+        0,
+        65535
+      ],
+      "note": "PENDIENTE: confirmar codificacion y rango crudo del modulo real (PEND-30 en radar_emulator: modulo/unit_id sin confirmar en inventario real)"
+    }
+  },
+  {
+    "id": "tx.tx_stop_sample",
+    "subsystem": "tx",
+    "kind": "AI",
+    "type": "float",
+    "direction": "to_controller",
+    "modbus": {
+      "unit_id": 6,
+      "space": "holding",
+      "address": 4,
+      "conventional": "400005",
+      "access": "r"
+    },
+    "units": "samples",
+    "range": [
+      0.0,
+      1024.0
+    ],
+    "raw": {
+      "encoding": "int16",
+      "raw_range": [
+        0,
+        65535
+      ],
+      "note": "PENDIENTE: confirmar codificacion y rango crudo del modulo real (PEND-30 en radar_emulator: modulo/unit_id sin confirmar en inventario real)"
+    }
   }
 ]

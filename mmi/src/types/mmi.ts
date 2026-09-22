@@ -368,6 +368,25 @@ export interface WizardStepInputRequest {
   data: Record<string, unknown>
 }
 
+export interface TxSamplingAdjustParams {
+  tx_sample: number
+  tx_frequency_mhz: number
+  commanded_lo_freq_mhz: number
+  tx_start_sample: number
+  tx_stop_sample: number
+}
+
+export interface TxSamplingAdjustSnapshot {
+  tx_sample_readout: number | null
+  tx_frequency_readout_mhz: number | null
+  commanded_lo_freq_readout_mhz: number | null
+  tx_start_sample_readout: number | null
+  tx_stop_sample_readout: number | null
+  bus_ok: boolean
+  radiating: boolean
+  params: TxSamplingAdjustParams | null
+}
+
 // D-12: los seis POST /api/control/* ya no bloquean hasta que la rutina
 // termina -- devuelven un job (202) y el llamador sondea su estado.
 export type ControlJobStatus = 'running' | 'awaiting_operator_input' | 'done'

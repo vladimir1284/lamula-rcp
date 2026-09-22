@@ -46,6 +46,8 @@ import type {
   TrendSeries,
   TrendStatus,
   TriggerSetupPwSettings,
+  TxSamplingAdjustParams,
+  TxSamplingAdjustSnapshot,
   UnlockMaintenanceRequest,
   WsMessage,
   ZeroCheckSnapshot,
@@ -84,6 +86,7 @@ const trendChannels = ref<string[]>(['tx.mps_output_voltage_sample', 'tx.fps_out
 const trendStartedAt = ref<string | null>(null)
 const trendData = ref<TrendSeries[]>([])
 const powerLimits = ref<PowerMeasurementLimits | null>(null)
+const txSamplingAdjustParams = ref<TxSamplingAdjustParams | null>(null)
 const powerRadiating = ref(false)
 const sectorBlankingProfile = ref<SectorBlankingProfile>({
   enabled: false,
@@ -615,6 +618,42 @@ async function savePowerLimits(): Promise<PowerMeasurementLimits> {
   return { ...powerLimits.value }
 }
 
+async function fetchTxSamplingAdjust(): Promise<TxSamplingAdjustSnapshot> {
+  await delay(80)
+  const params = txSamplingAdjustParams.value
+  return {
+    tx_sample_readout: params?.tx_sample ?? null,
+    tx_frequency_readout_mhz: params?.tx_frequency_mhz ?? null,
+    commanded_lo_freq_readout_mhz: params?.commanded_lo_freq_mhz ?? null,
+    tx_start_sample_readout: params?.tx_start_sample ?? null,
+    tx_stop_sample_readout: params?.tx_stop_sample ?? null,
+    bus_ok: true,
+    radiating: powerRadiating.value,
+    params: params ? { ...params } : null,
+  }
+}
+
+async function setTxSamplingAdjust(params: TxSamplingAdjustParams): Promise<TxSamplingAdjustParams> {
+  await delay(120)
+  txSamplingAdjustParams.value = { ...params }
+  return { ...txSamplingAdjustParams.value }
+}
+
+async function saveTxSamplingAdjust(): Promise<TxSamplingAdjustParams> {
+  await delay(150)
+  if (txSamplingAdjustParams.value === null) {
+    throw new Error(
+      'POST /api/tx-sampling-adjust/save: HTTP 409 — no hay parametros de muestreo TX para guardar -- use Set primero',
+    )
+  }
+  if (powerRadiating.value) {
+    throw new Error(
+      'POST /api/tx-sampling-adjust/save: HTTP 409 — no se puede guardar mientras el radar esta radiando',
+    )
+  }
+  return { ...txSamplingAdjustParams.value }
+}
+
 async function fetchSectorBlanking(): Promise<SectorBlankingProfile> {
   await delay(80)
   return JSON.parse(JSON.stringify(sectorBlankingProfile.value)) as SectorBlankingProfile
@@ -869,6 +908,9 @@ export function useGateway() {
     fetchZeroCheck,
     setPowerLimits,
     savePowerLimits,
+    fetchTxSamplingAdjust,
+    setTxSamplingAdjust,
+    saveTxSamplingAdjust,
     fetchSectorBlanking,
     setSectorBlanking,
     saveSectorBlanking,
