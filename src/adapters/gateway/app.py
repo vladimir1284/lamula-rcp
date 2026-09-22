@@ -79,6 +79,7 @@ from core.contracts.mmi import (
     SectorBlankingProfile,
     SessionMessage,
     SetControlModeRequest,
+    SinglePointCalibrationRequest,
     StatusMessage,
     SystemInfo,
     SystemStatusSnapshot,
@@ -99,6 +100,7 @@ from core.control_routines import (
     run_antenna_unit_power_on,
     run_general_power_on,
     run_receiver_power_on,
+    run_single_point_calibration,
     run_transmitter_power_on,
     run_tx_power_calibration,
     run_zero_check,
@@ -905,6 +907,49 @@ def create_app(
 
         app.state.control_job_inputs[job_id] = input_queue
         accepted = _start_control_job("tx_power_calibration", coro, job_id=job_id)
+        return accepted
+
+    @app.post("/api/control/single-point-calibration", response_model=ControlJobAccepted, status_code=202)
+    async def single_point_calibration(req: SinglePointCalibrationRequest) -> ControlJobAccepted:
+        _require_active_control()
+        if _effective_maintenance().level != AccessLevel.MANT:
+            raise HTTPException(
+                status_code=403,
+                detail="se requiere nivel de mantenimiento MANT para la calibración de punto único",
+            )
+
+        job_id = uuid.uuid4().hex
+        input_queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
+
+        async def _get_input() -> dict[str, Any]:
+            return await input_queue.get()
+
+        def _on_step_change(current_step: int, total_steps: int, step_name: str, prompt: str) -> None:
+            rec = app.state.control_jobs.get(job_id)
+            if rec:
+                app.state.control_jobs[job_id] = ControlJobStatusResponse(
+                    job_id=job_id,
+                    routine="single_point_calibration",
+                    status=ControlJobStatus.AWAITING_OPERATOR_INPUT,
+                    current_step=current_step,
+                    total_steps=total_steps,
+                    step_name=step_name,
+                    prompt=prompt,
+                    result=rec.result,
+                    error=None,
+                )
+
+        coro = run_single_point_calibration(
+            hal,
+            mode=req.mode,
+            actor=app.state.control.state.actor,
+            step_input_func=_get_input,
+            on_step_change_func=_on_step_change,
+            record_log_func=lambda entry: _record_calibration_log(app, entry),
+        )
+
+        app.state.control_job_inputs[job_id] = input_queue
+        accepted = _start_control_job("single_point_calibration", coro, job_id=job_id)
         return accepted
 
     @app.get("/api/antenna/step-config", response_model=AntennaStepConfig)

@@ -694,6 +694,30 @@ async function runControlJob<T>(
     onJobStatus?.(statusResp)
   }
 
+  if (path.includes('single-point-calibration')) {
+    const statusResp: ControlJobStatusResponse = {
+      job_id: jobId,
+      routine: 'single_point_calibration',
+      status: 'done',
+      current_step: 3,
+      total_steps: 3,
+      result: {
+        routine: 'single_point_calibration',
+        outcome: 'success',
+        steps: [
+          { signal_id: 'sys.remote_mode_ok_status', ok: true, detail: 'precondicion: value=True' },
+          { signal_id: 'ant.antenna_remote_status', ok: true, detail: 'precondicion: value=True' },
+          { signal_id: 'rx.single_point_noise_high_dbm', ok: true, detail: 'Noise High Channel: -105.20 dBm' },
+          { signal_id: 'rx.single_point_noise_low_dbm', ok: true, detail: 'Noise Low Channel: -102.80 dBm' },
+          { signal_id: 'rx.single_point_radar_constant_db', ok: true, detail: 'Calculated Radar Constant: 68.50 dB' },
+        ],
+        at_us: Date.now() * 1000,
+      },
+      error: null,
+    }
+    onJobStatus?.(statusResp)
+  }
+
   await delay(300)
   if (path.includes('/scan/worksheet/')) {
     const result: ScanCutResult = {

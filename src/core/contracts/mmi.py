@@ -91,6 +91,14 @@ class AntennaUnitPowerOnRequest(BaseModel):
     confirm_timeout_s: float
 
 
+class SinglePointCalibrationRequest(BaseModel):
+    """Solicitud de calibración de punto único (G4)."""
+
+    mode: Literal["auto", "external"] = Field(default="auto", description="Escenario de calibración: auto (generador interno) o external (operador)")
+    injected_power_dbm: float | None = Field(default=None, description="Potencia inyectada externamente (dBm)")
+    measured_radar_constant_db: float | None = Field(default=None, description="Constante de radar medida manualmente por el operador (dB)")
+
+
 class AntennaMovementRequest(BaseModel):
     axis: AntennaAxis
     voltage_reference: float
