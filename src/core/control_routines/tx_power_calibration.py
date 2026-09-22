@@ -8,6 +8,13 @@ Precondiciones:
 - Modo remoto en ACU (`ant.antenna_remote_status`)
 - Radiación activa (`tx.radiating_status`)
 - Tiempo de caldeo de radiación transcurrido (mínimo 20 min = 1200 s)
+
+PEND-RCP-16 (ver docs/alcance/pendientes.md): esta rutina cubre una unica
+lectura escalar de potencia pico y un unico offset de acoplador. El RAVIS
+§7.4.1 describe una tabla por ancho de pulso (`PerPulseWidthInputTable`) mas
+`TX Pwr Transl. coeff.`, `TX Power Nom.` y `Actual lin. Power`, que no estan
+implementados aqui -- alcance deliberadamente acotado a este slice de wizard,
+sin confirmar aun con el product expert.
 """
 
 from __future__ import annotations
@@ -17,7 +24,7 @@ import time
 from datetime import datetime, timezone
 from typing import Any, Awaitable, Callable
 
-from core.contracts.common import MonotonicMicros
+from core.contracts.common import MonotonicMicros, SignalQuality
 from core.contracts.control import RoutineName, RoutineOutcome, RoutineResult, RoutineStepResult
 from core.contracts.hal import HardwareAbstractionLayer
 from core.contracts.mmi import CalibrationLogEntry
@@ -117,15 +124,22 @@ async def run_tx_power_calibration(
 
     try:
         sample_reading = await hal.read_analog("tx.tx_peak_power_sample")
-        sample_val = sample_reading.value
+        sample_val: float | None = sample_reading.value
+        sample_quality = sample_reading.quality
     except Exception:
-        sample_val = 0.0
+        sample_val = None
+        sample_quality = SignalQuality.FAULT
+
+    sample_str = f"{sample_val:.2f} kW" if sample_val is not None else "no disponible"
 
     steps.append(
         RoutineStepResult(
             signal_id="tx.tx_peak_power_sample",
             ok=True,
-            detail=f"Potencia pico medida: {measured_power_kw:.2f} kW (muestra HAL: {sample_val:.2f} kW)",
+            detail=(
+                f"Potencia pico medida: {measured_power_kw:.2f} kW "
+                f"(muestra HAL: {sample_str}, quality={sample_quality})"
+            ),
         )
     )
 
@@ -137,7 +151,7 @@ async def run_tx_power_calibration(
                 procedure="TX Power Calibration",
                 actor=actor,
                 message=f"Paso 2/3 completado: Potencia pico medida registrada: {measured_power_kw:.2f} kW",
-                detail=f"Muestra HAL: {sample_val:.2f} kW",
+                detail=f"Muestra HAL: {sample_str} (quality={sample_quality})",
             )
         )
 

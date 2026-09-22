@@ -667,3 +667,7 @@ línea por línea, no variante propia.
 ### PEND-RCP-15 · Contraseña de desbloqueo de mantenimiento fija por variable de entorno { #pend-rcp-15 }
 
 `src/adapters/gateway/app.py` expone `RCP_MAINTENANCE_PASSWORD` desde variable de entorno con un default de desarrollo fijo. No existe aún una gestión de secretos ni hashing de contraseñas real para el nivel de acceso MANT.
+
+### PEND-RCP-16 · G3 TX Power Calibration cubre una unica lectura de potencia, no la tabla por ancho de pulso del RAVIS { #pend-rcp-16 }
+
+`src/core/control_routines/tx_power_calibration.py` implementa el wizard con una unica lectura de potencia pico y un unico offset de acoplador confirmados por el operador. El RAVIS §7.4.1 describe una `PerPulseWidthInputTable` (una fila de lecturas por ancho de pulso) mas los parametros `TX Pwr Transl. coeff.`, `TX Power Nom.` y `Actual lin. Power`, ninguno de los cuales existe todavia en esta rutina ni en `TxPowerCalibrationView.vue`. Si esta implementacion se toma como cierre definitivo de G3 en vez de un primer slice, cualquier consumidor aguas abajo que espere el conjunto completo de parametros necesitara trabajo adicional. Confirmar con el product expert si el escaneo actual es el alcance final o si falta ampliar a la tabla por ancho de pulso.

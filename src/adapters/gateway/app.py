@@ -162,8 +162,13 @@ def compute_radar_constant_db(params: RadarConstantParameters) -> float:
     return round(10.0 * math.log10(c_lin), 2)
 
 
+CALIBRATION_LOG_LIMIT = 200  # mismo criterio que MAX_LOG en useGateway.ts -- evita crecimiento sin limite
+
+
 def _record_calibration_log(app: FastAPI, entry: CalibrationLogEntry) -> None:
     app.state.calibration_log.append(entry)
+    if len(app.state.calibration_log) > CALIBRATION_LOG_LIMIT:
+        app.state.calibration_log = app.state.calibration_log[-CALIBRATION_LOG_LIMIT:]
 
 
 def create_app(
@@ -342,6 +347,7 @@ def create_app(
 
     app.state.calibration_log: list[CalibrationLogEntry] = []
     app.state.control_job_inputs: dict[str, asyncio.Queue[dict[str, Any]]] = {}
+    app.state.radiating_since_wall: datetime | None = None
 
     # Perfiles de configuracion local (E11)
     app.state.config_profile_path = config_profile_path
@@ -848,13 +854,23 @@ def create_app(
         return _start_control_job("zero_check", _execute_zero_check())
 
     @app.post("/api/control/tx-power-calibration", response_model=ControlJobAccepted, status_code=202)
-    async def tx_power_calibration(warmup_duration_s: float = 1200.0) -> ControlJobAccepted:
+    async def tx_power_calibration() -> ControlJobAccepted:
         _require_active_control()
         if _effective_maintenance().level != AccessLevel.MANT:
             raise HTTPException(
                 status_code=403,
                 detail="se requiere nivel de mantenimiento MANT para la calibración de potencia TX",
             )
+
+        # warmup_duration_s se calcula server-side a partir de radiating_since_wall
+        # (actualizado en cada lectura de tx.radiating_status via _read_radiating) --
+        # nunca se confia en un valor provisto por el llamador para esta precondicion.
+        radiating_now = await _read_radiating()
+        warmup_duration_s = (
+            (datetime.now(timezone.utc) - app.state.radiating_since_wall).total_seconds()
+            if radiating_now and app.state.radiating_since_wall is not None
+            else 0.0
+        )
 
         job_id = uuid.uuid4().hex
         input_queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
@@ -990,9 +1006,15 @@ def create_app(
 
     async def _read_radiating() -> bool:
         try:
-            return (await hal.read_digital("tx.radiating_status")).value
+            value = (await hal.read_digital("tx.radiating_status")).value
         except Exception:
-            return False
+            value = False
+        if value:
+            if app.state.radiating_since_wall is None:
+                app.state.radiating_since_wall = datetime.now(timezone.utc)
+        else:
+            app.state.radiating_since_wall = None
+        return value
 
     @app.get("/api/radar-constant", response_model=RadarConstantSnapshot)
     async def get_radar_constant() -> RadarConstantSnapshot:

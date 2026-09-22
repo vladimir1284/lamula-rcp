@@ -3,6 +3,8 @@
 
 import asyncio
 import time
+from datetime import datetime, timedelta, timezone
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -167,14 +169,18 @@ def test_tx_power_calibration_wizard_full_flow(client: TestClient):
     c_res = client.post("/api/control", json={"mode": "active", "actor": "tester"})
     assert c_res.status_code == 200
 
-    # 3. Iniciar wizard de calibración TX
-    start_res = client.post("/api/control/tx-power-calibration?warmup_duration_s=1200")
+    # 3. Simular 20+ min de radiacion continua ya transcurridos (warmup_duration_s
+    # ahora se calcula server-side a partir de este estado, no de un query param).
+    client.app.state.radiating_since_wall = datetime.now(timezone.utc) - timedelta(seconds=1300)
+
+    # 4. Iniciar wizard de calibración TX
+    start_res = client.post("/api/control/tx-power-calibration")
     assert start_res.status_code == 202
     job_accepted = start_res.json()
     job_id = job_accepted["job_id"]
     assert job_accepted["routine"] == "tx_power_calibration"
 
-    # 4. Sondear job hasta estar esperando input en Paso 2
+    # 5. Sondear job hasta estar esperando input en Paso 2
     for _ in range(10):
         j_res = client.get(f"/api/control/jobs/{job_id}")
         assert j_res.status_code == 200
@@ -186,14 +192,14 @@ def test_tx_power_calibration_wizard_full_flow(client: TestClient):
     assert j_data["status"] == "awaiting_operator_input"
     assert j_data["current_step"] == 2
 
-    # 5. Enviar input del Paso 2 (potencia pico medida)
+    # 6. Enviar input del Paso 2 (potencia pico medida)
     step2_res = client.post(
         f"/api/control/jobs/{job_id}/step",
         json={"data": {"measured_power_kw": 252.0}},
     )
     assert step2_res.status_code == 200
 
-    # 6. Sondear job hasta estar esperando input en Paso 3
+    # 7. Sondear job hasta estar esperando input en Paso 3
     for _ in range(10):
         j_res = client.get(f"/api/control/jobs/{job_id}")
         assert j_res.status_code == 200
@@ -205,14 +211,14 @@ def test_tx_power_calibration_wizard_full_flow(client: TestClient):
     assert j_data["status"] == "awaiting_operator_input"
     assert j_data["current_step"] == 3
 
-    # 7. Enviar input del Paso 3 (offset de acoplador)
+    # 8. Enviar input del Paso 3 (offset de acoplador)
     step3_res = client.post(
         f"/api/control/jobs/{job_id}/step",
         json={"data": {"coupler_offset_db": 0.35}},
     )
     assert step3_res.status_code == 200
 
-    # 8. Sondear job hasta estado final DONE
+    # 9. Sondear job hasta estado final DONE
     for _ in range(10):
         j_res = client.get(f"/api/control/jobs/{job_id}")
         assert j_res.status_code == 200
@@ -224,7 +230,7 @@ def test_tx_power_calibration_wizard_full_flow(client: TestClient):
     assert j_data["status"] == "done"
     assert j_data["result"]["outcome"] == "success"
 
-    # 9. Verificar que el Calibration Log contiene las 3 entradas
+    # 10. Verificar que el Calibration Log contiene las 3 entradas
     log_res = client.get("/api/calibration-log")
     assert log_res.status_code == 200
     logs = log_res.json()

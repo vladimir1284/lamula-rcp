@@ -7,7 +7,6 @@ export interface WizardStepItem {
 
 defineProps<{
   steps: WizardStepItem[]
-  currentStepIndex?: number
 }>()
 </script>
 

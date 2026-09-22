@@ -63,7 +63,6 @@ const isSubmittingStep = ref(false)
 // Pasos del Wizard
 const wizardSteps = computed<WizardStepItem[]>(() => {
   const cStep = currentJobStatus.value?.current_step ?? 1
-  const jStatus = currentJobStatus.value?.status
 
   if (result.value) {
     const isSuccess = result.value.outcome === 'success'
@@ -74,7 +73,8 @@ const wizardSteps = computed<WizardStepItem[]>(() => {
     ]
   }
 
-  if (!busy.value) {
+  // Sin resultado y sin job en curso ni previo -> wizard nunca se inicio.
+  if (!busy.value && !currentJobStatus.value) {
     return [
       { title: 'Verificación de Precondiciones y Caldeo', description: 'Requiere 20 min de radiación activa', status: 'pending' },
       { title: 'Entrada de Potencia de Referencia', description: 'Lectura con medidor de potencia externo (kW)', status: 'pending' },
@@ -82,20 +82,26 @@ const wizardSteps = computed<WizardStepItem[]>(() => {
     ]
   }
 
+  // Sin resultado pero con estado de job (en curso, o el ultimo conocido antes de
+  // fallar/cancelarse): el paso actual queda 'active' mientras el job sigue vivo,
+  // o 'failed' si ya se detuvo sin llegar a un resultado -- nunca vuelve a 'pending'.
+  const stepStatus = (step: number): WizardStepItem['status'] => {
+    if (cStep > step) return 'completed'
+    if (cStep === step) return busy.value ? 'active' : 'failed'
+    return 'pending'
+  }
+
   return [
-    {
-      title: 'Verificación de Precondiciones y Caldeo',
-      status: cStep > 1 ? 'completed' : cStep === 1 ? (jStatus === 'awaiting_operator_input' ? 'active' : 'active') : 'pending',
-    },
+    { title: 'Verificación de Precondiciones y Caldeo', status: stepStatus(1) },
     {
       title: 'Entrada de Potencia de Referencia',
       description: 'Ingrese la potencia pico medida en kW',
-      status: cStep > 2 ? 'completed' : cStep === 2 ? 'active' : 'pending',
+      status: stepStatus(2),
     },
     {
       title: 'Ajuste de Desfase de Acoplador',
       description: 'Ajuste fino de atenuación (dB)',
-      status: cStep > 3 ? 'completed' : cStep === 3 ? 'active' : 'pending',
+      status: stepStatus(3),
     },
   ]
 })
@@ -104,9 +110,10 @@ let pollTimer: ReturnType<typeof setInterval> | null = null
 
 async function refresh() {
   try {
-    powerSnapshot.value = await fetchPowerMonitor()
-    calibrationLogs.value = await fetchCalibrationLog()
-  } catch (e) {
+    const [power, logs] = await Promise.all([fetchPowerMonitor(), fetchCalibrationLog()])
+    powerSnapshot.value = power
+    calibrationLogs.value = logs
+  } catch {
     // best effort error handling
   }
 }
@@ -139,7 +146,9 @@ async function startCalibrationWizard() {
   } finally {
     busy.value = false
     jobId.value = null
-    currentJobStatus.value = null
+    // currentJobStatus se conserva a proposito: si el job fallo o se cancelo sin
+    // resultado, el operador necesita ver en que paso se detuvo el wizard, no un
+    // stepper reseteado a 'pending'. Se limpia en el siguiente arranque manual.
   }
 }
 
@@ -204,7 +213,7 @@ onUnmounted(() => {
           <CardTitle class="text-base font-semibold">Procedimiento de Calibración</CardTitle>
         </CardHeader>
         <CardContent class="flex flex-col gap-6">
-          <WizardStepper :steps="wizardSteps" :current-step-index="(currentJobStatus?.current_step ?? 1) - 1" />
+          <WizardStepper :steps="wizardSteps" />
 
           <!-- Formulario para el paso interactivo activo -->
           <div
