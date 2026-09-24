@@ -289,6 +289,10 @@ export interface TriggerTimingRow {
   prt_term_enabled: boolean
 }
 
+export interface TriggerSetupGeneralSnapshot {
+  triggers: TriggerTimingRow[]
+}
+
 export interface TriggerSetupPwSettings {
   selected_pulse_width: 'short' | 'medium' | 'long'
   gate_spacing_m: number

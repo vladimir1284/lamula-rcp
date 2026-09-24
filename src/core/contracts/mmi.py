@@ -221,6 +221,17 @@ class TriggerTimingRow(BaseModel):
     prt_term_enabled: bool = False
 
 
+class TriggerSetupGeneralSnapshot(BaseModel):
+    triggers: list[TriggerTimingRow] = Field(
+        default_factory=lambda: [
+            TriggerTimingRow(trigger_index=1, name="Trig 1 (Tx)", start_us=0.0, width_us=1.0, high=True),
+            TriggerTimingRow(trigger_index=2, name="Trig 2 (Rx)", start_us=0.5, width_us=1.0, high=True),
+            TriggerTimingRow(trigger_index=3, name="Trig 3 (Aux)", start_us=1.0, width_us=2.0, high=True),
+            TriggerTimingRow(trigger_index=4, name="Trig 4 (Spare)", start_us=2.0, width_us=2.0, high=False),
+        ]
+    )
+
+
 class TriggerSetupPwSettings(BaseModel):
     selected_pulse_width: Literal["short", "medium", "long"] = "medium"
     gate_spacing_m: float = Field(150.0, ge=1.0, le=5000.0)

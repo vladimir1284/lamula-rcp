@@ -69,6 +69,7 @@ from core.contracts.mmi import (
     OperatorMode,
     ClutterFilterConfig,
     ClutterFilterSettings,
+    TriggerSetupGeneralSnapshot,
     TriggerSetupPwSettings,
     ProcessingOptionsSettings,
     PowerMeasurementLimits,
@@ -379,6 +380,7 @@ def create_app(
     app.state.thresholds = ThresholdsConfig()
     app.state.clutter_filter = ClutterFilterConfig()
     app.state.clutter_filter_settings = ClutterFilterSettings()
+    app.state.trigger_setup_general = TriggerSetupGeneralSnapshot()
     app.state.trigger_pw_settings = TriggerSetupPwSettings()
     app.state.processing_options_settings = ProcessingOptionsSettings()
 
@@ -571,6 +573,10 @@ def create_app(
     @app.get("/api/dsp/internal-status", response_model=DspInternalStatusSnapshot)
     async def get_dsp_internal_status() -> DspInternalStatusSnapshot:
         return _dsp_internal_status()
+
+    @app.get("/api/dsp/trigger-setup-general", response_model=TriggerSetupGeneralSnapshot)
+    async def get_trigger_setup_general() -> TriggerSetupGeneralSnapshot:
+        return app.state.trigger_setup_general
 
     @app.get("/api/dsp/clutter-filters", response_model=ClutterFilterSettings)
     async def get_clutter_filters() -> ClutterFilterSettings:
