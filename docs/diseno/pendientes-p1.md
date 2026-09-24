@@ -294,10 +294,26 @@ pulsos/rayo, celdas ok/total y espaciado de máscara de rango → todos **Existe
 ## Familia F — Ajuste asistido por gráfico
 
 **Estado general (mapeo §"Familia F", líneas ~430–466):** F2 tiene captura oportunista de espectro
-del burst **cableada** (`spectrum_frame` msg 2, mandato `request_spectrum` msg 7), con tres
-limitaciones verificadas: solo canal `RX_0`, `center_freq_hz`/`span_hz` en 0 por falta de campos de
-IF/muestreo, sin promediado entre peticiones. **El mandato `request_spectrum` no está en el pin
-v0.1 vendorizado en este repo** — hay que re-vendorizar antes de usarlo.
+del burst **cableada** (`spectrum_frame` msg 2, mandato `request_spectrum` value 7 del enum
+`Command`), con tres limitaciones verificadas: solo canal `RX_0`, `center_freq_hz`/`span_hz` en 0
+por falta de campos de IF/muestreo, sin promediado entre peticiones.
+
+**Corrección 2026-09-24 (verificado en código, ya no bloqueado por contrato):** el enunciado previo
+de esta sección decía que `request_spectrum` no estaba en el pin vendorizado y que hacía falta
+re-vendorizar coordinando con el proyecto DSP. Falso a fecha de hoy:
+
+- DSP agregó `request_spectrum` al contrato en `beb78b6` ("Wire IF spectrum analyzer into
+  rcp-link output, v1.1 -> v1.2"), con `crates/rcp-link/src/session.rs` y
+  `crates/service::ray::build_spectrum_frame` ya implementados de punta a punta del lado DSP.
+- El pin de este repo (`contract/vendor/UPSTREAM.toml`) ya está en commit `6a09656`
+  (2026-09-16, contrato v1.3) — **posterior** a `beb78b6`. El re-vendorizado ya ocurrió.
+- Confirmado en `contract/vendor/dsp_rcp_v0_1.py:439`: `REQUEST_SPECTRUM = 7` ya está disponible.
+  `SpectrumFrame` también está generado en `mmi/src/contracts/dsp_rcp_v0_1.ts:317-366`.
+
+Lo que sí falta es enteramente trabajo de este repo, sin dependencia externa: cero referencias a
+`REQUEST_SPECTRUM`/`SpectrumFrame` en `src/` o en `mmi/src/composables/` hoy — el único mandato
+cableado en `src/adapters/dsp/moment_stream_receiver.py:93` es `RESET_COUNTERS`. F2 pasa a la
+columna "sin bloqueo externo" del resumen: empezar directo por los pasos 2–4 de abajo.
 
 ### F1 — Burst Pulse Timing (`Pb`)
 
@@ -314,19 +330,18 @@ se fusiona con F2/F3 en una sola "vista de verificación de RF". **No empezar si
 
 ### F2 — Burst Spectra & Matched Filter (`Ps`)
 
-**Estado:** la única de la familia F con dato real parcial.
+**Estado:** la única de la familia F con dato real parcial. `request_spectrum` ya vendorizado
+(ver corrección arriba) — **sin bloqueo externo**, empezar directo por el punto 1.
 
 **Pasos:**
 
-1. Re-vendorizar el contrato para incluir `request_spectrum` (msg 7) — coordinarlo con el proyecto
-   DSP, subir ancla en `contract/vendor/UPSTREAM.toml`.
-2. Endpoint de gateway que dispare `request_spectrum` y devuelva el último `spectrum_frame`
+1. Endpoint de gateway que dispare `request_spectrum` y devuelva el último `spectrum_frame`
    recibido — patrón "pedir y esperar" distinto del resto (no es snapshot inmediato); usar el mismo
    patrón de job asíncrono que ya existe para las rutinas de control (`JobActionPanel`,
    `src/core/control_routines/`).
-3. Vista con las limitaciones **visibles, no escondidas**: banner "solo RX_0", eje de frecuencia
+2. Vista con las limitaciones **visibles, no escondidas**: banner "solo RX_0", eje de frecuencia
    sin escala real (`center_freq_hz`/`span_hz` en 0 — mostrar en unidades de bin, no fingir MHz).
-4. Los seis estados de AFC (`Disabled/Manual/NoBurst/Wait/Track/Locked`) del inventario **no tienen
+3. Los seis estados de AFC (`Disabled/Manual/NoBurst/Wait/Track/Locked`) del inventario **no tienen
    telemetría real** (mapeo, "Falta" punto 2) — omitir ese indicador hasta que exista, no
    simularlo como si fuera dato del radar.
 
@@ -457,10 +472,11 @@ cualquier vista de arriba que lo mencione (D1, D6, G6, I2...) para no reimplemen
 | I6 Export/Snapshot | E7 Burst Pulse & AFC (`Falta` todo salvo env var no legible) |
 | E3 Thresholds Matrix (parcial real) | F1 Burst Pulse Timing (replantear alcance) |
 | E12 DSP Internal Status (parcial real) | F3 Receiver Waveforms (confirmar si existe captura) |
-| E11 Config Profiles (diff, sin contrato nuevo) | F2 Burst Spectra (necesita re-vendorizar `request_spectrum`) |
+| E11 Config Profiles (diff, sin contrato nuevo) | |
+| F2 Burst Spectra (`request_spectrum` ya vendorizado, solo falta el endpoint de gateway) | |
 | G7 parámetros estáticos | G1–G5, G8 (necesitan HAL nuevo, puntos Modbus inventados `PEND-nn`) |
 | C5 Sector Blanking (componente + persistencia local) | C5 aplicación real al hardware (mismo límite que E5) |
 
 **Orden global recomendado:** I6 → D6/D8 (en paralelo) → E3 → E12 → E11 → G8 → G5 → resto de G →
-C5 (componente) → E1 → E2/E4/E6 parciales contra mock → F2 (tras re-vendorizar) → E5/E7/F1/F3
-(replantear con el equipo DSP antes de construir).
+C5 (componente) → E1 → E2/E4/E6 parciales contra mock → F2 (sin bloqueo externo, endpoint de
+gateway) → E5/E7/F1/F3 (ver propuestas de desbloqueo en `docs/diseno/desbloqueo-p1.md`).

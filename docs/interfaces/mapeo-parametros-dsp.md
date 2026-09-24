@@ -29,32 +29,32 @@ Los nombres de campo y de tipo se dejan en su idioma original. Las citas son `fi
 relativas a la raíz del repositorio correspondiente, indicado con el prefijo `lamula-dsp/` o
 `lamula-rcp/`.
 
-### Ancla de versión, y una divergencia que hay que mirar antes de nada
+### Ancla de versión
 
-!!! warning "El contrato vendorizado aquí está cuatro versiones por detrás del que posee el DSP"
+!!! success "Corrección 2026-09-24: ya no hay divergencia de versión — re-vendorizado desde 2026-09-16"
+
+    Este documento afirmaba que el contrato vendorizado aquí estaba cuatro versiones por detrás
+    del que posee el DSP (v0.1 vs v1.3). Era cierto cuando se escribió, pero **el repo ya se
+    re-vendorizó** y el aviso quedó sin actualizar — el mismo desfase que causó el error en
+    `docs/diseno/pendientes-p1.md` §F2 (corregido 2026-09-24).
 
     | | Versión | `Config` | `Command` | Procedencia |
     | --- | --- | --- | --- | --- |
-    | Vendorizado en este repo | **v0.1** | 26 campos, 80 B | 7 mandatos (0–6) | `contract/vendor/UPSTREAM.toml:39-40`, commit `8d7c7ba` del 2026-08-31 |
-    | Cabeza de `lamula-dsp` | **v1.3** | 29 campos, 84 B | 8 mandatos (0–7) | `lamula-dsp/contract/schema/dsp_rcp_v0_1.toml:50-51`, commit `4a226af` |
+    | Vendorizado en este repo (hoy) | **v1.3** | 30 campos, 84 B | 8 mandatos (0–7) | `contract/vendor/UPSTREAM.toml`, commit `6a09656` del 2026-09-16 |
+    | Cabeza de `lamula-dsp` | **v1.3** | 29–30 campos, 84 B | 8 mandatos (0–7) | `lamula-dsp/contract/schema/dsp_rcp_v0_1.toml:50-51`, commit `4a226af` |
 
-    Los cuatro cambios intermedios, en orden (`git log` de `lamula-dsp` sobre el esquema):
-
-    1. `e91b908` — `polarization_mode` (u8), v0.1 → v0.2. Consume relleno, no crece el mensaje.
-    2. `f984850` — `antenna_isolation_db` (f32), v0.2 → **v1.0**. `Config` crece de 80 a 84 B:
-       **ruptura**, `version_major` 0 → 1.
-    3. `f1e577e` — `burst_window_bins` (u16), v1.0 → v1.1. Aditivo sobre relleno.
-    4. `beb78b6` — mandato `request_spectrum` = 7, v1.1 → v1.2. Aditivo.
-    5. `4a226af` — `header_flag::SIMULATED_SOURCE` en el byte de banderas de la cabecera,
-       v1.2 → v1.3. Aditivo sobre un byte ya reservado; ver la pregunta 8.
-
-    Consecuencia práctica: **el `Config` vendorizado aquí no puede hablar con el DSP de hoy**
-    — `version_major` 0 frente a 1, y 80 B frente a 84. Cualquier trabajo de familia E contra
-    el pin actual nace roto. Re-vendorizar es prerrequisito, no limpieza.
+    Verificado en código: `contract/vendor/dsp_rcp_v0_1.py:439` trae `REQUEST_SPECTRUM = 7`,
+    y `Config.FIELDS` (`:289`) trae los 30 campos incluido `burst_window_bins`. Ambos repos
+    en paridad. Los cuatro cambios intermedios (`e91b908` `polarization_mode`, `f984850`
+    `antenna_isolation_db`, `f1e577e` `burst_window_bins`, `beb78b6` `request_spectrum`) **ya
+    están todos vendorizados aquí** — no son trabajo pendiente, son historial.
 
 Este mapeo se hizo **contra v1.2** y sigue vigente contra **v1.3**, que sólo añade una bandera de
-cabecera. Se marca en la nota de
-cada fila cuando el campo no existe todavía en el pin v0.1 de este repositorio.
+cabecera — vigente también en la lectura de "qué expone el contrato", que no cambió con el
+re-vendorizado. Lo que **sí** cambió y hay que leer con cuidado: cualquier nota de fila que diga
+"ausente/no existe en el pin v0.1 de este repositorio" describe un estado de antes del
+2026-09-16 y ya no es cierto — el campo está vendorizado, aunque siga siendo cierto que **no
+tiene consumidor** en `src/`/`mmi/src/` (ver sección siguiente, que es el hueco real que queda).
 
 ### Estado del lado RCP, para que el mapeo no se lea con optimismo
 
@@ -262,7 +262,7 @@ mensaje nuevo (declarado alcance Stage 2). Añado un hecho verificado que esa p�
 | `Range mask spacing` (metros) | Existe | `gate_spacing_m` (f32, m) | `…toml:310`, publicado por radial en `:126` | Correspondencia literal, misma unidad |
 | `Tx Intermediate Frequency` / `Rx Intermediate Frequency` (MHz) | Falta | — | — | **No hay ningún campo de IF en `DSP↔RCP`.** Consecuencia medible: `spectrum_frame.center_freq_hz` y `span_hz` se emiten en 0 porque no hay de dónde tomarlos (`roadmap.md:653-658`) |
 | `FIR-Filter impulse response length` (µs) | No aplica | — | — | El FIR de recepción vive en el FPGA; la decimación nunca llega al DSP (`dsp-plan.md` §3.2) |
-| `Burst Freq Estimator – Length / Start` (µs) | Difiere | `burst_window_bins` (u16) | `…toml:326`; consumo en `ray.rs:281-295` | La longitud se expresa en **bins**, no en µs, y **no hay campo de inicio**: se asume el bin 0 (`radial.burst_window(TX_BURST_0, 0, …)`). Campo ausente del pin v0.1 de este repo |
+| `Burst Freq Estimator – Length / Start` (µs) | Difiere | `burst_window_bins` (u16) | `…toml:326`; consumo en `ray.rs:281-295` | La longitud se expresa en **bins**, no en µs, y **no hay campo de inicio**: se asume el bin 0 (`radial.burst_window(TX_BURST_0, 0, …)`). Campo ya vendorizado (ver corrección de versión arriba); sin consumidor en `src/` todavía |
 | `FIR-Filter prototype passband width` (MHz) | No aplica | — | — | FIR del DRx |
 | `Output control 4-bit pattern` (0–15) | No aplica | — | — | Salidas digitales del IFD |
 | `Current noise level` / `Powerup noise level` (dBm; `PriRx`/`SecRx`) | Difiere | `config.noise_floor_dbm` (f32, dBm); `status.noise_floor_dbm_0..3` (f32, dBm) | `…toml:318`; `:202-205` | El de referencia es **uno solo**; el vigente se publica **por canal**. No hay distinción current/powerup ni valores por ancho de pulso |
@@ -356,7 +356,7 @@ Todo lo que lo gobierna son variables de entorno del servicio.
 | `TAG scale factors` AZ/EL | Difiere | `LAMULA_DSP_SSI_COUNTS_PER_TURN` (variable de entorno) | `lamula-dsp/crates/service/src/config.rs:52` | Equivalente funcional (escala de encoder), pero fuera del contrato y **sin calibración documentada confirmada** — el propio doc-comment lo advierte (`config.rs:1-8`) |
 | `TAG offsets` AZ/EL (grados) | Difiere | `LAMULA_DSP_SSI_ZERO_OFFSET_DEG` (variable de entorno) | `lamula-dsp/crates/service/src/config.rs:53` | Ídem |
 | `Co-Polarized signal is always on the primary Rx` | Difiere | Convención cableada: canal V = `channel::RX_1` | `roadmap.md:609-613` | Se decidió por bit de `channel_mask`, no por posición, lo cual corrigió un bug real; pero **no hay campo que invierta la convención** |
-| `Default receiver mode` (single / legacy WDN / dual channel) | Difiere | `capabilities.n_rx_channels` (u8) + `config.polarization_mode` (u8) | `…toml:280`; `:324`, enum `:473-481` | Cubre el eje que importa (uno o dos canales; simultáneo o alternante) sin modo WDN y **sin exigir reinicio**, que es mejor que el legacy. `polarization_mode` ausente del pin v0.1 de este repo |
+| `Default receiver mode` (single / legacy WDN / dual channel) | Difiere | `capabilities.n_rx_channels` (u8) + `config.polarization_mode` (u8) | `…toml:280`; `:324`, enum `:473-481` | Cubre el eje que importa (uno o dos canales; simultáneo o alternante) sin modo WDN y **sin exigir reinicio**, que es mejor que el legacy. `polarization_mode` ya vendorizado (ver corrección de versión arriba); sin consumidor en `src/` todavía |
 
 !!! warning "Un desfase de documentación en el propio esquema del DSP"
     El enum `polarization_mode` describe `alternating` como "H/V alternante **radial a
@@ -444,7 +444,7 @@ no tiene camino.
 | F1 — `B/b` desactivar/reactivar seguimiento de burst | Falta | — | — | No hay seguimiento de burst que desactivar (ver E7) |
 | F1 — `+` buscar el burst perdido | Falta | — | — | Ídem |
 | F1 — línea de estado: `Freq`, `Pwr`, `DC`, `BPT` | Falta | — | — | `DC` tiene equivalente parcial en `status.dc_offset_i/q_0..3` (`…toml:206-213`), pero **no por radial ni ligado al burst**; `Freq`/`Pwr`/`BPT` del burst no se publican en ningún sitio (`roadmap.md:565-566`) |
-| **F2** — espectro del burst | Difiere | `spectrum_frame` (msg 2) + mandato `request_spectrum` (7) | `…toml:154-171`; `:447` | **Existe la captura oportunista**, cableada (`roadmap.md:619-651`). Limitaciones verificadas: sólo canal `RX_0` (`roadmap.md:645-647`), `center_freq_hz` y `span_hz` **en 0** por falta de campos de IF/muestreo (`roadmap.md:653-658`), sin promediado entre peticiones (`roadmap.md:659-663`). **El mandato `request_spectrum` no existe en el pin v0.1 de este repo** |
+| **F2** — espectro del burst | Difiere | `spectrum_frame` (msg 2) + mandato `request_spectrum` (7) | `…toml:154-171`; `:447` | **Existe la captura oportunista**, cableada (`roadmap.md:619-651`). Limitaciones verificadas: sólo canal `RX_0` (`roadmap.md:645-647`), `center_freq_hz` y `span_hz` **en 0** por falta de campos de IF/muestreo (`roadmap.md:653-658`), sin promediado entre peticiones (`roadmap.md:659-663`). El mandato `request_spectrum` ya está vendorizado aquí (ver corrección de versión arriba, `REQUEST_SPECTRUM = 7` en `contract/vendor/dsp_rcp_v0_1.py:439`); lo que falta es el endpoint de gateway en `src/`, sin bloqueo externo |
 | F2 — diseño del filtro adaptado (`N/n`, `W/w`, `#`, `$`) | No aplica | — | — | El filtro adaptado es del DRx/FPGA |
 | F2 — `U/u`, `D/d`, `=` control manual de frecuencia (MFC) | Falta | — | — | MFC no existe (ver E7) |
 | F2 — `V/v` número de espectros promediados (1–25) | Falta | — | — | Sin promediado entre peticiones (`roadmap.md:659-663`); la ventana y el número de promedios son "configuración local" sin campo (`analizador-espectro-fi.md:59`) |
