@@ -41,6 +41,7 @@ import type {
   SystemStatusSnapshot,
   TrendSeries,
   TrendStatus,
+  TriggerSetupGeneralSnapshot,
   TriggerSetupPwSettings,
   TxSamplingAdjustParams,
   TxSamplingAdjustSnapshot,
@@ -277,6 +278,12 @@ async function fetchDspInternalStatus(): Promise<DspInternalStatusSnapshot> {
   const res = await fetch(`${GATEWAY_HTTP}/api/dsp/internal-status`)
   if (!res.ok) throw new Error(`GET /api/dsp/internal-status: HTTP ${res.status}`)
   return (await res.json()) as DspInternalStatusSnapshot
+}
+
+async function fetchTriggerSetupGeneral(): Promise<TriggerSetupGeneralSnapshot> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/dsp/trigger-setup-general`)
+  if (!res.ok) throw new Error(`GET /api/dsp/trigger-setup-general: HTTP ${res.status}`)
+  return (await res.json()) as TriggerSetupGeneralSnapshot
 }
 
 async function fetchClutterFilters(): Promise<ClutterFilterSettings> {
@@ -730,6 +737,7 @@ export function useGateway() {
     factoryConfigProfile,
     fetchDspInternalStatus,
     resetDspCounters,
+    fetchTriggerSetupGeneral,
     fetchClutterFilters,
     setClutterFilters,
     fetchTriggerSetupPw,

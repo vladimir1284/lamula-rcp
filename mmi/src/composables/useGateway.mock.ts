@@ -45,6 +45,7 @@ import type {
   SystemStatusSnapshot,
   TrendSeries,
   TrendStatus,
+  TriggerSetupGeneralSnapshot,
   TriggerSetupPwSettings,
   TxSamplingAdjustParams,
   TxSamplingAdjustSnapshot,
@@ -119,6 +120,15 @@ const mockWorksheet = ref<ScanCut[]>([
     moments: ['UZ', 'V', 'ZDR'],
   },
 ])
+
+const mockTriggerSetupGeneral = ref<TriggerSetupGeneralSnapshot>({
+  triggers: [
+    { trigger_index: 1, name: 'Trig 1 (Tx)', start_us: 0.0, width_us: 1.0, high: true, prt_term_enabled: false },
+    { trigger_index: 2, name: 'Trig 2 (Rx)', start_us: 0.5, width_us: 1.0, high: true, prt_term_enabled: false },
+    { trigger_index: 3, name: 'Trig 3 (Aux)', start_us: 1.0, width_us: 2.0, high: true, prt_term_enabled: false },
+    { trigger_index: 4, name: 'Trig 4 (Spare)', start_us: 2.0, width_us: 2.0, high: false, prt_term_enabled: false },
+  ],
+})
 
 const mockClutterFilters = ref<ClutterFilterSettings>({
   clutter_filter: 'gmap',
@@ -566,6 +576,11 @@ async function resetDspCounters(): Promise<DspResetCountersResponse> {
   }
 }
 
+async function fetchTriggerSetupGeneral(): Promise<TriggerSetupGeneralSnapshot> {
+  await delay(80)
+  return JSON.parse(JSON.stringify(mockTriggerSetupGeneral.value))
+}
+
 async function fetchClutterFilters(): Promise<ClutterFilterSettings> {
   await delay(80)
   return JSON.parse(JSON.stringify(mockClutterFilters.value))
@@ -923,6 +938,7 @@ export function useGateway() {
     factoryConfigProfile,
     fetchDspInternalStatus,
     resetDspCounters,
+    fetchTriggerSetupGeneral,
     fetchClutterFilters,
     setClutterFilters,
     fetchTriggerSetupPw,

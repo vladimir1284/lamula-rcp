@@ -38,6 +38,7 @@ import CalibrationLogView from '@/views/CalibrationLogView.vue'
 import ConfigProfilesView from '@/views/ConfigProfilesView.vue'
 import CalibrationHubView from '@/views/CalibrationHubView.vue'
 import ClutterFiltersView from '@/views/ClutterFiltersView.vue'
+import TriggerSetupGeneralView from '@/views/TriggerSetupGeneralView.vue'
 import TriggerSetupPwView from '@/views/TriggerSetupPwView.vue'
 import ProcessingOptionsView from '@/views/ProcessingOptionsView.vue'
 import TxSamplingAdjustView from '@/views/TxSamplingAdjustView.vue'
@@ -72,6 +73,7 @@ const viewCatalog: ViewOption[] = [
   { id: 'system-status', label: 'B10 System Status', available: true },
   { id: 'thresholds-matrix', label: 'E3 Thresholds Matrix (Vp)', available: true },
   { id: 'clutter-filters', label: 'E4 Clutter Filters (Mf)', available: true },
+  { id: 'trigger-setup-general', label: 'E5 Trigger Setup general (Mt)', available: true },
   { id: 'trigger-setup-pw', label: 'E6 Trigger Setup por Pulse Width (Mt<n>)', available: true },
   { id: 'processing-options', label: 'E2 Processing Options (Mp)', available: true },
   { id: 'dsp-internal-status', label: 'E12 DSP Internal Status', available: true },
@@ -286,6 +288,7 @@ onMounted(() => {
     <template #single-point-calibration><SinglePointCalibrationView /></template>
     <template #calibration-log><CalibrationLogView /></template>
     <template #clutter-filters><ClutterFiltersView /></template>
+    <template #trigger-setup-general="{ setView }"><TriggerSetupGeneralView @navigate="setView" /></template>
     <template #trigger-setup-pw><TriggerSetupPwView /></template>
     <template #processing-options><ProcessingOptionsView /></template>
     <template #rsp-tx-rx-adjust><TxSamplingAdjustView /></template>

@@ -18,6 +18,20 @@ def client():
         yield test_client
 
 
+def test_trigger_setup_general_get(client):
+    res = client.get("/api/dsp/trigger-setup-general")
+    assert res.status_code == 200
+    data = res.json()
+    assert "triggers" in data
+    assert len(data["triggers"]) == 4
+    for idx, name in enumerate(["Trig 1 (Tx)", "Trig 2 (Rx)", "Trig 3 (Aux)", "Trig 4 (Spare)"], start=1):
+        trig = data["triggers"][idx - 1]
+        assert trig["trigger_index"] == idx
+        assert trig["name"] == name
+        assert "start_us" in trig
+        assert "width_us" in trig
+
+
 def test_clutter_filters_get_and_set(client):
     res = client.get("/api/dsp/clutter-filters")
     assert res.status_code == 200
