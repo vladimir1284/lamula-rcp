@@ -31,6 +31,7 @@ import type {
   PowerMeasurementLimits,
   PowerMonitorSnapshot,
   ProcessingOptionsSettings,
+  BurstAfcSettings,
   ProcessMonitorSnapshot,
   RadarConstantParameters,
   RadarConstantSnapshot,
@@ -334,6 +335,25 @@ async function setProcessingOptions(settings: ProcessingOptionsSettings): Promis
     throw new Error(`POST /api/dsp/processing-options: HTTP ${res.status} — ${detail}`)
   }
   return (await res.json()) as ProcessingOptionsSettings
+}
+
+async function fetchBurstAfc(): Promise<BurstAfcSettings> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/dsp/burst-afc`)
+  if (!res.ok) throw new Error(`GET /api/dsp/burst-afc: HTTP ${res.status}`)
+  return (await res.json()) as BurstAfcSettings
+}
+
+async function setBurstAfc(settings: BurstAfcSettings): Promise<BurstAfcSettings> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/dsp/burst-afc`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(settings),
+  })
+  if (!res.ok) {
+    const detail = await res.text()
+    throw new Error(`POST /api/dsp/burst-afc: HTTP ${res.status} — ${detail}`)
+  }
+  return (await res.json()) as BurstAfcSettings
 }
 
 async function resetDspCounters(): Promise<DspResetCountersResponse> {
@@ -736,6 +756,8 @@ export function useGateway() {
     setTriggerSetupPw,
     fetchProcessingOptions,
     setProcessingOptions,
+    fetchBurstAfc,
+    setBurstAfc,
     fetchRadarConstant,
     setRadarConstant,
     saveRadarConstant,

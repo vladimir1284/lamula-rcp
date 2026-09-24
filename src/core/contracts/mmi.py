@@ -249,6 +249,55 @@ class ProcessingOptionsSettings(BaseModel):
     phidp_offset_deg: float = 0.0
 
 
+class BurstAfcSettings(BaseModel):
+    # Frecuencias
+    tx_if_mhz: float = Field(30.0, description="Frecuencia intermedia del transmisor (MHz)")
+    rx_if_mhz: float = Field(30.0, description="Frecuencia intermedia del receptor (MHz)")
+    if_increases_approaching: bool = Field(True, description="FI aumenta para blanco que se aproxima")
+
+    # Burst
+    phase_lock_burst: Literal["never", "user", "always"] = Field("never", description="PhaseLock al pulso de burst")
+    min_burst_power_dbm: float = Field(-10.0, description="Potencia mínima para pulso burst válido (dBm)")
+    burst_analysis_window: Literal["rect", "hamming", "blackman"] = Field("hamming", description="Ventana de diseño/análisis de burst")
+    burst_estimator_settling_s: float = Field(0.01, description="Tiempo de establecimiento (al 1%) del estimador de frecuencia burst (s)")
+
+    # AFC
+    afc_enabled: bool = Field(True, description="Habilitar funciones AFC y MFC")
+    afc_servo_mode: Literal["dc_coupled", "motor_integrator"] = Field("dc_coupled", description="Modo del servo AFC")
+    afc_wait_time_s: float = Field(1.0, description="Tiempo de espera antes de aplicar AFC (s)")
+    afc_hysteresis_inner_khz: float = Field(50.0, description="Histéresis AFC interior (kHz)")
+    afc_hysteresis_outer_khz: float = Field(200.0, description="Histéresis AFC exterior (kHz)")
+    afc_outer_tolerance_khz: float = Field(100.0, description="Tolerancia exterior AFC durante procesamiento de datos (kHz)")
+    afc_feedback_slope: float = Field(1.0, description="Pendiente de realimentación AFC")
+    afc_slew_rate_min: float = Field(0.1, description="Slew rate mínimo AFC")
+    afc_slew_rate_max: float = Field(10.0, description="Slew rate máximo AFC")
+    afc_state: str = Field("disabled", description="Estado de lazo AFC (ej. disabled, manual, no_burst, wait, track, locked)")
+
+    # AFC eléctrico
+    afc_format: Literal["bin", "bcd", "8b4d"] = Field("bin", description="Formato de la palabra AFC")
+    afc_format_act_low: bool = Field(False, description="Polaridad activa en bajo del formato AFC")
+    afc_uplink_protocol: Literal["off", "normal", "pin_map"] = Field("normal", description="Protocolo de uplink AFC")
+    fault_status_pin: int = Field(1, description="Pin de estado FAULT")
+    fault_pin_act_low: bool = Field(False, description="Pin FAULT activo en bajo")
+    burst_freq_increases_with_afc_volts: bool = Field(True, description="Frecuencia burst aumenta con mayor tensión AFC")
+
+    # Seguimiento
+    enable_burst_tracking: Literal["never", "user", "always"] = Field("never", description="Habilitar seguimiento de pulso burst")
+    enable_missing_burst_hunt: Literal["never", "user", "always"] = Field("never", description="Habilitar búsqueda de tiempo/frecuencia para burst perdido")
+    search_freq_intervals: int = Field(5, description="Número de intervalos de frecuencia a buscar")
+    hop_settling_time_s: float = Field(0.05, description="Tiempo de establecimiento por salto de frecuencia (s)")
+    auto_hunt_on_reset: bool = Field(False, description="Búsqueda automática inmediatamente tras reset")
+    repeat_auto_hunt_s: float = Field(10.0, description="Repetir búsqueda automática cada N segundos (s)")
+
+    # Calibración
+    burst_power_z0_correction: Literal["never", "user", "always"] = Field("never", description="Habilitar corrección de Z0 basada en potencia de burst")
+
+    # Simulación
+    simulate_burst_samples: bool = Field(False, description="Simular muestras de pulso burst")
+    simulated_burst_span_start_mhz: float = Field(25.0, description="Span de frecuencia simulada inicio (MHz)")
+    simulated_burst_span_stop_mhz: float = Field(35.0, description="Span de frecuencia simulada fin (MHz)")
+
+
 class PowerMeasurementLimits(BaseModel):
     """Limites editables por el operador (B7, RAVIS Sec.7.7) -- volatiles hasta
     `POST /api/power-monitor/limits/save` los persiste (mismo criterio que

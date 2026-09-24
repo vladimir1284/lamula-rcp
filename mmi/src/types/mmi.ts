@@ -310,6 +310,55 @@ export interface ProcessingOptionsSettings {
   phidp_offset_deg: number
 }
 
+export interface BurstAfcSettings {
+  // Frecuencias
+  tx_if_mhz: number
+  rx_if_mhz: number
+  if_increases_approaching: boolean
+
+  // Burst
+  phase_lock_burst: 'never' | 'user' | 'always'
+  min_burst_power_dbm: number
+  burst_analysis_window: 'rect' | 'hamming' | 'blackman'
+  burst_estimator_settling_s: number
+
+  // AFC
+  afc_enabled: boolean
+  afc_servo_mode: 'dc_coupled' | 'motor_integrator'
+  afc_wait_time_s: number
+  afc_hysteresis_inner_khz: number
+  afc_hysteresis_outer_khz: number
+  afc_outer_tolerance_khz: number
+  afc_feedback_slope: number
+  afc_slew_rate_min: number
+  afc_slew_rate_max: number
+  afc_state: string
+
+  // AFC eléctrico
+  afc_format: 'bin' | 'bcd' | '8b4d'
+  afc_format_act_low: boolean
+  afc_uplink_protocol: 'off' | 'normal' | 'pin_map'
+  fault_status_pin: number
+  fault_pin_act_low: boolean
+  burst_freq_increases_with_afc_volts: boolean
+
+  // Seguimiento
+  enable_burst_tracking: 'never' | 'user' | 'always'
+  enable_missing_burst_hunt: 'never' | 'user' | 'always'
+  search_freq_intervals: number
+  hop_settling_time_s: number
+  auto_hunt_on_reset: boolean
+  repeat_auto_hunt_s: number
+
+  // Calibración
+  burst_power_z0_correction: 'never' | 'user' | 'always'
+
+  // Simulación
+  simulate_burst_samples: boolean
+  simulated_burst_span_start_mhz: number
+  simulated_burst_span_stop_mhz: number
+}
+
 export interface RadarConstantParameters {
   pulse_width_us: number
   zero_check_high_dbm: number

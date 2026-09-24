@@ -1,4 +1,4 @@
-"""Pruebas para las vistas E4 (clutter-filters), E6 (trigger-setup-pw) y E2 (processing-options)."""
+"""Pruebas para las vistas E4 (clutter-filters), E6 (trigger-setup-pw), E2 (processing-options) y E7 (burst-afc)."""
 
 import pytest
 from contract.vendor import dsp_rcp_v0_1 as wire
@@ -89,6 +89,33 @@ def test_processing_options_get_and_set(client):
     updated = post_res.json()
     assert updated["r2_processing"] == "always"
     assert updated["phidp_offset_deg"] == 12.5
+
+
+def test_burst_afc_get_and_set(client):
+    res = client.get("/api/dsp/burst-afc")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["tx_if_mhz"] == 30.0
+    assert data["afc_enabled"] is True
+    assert data["phase_lock_burst"] == "never"
+
+    payload = dict(data)
+    payload["tx_if_mhz"] = 60.0
+    payload["phase_lock_burst"] = "always"
+    payload["enable_burst_tracking"] = "user"
+    payload["min_burst_power_dbm"] = -15.5
+
+    post_res = client.post("/api/dsp/burst-afc", json=payload)
+    assert post_res.status_code == 200
+    updated = post_res.json()
+    assert updated["tx_if_mhz"] == 60.0
+    assert updated["phase_lock_burst"] == "always"
+    assert updated["enable_burst_tracking"] == "user"
+    assert updated["min_burst_power_dbm"] == -15.5
+
+    get_again = client.get("/api/dsp/burst-afc")
+    assert get_again.status_code == 200
+    assert get_again.json() == updated
 
 
 def test_set_endpoints_cannot_override_real_dsp_fields(client):
