@@ -42,6 +42,7 @@ import TriggerSetupGeneralView from '@/views/TriggerSetupGeneralView.vue'
 import TriggerSetupPwView from '@/views/TriggerSetupPwView.vue'
 import ProcessingOptionsView from '@/views/ProcessingOptionsView.vue'
 import TxSamplingAdjustView from '@/views/TxSamplingAdjustView.vue'
+import BurstAfcSetupView from '@/views/BurstAfcSetupView.vue'
 import { GATEWAY_HTTP, useGateway } from '@/composables/useGateway'
 import type { IndicatorState, MosaicPreset, ViewOption } from '@/types/shell'
 
@@ -101,7 +102,7 @@ const viewCatalog: ViewOption[] = [
   { id: 'itsg-control', label: 'I2 ITSG Control', available: false },
   { id: 'calibration-log', label: 'G8 Calibration Log', available: true },
   { id: 'rsp-tx-rx-adjust', label: 'G2 TX Sampling Adjust', available: true },
-  { id: 'mb-setup', label: 'E7 Burst Pulse & AFC (Mb)', available: false },
+  { id: 'mb-setup', label: 'E7 Burst Pulse & AFC (Mb)', available: true },
   { id: 'pb-plot', label: 'F1 Burst Pulse Timing (Pb)', available: false },
 ]
 
@@ -292,6 +293,7 @@ onMounted(() => {
     <template #trigger-setup-pw><TriggerSetupPwView /></template>
     <template #processing-options><ProcessingOptionsView /></template>
     <template #rsp-tx-rx-adjust><TxSamplingAdjustView /></template>
+    <template #mb-setup><BurstAfcSetupView /></template>
     <template #scan-parameter-popup><div class="flex h-full w-full items-center justify-center p-4"><ScanParameterPopup /></div></template>
   </AppShell>
 </template>

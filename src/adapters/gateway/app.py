@@ -67,6 +67,7 @@ from core.contracts.mmi import (
     MeasuredRadarConstant,
     OperatorEventMessage,
     OperatorMode,
+    BurstAfcSettings,
     ClutterFilterConfig,
     ClutterFilterSettings,
     TriggerSetupGeneralSnapshot,
@@ -383,6 +384,7 @@ def create_app(
     app.state.trigger_setup_general = TriggerSetupGeneralSnapshot()
     app.state.trigger_pw_settings = TriggerSetupPwSettings()
     app.state.processing_options_settings = ProcessingOptionsSettings()
+    app.state.burst_afc_settings = BurstAfcSettings()
 
     def _get_current_profile() -> RcpConfigProfile:
         return RcpConfigProfile(
@@ -643,6 +645,15 @@ def create_app(
         if cfg is not None and hasattr(cfg, "phidp_offset_deg"):
             settings.phidp_offset_deg = cfg.phidp_offset_deg
         app.state.processing_options_settings = settings
+        return settings
+
+    @app.get("/api/dsp/burst-afc", response_model=BurstAfcSettings)
+    async def get_burst_afc() -> BurstAfcSettings:
+        return app.state.burst_afc_settings
+
+    @app.post("/api/dsp/burst-afc", response_model=BurstAfcSettings)
+    async def set_burst_afc(settings: BurstAfcSettings) -> BurstAfcSettings:
+        app.state.burst_afc_settings = settings
         return settings
 
     @app.post("/api/dsp/reset-counters", response_model=DspResetCountersResponse)

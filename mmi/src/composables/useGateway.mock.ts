@@ -34,6 +34,7 @@ import type {
   PowerMeasurementLimits,
   PowerMonitorSnapshot,
   ProcessingOptionsSettings,
+  BurstAfcSettings,
   ProcessMonitorSnapshot,
   RadarConstantParameters,
   RadarConstantSnapshot,
@@ -165,6 +166,42 @@ const mockProcessingOptions = ref<ProcessingOptionsSettings>({
   process_custom_trigs: 'never',
   interference_filter: 'none',
   phidp_offset_deg: 0.0,
+})
+
+const mockBurstAfc = ref<BurstAfcSettings>({
+  tx_if_mhz: 30.0,
+  rx_if_mhz: 30.0,
+  if_increases_approaching: true,
+  phase_lock_burst: 'never',
+  min_burst_power_dbm: -10.0,
+  burst_analysis_window: 'hamming',
+  burst_estimator_settling_s: 0.01,
+  afc_enabled: true,
+  afc_servo_mode: 'dc_coupled',
+  afc_wait_time_s: 1.0,
+  afc_hysteresis_inner_khz: 50.0,
+  afc_hysteresis_outer_khz: 200.0,
+  afc_outer_tolerance_khz: 100.0,
+  afc_feedback_slope: 1.0,
+  afc_slew_rate_min: 0.1,
+  afc_slew_rate_max: 10.0,
+  afc_state: 'disabled',
+  afc_format: 'bin',
+  afc_format_act_low: false,
+  afc_uplink_protocol: 'normal',
+  fault_status_pin: 1,
+  fault_pin_act_low: false,
+  burst_freq_increases_with_afc_volts: true,
+  enable_burst_tracking: 'never',
+  enable_missing_burst_hunt: 'never',
+  search_freq_intervals: 5,
+  hop_settling_time_s: 0.05,
+  auto_hunt_on_reset: false,
+  repeat_auto_hunt_s: 10.0,
+  burst_power_z0_correction: 'never',
+  simulate_burst_samples: false,
+  simulated_burst_span_start_mhz: 25.0,
+  simulated_burst_span_stop_mhz: 35.0,
 })
 
 const mockCurrentProfile = ref<RcpConfigProfile>({
@@ -614,6 +651,17 @@ async function setProcessingOptions(settings: ProcessingOptionsSettings): Promis
   return JSON.parse(JSON.stringify(mockProcessingOptions.value))
 }
 
+async function fetchBurstAfc(): Promise<BurstAfcSettings> {
+  await delay(80)
+  return JSON.parse(JSON.stringify(mockBurstAfc.value))
+}
+
+async function setBurstAfc(settings: BurstAfcSettings): Promise<BurstAfcSettings> {
+  await delay(100)
+  mockBurstAfc.value = JSON.parse(JSON.stringify(settings))
+  return JSON.parse(JSON.stringify(mockBurstAfc.value))
+}
+
 async function setPowerLimits(limits: PowerMeasurementLimits): Promise<PowerMeasurementLimits> {
   await delay(80)
   powerLimits.value = { ...limits }
@@ -945,6 +993,8 @@ export function useGateway() {
     setTriggerSetupPw,
     fetchProcessingOptions,
     setProcessingOptions,
+    fetchBurstAfc,
+    setBurstAfc,
     fetchRadarConstant,
     setRadarConstant,
     saveRadarConstant,
