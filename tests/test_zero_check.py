@@ -9,6 +9,7 @@ from adapters.gateway.app import create_app
 from core.contracts.common import SignalQuality
 from core.contracts.control import RoutineOutcome
 from core.contracts.hal import AntennaPosition, HardwareAbstractionLayer, SignalReading
+from core.contracts.mmi import CalibrationLogEntry
 from core.control_routines.zero_check import run_zero_check
 
 
@@ -58,19 +59,29 @@ class MockHAL(HardwareAbstractionLayer):
 @pytest.mark.anyio
 async def test_run_zero_check_success():
     hal = MockHAL(remote_ok=True)
-    res = await run_zero_check(hal)
+    logs: list[CalibrationLogEntry] = []
+    res = await run_zero_check(hal, record_log_func=lambda entry: logs.append(entry), actor="test-op")
     assert res.outcome == RoutineOutcome.SUCCESS
     assert res.routine == "zero_check"
     assert any("Noise High Channel" in step.detail for step in res.steps)
     assert any("Noise Low Channel" in step.detail for step in res.steps)
+    assert len(logs) == 1
+    assert logs[0].procedure == "Zero Check"
+    assert logs[0].actor == "test-op"
+    assert logs[0].severity == "info"
 
 
 @pytest.mark.anyio
 async def test_run_zero_check_failed_preconditions():
     hal = MockHAL(remote_ok=False)
-    res = await run_zero_check(hal)
+    logs: list[CalibrationLogEntry] = []
+    res = await run_zero_check(hal, record_log_func=lambda entry: logs.append(entry), actor="test-op")
     assert res.outcome == RoutineOutcome.FAILED
     assert res.routine == "zero_check"
+    assert len(logs) == 1
+    assert logs[0].procedure == "Zero Check"
+    assert logs[0].actor == "test-op"
+    assert logs[0].severity == "error"
 
 
 @pytest.fixture
@@ -130,3 +141,10 @@ def test_zero_check_execution_flow(client: TestClient):
     assert snap["last_run_at_wall"] is not None
     assert snap["noise_high_dbm"] == -105.2
     assert snap["noise_low_dbm"] == -102.8
+
+    # Verificar que el Calibration Log contiene la entrada
+    log_res = client.get("/api/calibration-log")
+    assert log_res.status_code == 200
+    logs = log_res.json()
+    assert len(logs) >= 1
+    assert any(l["procedure"] == "Zero Check" and l["actor"] == "test-op" for l in logs)

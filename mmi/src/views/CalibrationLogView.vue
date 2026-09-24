@@ -3,57 +3,35 @@
 // Registro de cada actividad individual de calibración (RAVIS §7.4).
 //
 // Reutiliza patrones de A5 (EventLogView), incluyendo LogStream y LogToolbar.
-// Acepta entradas de calibración pasadas por prop `entries` o utiliza entradas
-// por defecto si no se le proporcionan.
+// Obtiene el registro de calibración en tiempo real desde el gateway vía fetchCalibrationLog().
 
-import { computed, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { useGateway } from '@/composables/useGateway'
 import type { CalibrationLogEntry } from '@/types/mmi'
 
-const props = withDefaults(
-  defineProps<{
-    entries?: CalibrationLogEntry[]
-  }>(),
-  {
-    entries: () => [
-      {
-        at_wall: new Date(Date.now() - 3600000).toISOString(),
-        severity: 'info',
-        procedure: 'G2 TX Sampling Adjust',
-        actor: 'mant_tech',
-        message: 'Ajuste de muestreo de pulso TX completado nominalmente.',
-        detail: 'TX Start Sample: 120, TX Stop Sample: 180 (unidades 29ns).',
-      },
-      {
-        at_wall: new Date(Date.now() - 2700000).toISOString(),
-        severity: 'warn',
-        procedure: 'G3 TX Power Calibration',
-        actor: 'mant_tech',
-        message: 'Desviación de potencia detectada en pulso LP.',
-        detail: 'Potencia nominal: 250kW, Medida: 242kW.',
-      },
-      {
-        at_wall: new Date(Date.now() - 1800000).toISOString(),
-        severity: 'error',
-        procedure: 'G4 Single Point Calibration',
-        actor: 'mant_tech',
-        message: 'Fallo en verificación de ruido en canal alto.',
-        detail: 'Señal inyectada fuera de tolerancia nominal (-80 dBm). Error de acople.',
-      },
-      {
-        at_wall: new Date(Date.now() - 900000).toISOString(),
-        severity: 'info',
-        procedure: 'G5 Zero Check',
-        actor: 'system',
-        message: 'Muestreo de ruido periódico finalizado correctamente.',
-        detail: 'Ruido canal HI: 1.2 dB, Ruido canal LOW: 1.1 dB.',
-      },
-    ],
-  },
-)
+const props = defineProps<{
+  entries?: CalibrationLogEntry[]
+}>()
+
+const { fetchCalibrationLog } = useGateway()
+
+const fetchedEntries = ref<CalibrationLogEntry[]>([])
+const error = ref<string | null>(null)
+let pollTimer: ReturnType<typeof setInterval> | null = null
+
+async function refresh() {
+  try {
+    fetchedEntries.value = await fetchCalibrationLog()
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : String(e)
+  }
+}
+
+const entries = computed(() => props.entries ?? fetchedEntries.value)
 
 type Severity = 'info' | 'warn' | 'error'
 
@@ -77,12 +55,12 @@ function toggleSeverity(s: Severity) {
 
 const availableProcedures = computed(() => {
   const set = new Set<string>()
-  props.entries.forEach((e) => set.add(e.procedure))
+  entries.value.forEach((e) => set.add(e.procedure))
   return Array.from(set)
 })
 
 const filteredEntries = computed(() =>
-  props.entries
+  entries.value
     .slice(clearedIndex.value)
     .filter((e) => severityFilter.value.has(e.severity))
     .filter((e) => selectedProcedure.value === 'all' || e.procedure === selectedProcedure.value)
@@ -97,7 +75,7 @@ const filteredEntries = computed(() =>
 )
 
 function clear() {
-  clearedIndex.value = props.entries.length
+  clearedIndex.value = entries.value.length
 }
 
 async function copyAll() {
@@ -119,6 +97,17 @@ function exportAll() {
   a.click()
   URL.revokeObjectURL(url)
 }
+
+onMounted(() => {
+  if (props.entries === undefined) {
+    refresh()
+    pollTimer = setInterval(refresh, 2000)
+  }
+})
+
+onUnmounted(() => {
+  if (pollTimer) clearInterval(pollTimer)
+})
 </script>
 
 <template>

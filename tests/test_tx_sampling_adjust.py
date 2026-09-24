@@ -104,6 +104,13 @@ def test_tx_sampling_adjust_set_and_save_success(client_app):
     assert res_save.status_code == 200
     assert res_save.json() == params
 
+    # Verificar que se registró en calibration-log
+    log_res = client.get("/api/calibration-log")
+    assert log_res.status_code == 200
+    logs = log_res.json()
+    assert len(logs) >= 1
+    assert any(l["procedure"] == "TX Sampling Adjust" for l in logs)
+
 
 def test_tx_sampling_adjust_save_errors(client_app):
     client, app, hal = client_app

@@ -9,10 +9,13 @@ Precondiciones:
 from __future__ import annotations
 
 import time
+from datetime import datetime, timezone
+from typing import Callable
 
 from core.contracts.common import MonotonicMicros
 from core.contracts.control import RoutineName, RoutineOutcome, RoutineResult, RoutineStepResult
 from core.contracts.hal import HardwareAbstractionLayer
+from core.contracts.mmi import CalibrationLogEntry
 
 PRECONDITIONS = (
     "sys.remote_mode_ok_status",
@@ -33,11 +36,14 @@ async def run_zero_check(
     *,
     noise_high_dbm: float = DEFAULT_NOISE_HIGH_DBM,
     noise_low_dbm: float = DEFAULT_NOISE_LOW_DBM,
+    record_log_func: Callable[[CalibrationLogEntry], None] | None = None,
+    actor: str = "system",
 ) -> RoutineResult:
     """Ejecuta el chequeo de cero (muestreo de ruido del receptor).
     Verifica las precondiciones de modo remoto y registra las mediciones de ruido.
     """
     steps: list[RoutineStepResult] = []
+    now_wall = datetime.now(timezone.utc)
 
     all_ok = True
     for signal_id in PRECONDITIONS:
@@ -53,6 +59,16 @@ async def run_zero_check(
         all_ok = all_ok and ok
 
     if not all_ok:
+        if record_log_func:
+            record_log_func(
+                CalibrationLogEntry(
+                    at_wall=now_wall,
+                    severity="error",
+                    procedure="Zero Check",
+                    actor=actor,
+                    message="Zero Check fallida: precondiciones no cumplidas",
+                )
+            )
         return RoutineResult(
             routine=RoutineName.ZERO_CHECK,
             outcome=RoutineOutcome.FAILED,
@@ -75,6 +91,18 @@ async def run_zero_check(
             detail=f"Noise Low Channel: {noise_low_dbm:.2f} dBm",
         )
     )
+
+    if record_log_func:
+        record_log_func(
+            CalibrationLogEntry(
+                at_wall=now_wall,
+                severity="info",
+                procedure="Zero Check",
+                actor=actor,
+                message="Muestreo de ruido (Zero Check) finalizado correctamente",
+                detail=f"Ruido canal HI: {noise_high_dbm:.2f} dBm, Ruido canal LOW: {noise_low_dbm:.2f} dBm",
+            )
+        )
 
     return RoutineResult(
         routine=RoutineName.ZERO_CHECK,
