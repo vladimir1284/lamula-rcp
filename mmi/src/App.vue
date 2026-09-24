@@ -34,6 +34,7 @@ import SystemVisualizationView from '@/views/SystemVisualizationView.vue'
 import ZeroCheckView from '@/views/ZeroCheckView.vue'
 import TxPowerCalibrationView from '@/views/TxPowerCalibrationView.vue'
 import SinglePointCalibrationView from '@/views/SinglePointCalibrationView.vue'
+import CalibrationLogView from '@/views/CalibrationLogView.vue'
 import ConfigProfilesView from '@/views/ConfigProfilesView.vue'
 import CalibrationHubView from '@/views/CalibrationHubView.vue'
 import ClutterFiltersView from '@/views/ClutterFiltersView.vue'
@@ -96,7 +97,7 @@ const viewCatalog: ViewOption[] = [
   { id: 'scan-parameter-popup', label: 'D8 Scan Parameter Popup', available: true },
   { id: 'sun-position', label: 'H1 Sun Position', available: false },
   { id: 'itsg-control', label: 'I2 ITSG Control', available: false },
-  { id: 'calibration-log', label: 'G8 Calibration Log', available: false },
+  { id: 'calibration-log', label: 'G8 Calibration Log', available: true },
   { id: 'rsp-tx-rx-adjust', label: 'G2 TX Sampling Adjust', available: true },
   { id: 'mb-setup', label: 'E7 Burst Pulse & AFC (Mb)', available: false },
   { id: 'pb-plot', label: 'F1 Burst Pulse Timing (Pb)', available: false },
@@ -283,6 +284,7 @@ onMounted(() => {
     <template #zero-check><ZeroCheckView /></template>
     <template #tx-power-calibration><TxPowerCalibrationView /></template>
     <template #single-point-calibration><SinglePointCalibrationView /></template>
+    <template #calibration-log><CalibrationLogView /></template>
     <template #clutter-filters><ClutterFiltersView /></template>
     <template #trigger-setup-pw><TriggerSetupPwView /></template>
     <template #processing-options><ProcessingOptionsView /></template>

@@ -63,3 +63,10 @@ def test_save_radar_constant_persists(client: TestClient):
     assert res.status_code == 200
     saved = res.json()
     assert saved["params"]["tx_losses_db"] == 2.0
+
+    # Verificar que se registró en calibration-log
+    log_res = client.get("/api/calibration-log")
+    assert log_res.status_code == 200
+    logs = log_res.json()
+    assert len(logs) >= 1
+    assert any(l["procedure"] == "Radar Constant Parameters" for l in logs)

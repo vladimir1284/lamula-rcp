@@ -906,7 +906,11 @@ def create_app(
         )
 
     async def _execute_zero_check() -> RoutineResult:
-        res = await run_zero_check(hal)
+        res = await run_zero_check(
+            hal,
+            record_log_func=lambda entry: _record_calibration_log(app, entry),
+            actor=app.state.control.state.actor,
+        )
         now = datetime.now(timezone.utc)
         app.state.zero_check_last_result = res
         if res.outcome == RoutineOutcome.SUCCESS:
@@ -1235,6 +1239,16 @@ def create_app(
         app.state.radar_constant_path.write_text(
             app.state.radar_constant_params.model_dump_json()
         )
+        _record_calibration_log(
+            app,
+            CalibrationLogEntry(
+                at_wall=datetime.now(timezone.utc),
+                severity="info",
+                procedure="Radar Constant Parameters",
+                actor=app.state.control.state.actor,
+                message="Parámetros de constante de radar guardados.",
+            ),
+        )
         return RadarConstantSnapshot(
             params=app.state.radar_constant_params,
             radar_constant_db=compute_radar_constant_db(app.state.radar_constant_params),
@@ -1325,6 +1339,16 @@ def create_app(
             )
         app.state.tx_sampling_adjust_path.parent.mkdir(parents=True, exist_ok=True)
         app.state.tx_sampling_adjust_path.write_text(app.state.tx_sampling_adjust_params.model_dump_json())
+        _record_calibration_log(
+            app,
+            CalibrationLogEntry(
+                at_wall=datetime.now(timezone.utc),
+                severity="info",
+                procedure="TX Sampling Adjust",
+                actor=app.state.control.state.actor,
+                message="Parámetros de ajuste de muestreo TX guardados.",
+            ),
+        )
         return app.state.tx_sampling_adjust_params
 
     @app.get("/api/sector-blanking", response_model=SectorBlankingProfile)
