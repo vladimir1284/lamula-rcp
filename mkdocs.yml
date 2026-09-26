@@ -51,6 +51,7 @@ nav:
   - Interfaces:
       - RCP↔DSP: interfaces/dsp.md
       - Mapeo de parámetros DSP: interfaces/mapeo-parametros-dsp.md
+      - Plan pendientes DRx/DSP: interfaces/plan-pendientes-drx-dsp.md
   - Operación:
       - Rutinas de control: operacion/rutinas-control.md
   - Diseño:
