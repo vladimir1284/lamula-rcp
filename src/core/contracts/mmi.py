@@ -260,6 +260,17 @@ class ProcessingOptionsSettings(BaseModel):
     phidp_offset_deg: float = 0.0
 
 
+class SpectrumSnapshot(BaseModel):
+    has_data: bool = False
+    channel: int = 0
+    seq: int = 0
+    capture_time_utc_ns: int = 0
+    center_freq_hz: float = 0.0
+    span_hz: float = 0.0
+    ref_level_dbm: float = 0.0
+    bins: list[float] = Field(default_factory=list)
+
+
 class BurstAfcSettings(BaseModel):
     # Frecuencias
     tx_if_mhz: float = Field(30.0, description="Frecuencia intermedia del transmisor (MHz)")

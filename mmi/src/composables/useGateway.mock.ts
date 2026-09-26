@@ -35,6 +35,7 @@ import type {
   PowerMonitorSnapshot,
   ProcessingOptionsSettings,
   BurstAfcSettings,
+  SpectrumSnapshot,
   ProcessMonitorSnapshot,
   RadarConstantParameters,
   RadarConstantSnapshot,
@@ -662,6 +663,56 @@ async function setBurstAfc(settings: BurstAfcSettings): Promise<BurstAfcSettings
   return JSON.parse(JSON.stringify(mockBurstAfc.value))
 }
 
+const mockSpectrumHasData = ref(true)
+const mockSpectrumSeq = ref(1)
+
+async function fetchSpectrum(): Promise<SpectrumSnapshot> {
+  await delay(100)
+  if (!mockSpectrumHasData.value) {
+    return {
+      has_data: false,
+      channel: 0,
+      seq: 0,
+      capture_time_utc_ns: 0,
+      center_freq_hz: 0,
+      span_hz: 0,
+      ref_level_dbm: 0,
+      bins: [],
+    }
+  }
+
+  // Generate synthetic noise + peak for 128 bins
+  const nBins = 128
+  const refLevel = 0.0
+  const bins: number[] = []
+  for (let i = 0; i < nBins; i++) {
+    // Peak around bin 40
+    const dist = Math.abs(i - 40)
+    let val = -65.0 + (Math.random() - 0.5) * 4.0
+    if (dist < 10) {
+      val += (10 - dist) * 4.5
+    }
+    bins.push(Math.round(val * 10) / 10)
+  }
+
+  return {
+    has_data: true,
+    channel: 0,
+    seq: mockSpectrumSeq.value,
+    capture_time_utc_ns: Date.now() * 1_000_000,
+    center_freq_hz: 0.0,
+    span_hz: 0.0,
+    ref_level_dbm: refLevel,
+    bins,
+  }
+}
+
+async function requestSpectrum(): Promise<void> {
+  await delay(150)
+  mockSpectrumSeq.value++
+  mockSpectrumHasData.value = true
+}
+
 async function setPowerLimits(limits: PowerMeasurementLimits): Promise<PowerMeasurementLimits> {
   await delay(80)
   powerLimits.value = { ...limits }
@@ -995,6 +1046,8 @@ export function useGateway() {
     setProcessingOptions,
     fetchBurstAfc,
     setBurstAfc,
+    fetchSpectrum,
+    requestSpectrum,
     fetchRadarConstant,
     setRadarConstant,
     saveRadarConstant,

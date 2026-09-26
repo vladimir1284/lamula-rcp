@@ -139,6 +139,44 @@ def _decode_moment_block(
     return kind, profile, values_end
 
 
+def decode_spectrum_frame(
+    body: bytes,
+) -> tuple[int, int, int, int, float, float, float, list[float]]:
+    """Decodifica un cuerpo de mensaje SPECTRUM_FRAME (32 B cabecera + N x float32 bins)."""
+    if len(body) < wire.SpectrumFrame.SIZE:
+        raise WireFormatError(
+            f"spectrum_frame corto: {len(body)} B, se esperaban al menos"
+            f" {wire.SpectrumFrame.SIZE}"
+        )
+    frame_hdr = wire.SpectrumFrame.unpack(body[: wire.SpectrumFrame.SIZE])
+    n_bins = frame_hdr.n_bins
+    channel = frame_hdr.channel
+    seq = frame_hdr.seq
+    capture_time_utc_ns = frame_hdr.capture_time_utc_ns
+    center_freq_hz = frame_hdr.center_freq_hz
+    span_hz = frame_hdr.span_hz
+    ref_level_dbm = frame_hdr.ref_level_dbm
+
+    expected_len = wire.SpectrumFrame.SIZE + 4 * n_bins
+    if len(body) < expected_len:
+        raise WireFormatError(
+            f"spectrum_frame corto para {n_bins} bins: {len(body)} B,"
+            f" se esperaban {expected_len} B"
+        )
+
+    bins = list(struct.unpack_from(f"<{n_bins}f", body, wire.SpectrumFrame.SIZE))
+    return (
+        n_bins,
+        channel,
+        seq,
+        capture_time_utc_ns,
+        center_freq_hz,
+        span_hz,
+        ref_level_dbm,
+        bins,
+    )
+
+
 def decode_moment_ray(body: bytes) -> RadialMoments:
     """Cuerpo completo de un `moment_ray` (cabecera + carga util) -> dominio."""
     if len(body) < wire.MomentRay.SIZE:

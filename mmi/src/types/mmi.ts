@@ -363,6 +363,17 @@ export interface BurstAfcSettings {
   simulated_burst_span_stop_mhz: number
 }
 
+export interface SpectrumSnapshot {
+  has_data: boolean
+  channel: number
+  seq: number
+  capture_time_utc_ns: number
+  center_freq_hz: number
+  span_hz: number
+  ref_level_dbm: number
+  bins: number[]
+}
+
 export interface RadarConstantParameters {
   pulse_width_us: number
   zero_check_high_dbm: number

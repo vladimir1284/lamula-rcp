@@ -132,6 +132,52 @@ def test_burst_afc_get_and_set(client):
     assert get_again.json() == updated
 
 
+def test_spectrum_get_and_request(client):
+    res_initial = client.get("/api/dsp/spectrum")
+    assert res_initial.status_code == 200
+    assert res_initial.json()["has_data"] is False
+
+    dsp = client.app.state.dsp
+    dsp._latest_spectrum = (64, 0, 101, 1700000000000000000, 0.0, 0.0, -10.0, [-30.0] * 64)
+
+    res_data = client.get("/api/dsp/spectrum")
+    assert res_data.status_code == 200
+    body = res_data.json()
+    assert body["has_data"] is True
+    assert body["channel"] == 0
+    assert body["seq"] == 101
+    assert body["ref_level_dbm"] == -10.0
+    assert len(body["bins"]) == 64
+
+    # Request spectrum requires MANT mode
+    res_req_forbidden = client.post("/api/dsp/request-spectrum")
+    assert res_req_forbidden.status_code == 403
+
+    unlock_res = client.post(
+        "/api/maintenance/unlock",
+        json={"password": "mant1234", "actor": "tester", "duration_s": 3600},
+    )
+    assert unlock_res.status_code == 200
+
+    class DummyWriter:
+        def __init__(self):
+            self.data = b""
+
+        def write(self, data: bytes):
+            self.data += data
+
+        async def drain(self):
+            pass
+
+    dummy_writer = DummyWriter()
+    dsp._writer = dummy_writer
+
+    res_req_ok = client.post("/api/dsp/request-spectrum")
+    assert res_req_ok.status_code == 200
+    assert res_req_ok.json()["status"] == "ok"
+    assert len(dummy_writer.data) > 0
+
+
 def test_set_endpoints_cannot_override_real_dsp_fields(client):
     """`clutter_width_ms`/`gate_spacing_m`/`prf_hz`/`phidp_offset_deg` llegan de
     `dsp.latest_config` (telemetria del DSP, sin path de escritura RCP->DSP hoy,

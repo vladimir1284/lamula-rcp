@@ -29,7 +29,13 @@ from datetime import datetime, timezone
 from contract.vendor import dsp_rcp_v0_1 as wire
 from core.contracts.dsp import RadialMoments
 
-from .wire import WireFormatError, decode_moment_ray, encode_control, parse_frame_header
+from .wire import (
+    WireFormatError,
+    decode_moment_ray,
+    decode_spectrum_frame,
+    encode_control,
+    parse_frame_header,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +60,7 @@ class MomentStreamReceiver:
         self._latest: RadialMoments | None = None
         self._latest_status: wire.Status | None = None
         self._latest_config: wire.Config | None = None
+        self._latest_spectrum: tuple[int, int, int, int, float, float, float, list[float]] | None = None
         self._writer: asyncio.StreamWriter | None = None
         self._control_seq = 0
         # Hora de pared del ultimo MOMENT_RAY -- unica forma de que A6 (RD)
@@ -75,8 +82,21 @@ class MomentStreamReceiver:
         return self._latest_config
 
     @property
+    def latest_spectrum(self) -> tuple[int, int, int, int, float, float, float, list[float]] | None:
+        return self._latest_spectrum
+
+    @property
     def last_radial_at(self) -> datetime | None:
         return self._last_radial_at
+
+    async def request_spectrum(self) -> None:
+        """Envia el comando REQUEST_SPECTRUM al DSP."""
+        if not self._writer:
+            raise RuntimeError("DSP stream no esta conectado")
+        self._control_seq = (self._control_seq + 1) & 0xFFFFFFFF
+        payload = encode_control(self._control_seq, wire.Command.REQUEST_SPECTRUM)
+        self._writer.write(payload)
+        await self._writer.drain()
 
     async def reset_counters(self) -> None:
         """Reinicia contadores de trigger/radiales (Vz)."""
@@ -124,6 +144,9 @@ class MomentStreamReceiver:
                     self.other_messages_received += 1
                 elif msg_type == wire.MsgType.CONFIG:
                     self._latest_config = wire.Config.unpack(body)
+                    self.other_messages_received += 1
+                elif msg_type == wire.MsgType.SPECTRUM_FRAME:
+                    self._latest_spectrum = decode_spectrum_frame(body)
                     self.other_messages_received += 1
                 else:
                     # bite_event, config_ack, capabilities... son
