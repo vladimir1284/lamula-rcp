@@ -318,8 +318,7 @@ se fusiona con F2/F3 en una sola "vista de verificación de RF". **No empezar si
 
 **Pasos:**
 
-1. Re-vendorizar el contrato para incluir `request_spectrum` (msg 7) — coordinarlo con el proyecto
-   DSP, subir ancla en `contract/vendor/UPSTREAM.toml`.
+1. Nota: `request_spectrum` (msg 7) y `spectrum_frame` (msg 2) ya están disponibles en el contrato vendorizado v1.3.
 2. Endpoint de gateway que dispare `request_spectrum` y devuelva el último `spectrum_frame`
    recibido — patrón "pedir y esperar" distinto del resto (no es snapshot inmediato); usar el mismo
    patrón de job asíncrono que ya existe para las rutinas de control (`JobActionPanel`,

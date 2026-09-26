@@ -68,6 +68,7 @@ from core.contracts.mmi import (
     OperatorEventMessage,
     OperatorMode,
     BurstAfcSettings,
+    SpectrumSnapshot,
     ClutterFilterConfig,
     ClutterFilterSettings,
     TriggerSetupGeneralSnapshot,
@@ -655,6 +656,44 @@ def create_app(
     async def set_burst_afc(settings: BurstAfcSettings) -> BurstAfcSettings:
         app.state.burst_afc_settings = settings
         return settings
+
+    @app.post("/api/dsp/request-spectrum", response_model=DspResetCountersResponse)
+    async def request_dsp_spectrum() -> DspResetCountersResponse:
+        if _effective_maintenance().level != AccessLevel.MANT:
+            raise HTTPException(
+                status_code=403,
+                detail="se requiere nivel de mantenimiento para esta operación",
+            )
+        await dsp.request_spectrum()
+        return DspResetCountersResponse(
+            status="ok", message="Comando REQUEST_SPECTRUM enviado al DSP"
+        )
+
+    @app.get("/api/dsp/spectrum", response_model=SpectrumSnapshot)
+    async def get_dsp_spectrum() -> SpectrumSnapshot:
+        spec = dsp.latest_spectrum
+        if spec is None:
+            return SpectrumSnapshot(has_data=False)
+        (
+            _n_bins,
+            channel,
+            seq,
+            capture_time_utc_ns,
+            center_freq_hz,
+            span_hz,
+            ref_level_dbm,
+            bins,
+        ) = spec
+        return SpectrumSnapshot(
+            has_data=True,
+            channel=channel,
+            seq=seq,
+            capture_time_utc_ns=capture_time_utc_ns,
+            center_freq_hz=center_freq_hz,
+            span_hz=span_hz,
+            ref_level_dbm=ref_level_dbm,
+            bins=bins,
+        )
 
     @app.post("/api/dsp/reset-counters", response_model=DspResetCountersResponse)
     async def reset_dsp_counters() -> DspResetCountersResponse:

@@ -32,6 +32,7 @@ import type {
   PowerMonitorSnapshot,
   ProcessingOptionsSettings,
   BurstAfcSettings,
+  SpectrumSnapshot,
   ProcessMonitorSnapshot,
   RadarConstantParameters,
   RadarConstantSnapshot,
@@ -361,6 +362,22 @@ async function setBurstAfc(settings: BurstAfcSettings): Promise<BurstAfcSettings
     throw new Error(`POST /api/dsp/burst-afc: HTTP ${res.status} — ${detail}`)
   }
   return (await res.json()) as BurstAfcSettings
+}
+
+async function fetchSpectrum(): Promise<SpectrumSnapshot> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/dsp/spectrum`)
+  if (!res.ok) throw new Error(`GET /api/dsp/spectrum: HTTP ${res.status}`)
+  return (await res.json()) as SpectrumSnapshot
+}
+
+async function requestSpectrum(): Promise<void> {
+  const res = await fetch(`${GATEWAY_HTTP}/api/dsp/request-spectrum`, {
+    method: 'POST',
+  })
+  if (!res.ok) {
+    const detail = await res.text()
+    throw new Error(`POST /api/dsp/request-spectrum: HTTP ${res.status} — ${detail}`)
+  }
 }
 
 async function resetDspCounters(): Promise<DspResetCountersResponse> {
@@ -766,6 +783,8 @@ export function useGateway() {
     setProcessingOptions,
     fetchBurstAfc,
     setBurstAfc,
+    fetchSpectrum,
+    requestSpectrum,
     fetchRadarConstant,
     setRadarConstant,
     saveRadarConstant,
