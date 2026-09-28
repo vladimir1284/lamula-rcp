@@ -294,16 +294,38 @@ pulsos/rayo, celdas ok/total y espaciado de máscara de rango → todos **Existe
 ## Familia F — Ajuste asistido por gráfico
 
 **Estado general (mapeo §"Familia F", líneas ~430–466):** F2 tiene captura oportunista de espectro
-del burst **cableada** (`spectrum_frame` msg 2, mandato `request_spectrum` msg 7), con tres
-limitaciones verificadas: solo canal `RX_0`, `center_freq_hz`/`span_hz` en 0 por falta de campos de
-IF/muestreo, sin promediado entre peticiones. **El mandato `request_spectrum` no está en el pin
-v0.1 vendorizado en este repo** — hay que re-vendorizar antes de usarlo.
+del burst **cableada** (`spectrum_frame` msg 2, mandato `request_spectrum` msg 7). Las tres
+limitaciones que tenía documentadas —solo canal `RX_0`, `center_freq_hz`/`span_hz` en 0 por falta
+de campos de IF/muestreo, sin promediado entre peticiones— **caen con el pin v1.9**
+(re-vendorizado 2026-09-28, antes v1.3):
+
+- `request_spectrum` **parametrizado** (msg 11, nuevo en v1.9): `channel` (cualquier canal físico
+  de `drx_dsp::channel`, no solo `RX_0`) y `n_averages` (radiales sucesivos acumulados en potencia
+  antes de responder). El mandato viejo sin parámetros (`command::request_spectrum`, msg 7) sigue
+  existiendo con el mismo comportamiento de siempre.
+- `capabilities` publica `tx_if_hz`, `rx_if_hz`, `rx_nco_fs_hz` y `rx_nco_word_bits` (v1.8), así que
+  el eje de frecuencias de F2 ya tiene escala real: `spectrum_frame.center_freq_hz` sale de
+  `rx_if_hz` y `span_hz` de `1/fast_time_dt_s`.
+- `status` publica telemetría de AFC/burst (v1.4): `afc_freq_meas_hz`, `afc_control_freq_hz`,
+  `afc_burst_amplitude` y el bit `afc_bite`. **No** son los seis estados del inventario: la máquina
+  de estados con histéresis sigue sin existir aguas arriba.
+- `config` relaya parámetros del DRx escribibles (v1.6/v1.7): `pulse_width_idx`, `cell_mode`,
+  `prf_div` y `trigger_delay_0..3`/`trigger_width_0..3` **en microsegundos** — el DSP hace la
+  conversión a ciclos del reloj del DRx (`ray::build_drx_config`), el RCP nunca ve ese reloj.
+- `transmitter_type` (v1.6) y los modos de barrido compuestos `split_cut`/`batch_cut`/`doppler_cut`
+  (v1.5).
 
 ### F1 — Burst Pulse Timing (`Pb`)
 
-**Estado:** sin contrato — el temporizado de triggers es del DRx/FPGA, no expuesto (mismo límite
-que E5/E6). Además, el propio inventario ya advierte: con los triggers de solo lectura (decisión
-E5), **F1 deja de ser vista de ajuste y pasa a ser de verificación**.
+**Estado:** la premisa de esta sección cambió con el pin v1.9. El temporizado de triggers **ya está
+en el contrato y es escribible**: `config.trigger_delay_0..3`/`trigger_width_0..3`, en
+microsegundos (v1.6/v1.7), y el DSP los baja al DRx en `ray::build_drx_config`. La decisión de
+dejarlos de solo lectura se reabrió por instrucción explícita — ver
+[`../interfaces/plan-pendientes-drx-dsp.md`](../interfaces/plan-pendientes-drx-dsp.md), §"Decisión
+que este documento reabre". Lo que sigue faltando para F1 no es dónde escribir, sino **la captura
+de forma de onda del burst**: hoy no existe ningún mensaje que la transporte (el ítem A.8 de ese
+plan, `burst_waveform_frame`, no está construido), y la captura ADC de alta resolución depende de
+un buffer que el DRx tampoco tiene (ítem B.13, condicionado a medir recursos en ZU9).
 
 **Pasos:** replantear el alcance antes de construir: no un editor de temporizado (no hay dónde
 escribir), sino una visualización del pulso capturado (reusar lo que F2 ya resuelve para captura
@@ -318,16 +340,22 @@ se fusiona con F2/F3 en una sola "vista de verificación de RF". **No empezar si
 
 **Pasos:**
 
-1. Nota: `request_spectrum` (msg 7) y `spectrum_frame` (msg 2) ya están disponibles en el contrato vendorizado v1.3.
+1. Nota: con el pin v1.9 hay dos mandatos, no uno. `command::request_spectrum` (msg 7, sin
+   parámetros, canal `RX_0`, sin promediar) y `request_spectrum` (msg 11, con `channel` y
+   `n_averages`). Para esta vista usar el msg 11: es el que permite el selector de canal y el
+   promediado que pide el inventario.
 2. Endpoint de gateway que dispare `request_spectrum` y devuelva el último `spectrum_frame`
    recibido — patrón "pedir y esperar" distinto del resto (no es snapshot inmediato); usar el mismo
    patrón de job asíncrono que ya existe para las rutinas de control (`JobActionPanel`,
    `src/core/control_routines/`).
-3. Vista con las limitaciones **visibles, no escondidas**: banner "solo RX_0", eje de frecuencia
-   sin escala real (`center_freq_hz`/`span_hz` en 0 — mostrar en unidades de bin, no fingir MHz).
-4. Los seis estados de AFC (`Disabled/Manual/NoBurst/Wait/Track/Locked`) del inventario **no tienen
-   telemetría real** (mapeo, "Falta" punto 2) — omitir ese indicador hasta que exista, no
-   simularlo como si fuera dato del radar.
+3. Selector de canal y de número de promedios, ya que el msg 11 los admite. El eje de frecuencia ya
+   puede ir en MHz reales: `center_freq_hz` viene de `rx_if_hz` y `span_hz` de `1/fast_time_dt_s`
+   (v1.8). Lo que sí hay que seguir marcando como tal: `rx_if_hz` es **constante de instalación, no
+   medida**, y no incluye el offset que el lazo de AFC tenga aplicado en ese instante.
+4. Los seis estados de AFC (`Disabled/Manual/NoBurst/Wait/Track/Locked`) del inventario siguen sin
+   existir aguas arriba — pero desde v1.4 sí hay telemetría parcial en `status`
+   (`afc_freq_meas_hz`, `afc_control_freq_hz`, `afc_burst_amplitude`, bit `afc_bite`). Mostrar esos
+   cuatro como lo que son, no derivar de ellos una máquina de estados que el DSP no calcula.
 
 ### F3 — Receiver Waveforms (`Pr`)
 

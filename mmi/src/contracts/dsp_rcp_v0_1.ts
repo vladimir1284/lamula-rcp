@@ -1,7 +1,7 @@
 // GENERADO por tools/gen_contract.py a partir de
 // contract/schema/dsp_rcp_v0_1.toml. NO EDITAR A MANO.
 //
-// Contrato DSP↔RCP v1.3 — lado MMI.
+// Contrato DSP↔RCP v1.9 — lado MMI.
 //
 // Little-endian, empaquetado. Los enteros de 64 bits se exponen como
 // bigint: no caben en el double de `number` sin perder enteros a partir
@@ -11,7 +11,7 @@
 
 export const MAGIC = 0x4C4D4453;
 export const VERSION_MAJOR = 1;
-export const VERSION_MINOR = 3;
+export const VERSION_MINOR = 9;
 
 const LE = true;
 
@@ -27,7 +27,12 @@ export interface Header {
   versionMinor: number;
   /** Ver la tabla de tipos de mensaje. */
   msgType: number;
-  /** Reservado en v0.1; tiene que valer 0. */
+  /**
+   * Banderas de trama. Ver la tabla `header_flag`. El bit 0 declara que
+   * la trama viene de una fuente simulada; los demás siguen reservados y valen 0.
+   * Un lector no debe exigir que el byte entero sea cero: eso rompería con
+   * cualquier bandera futura.
+   */
   flags: number;
   /**
    * Bytes que siguen a ESTA cabecera de 12 B, contando la cabecera del mensaje
@@ -93,6 +98,8 @@ export const MsgType = {
   CONTROL: 9,
   /** down */
   SELFTEST_REQUEST: 10,
+  /** down */
+  REQUEST_SPECTRUM: 11,
 } as const;
 
 /**
@@ -419,8 +426,8 @@ export interface Status {
   triggerPeriodCmdNs: number;
   /** Periodo de disparo medido, ns. La diferencia es la deriva. */
   triggerPeriodMeasNs: number;
-  /** Relleno explícito; vale 0. */
-  pad0: number;
+  /** Frecuencia del burst medida en esta actualización del lazo de AFC (`lamula_burst::AfcUpdate::freq_meas_hz`), sin filtrar. Congelada en el último valor válido mientras `afc_bite` esté a 1. 0 sin lazo de AFC corriendo (sólo magnetrón, `burst_window_bins > 0` en `config`). Consume el relleno explícito v1.3 (`pad0`), mismo tamaño. */
+  afcFreqMeasHz: number;
   /** Suelo de ruido del canal 0, dBm. */
   noiseFloorDbm0: number;
   /** Suelo de ruido del canal 1, dBm. */
@@ -445,9 +452,15 @@ export interface Status {
   dcOffsetQ2: number;
   /** Offset de continua en Q, canal 3. */
   dcOffsetQ3: number;
+  /** Offset de frecuencia filtrado que el lazo de AFC aplica esta actualización (`lamula_burst::AfcUpdate::freq_hz`) — el valor de control realmente enviado al NCO del DRx vía el mensaje `Afc` (`nco_phase_inc`). 0 sin lazo de AFC corriendo. Nuevo en v1.4, aditivo. */
+  afcControlFreqHz: number;
+  /** Amplitud media del burst medida esta actualización (`lamula_burst::AfcUpdate::amplitude`). Unidad lineal/relativa del receptor, **no** dBm calibrado — no existe conversión a dBm para este canal en este workspace. 0 sin lazo de AFC corriendo. Nuevo en v1.4, aditivo. */
+  afcBurstAmplitude: number;
+  /** 1 si esta actualización del lazo de AFC se congeló por pérdida de burst (`lamula_burst::AfcUpdate::bite`), 0 en otro caso o sin lazo corriendo. La máquina de estados con histéresis (Disabled/Manual/NoBurst/Wait/Track/Locked) no existe todavía — sólo este bit binario. Nuevo en v1.4, aditivo. */
+  afcBite: number;
 }
 
-export const STATUS_SIZE = 104;
+export const STATUS_SIZE = 113;
 
 export const STATUS_OFFSETS = {
   uptimeS: 0,
@@ -466,7 +479,7 @@ export const STATUS_OFFSETS = {
   binsTotal: 40,
   triggerPeriodCmdNs: 44,
   triggerPeriodMeasNs: 48,
-  pad0: 52,
+  afcFreqMeasHz: 52,
   noiseFloorDbm0: 56,
   noiseFloorDbm1: 60,
   noiseFloorDbm2: 64,
@@ -479,6 +492,9 @@ export const STATUS_OFFSETS = {
   dcOffsetQ1: 92,
   dcOffsetQ2: 96,
   dcOffsetQ3: 100,
+  afcControlFreqHz: 104,
+  afcBurstAmplitude: 108,
+  afcBite: 112,
 } as const;
 
 export function decodeStatus(view: DataView, base = 0): Status {
@@ -499,7 +515,7 @@ export function decodeStatus(view: DataView, base = 0): Status {
     binsTotal: view.getUint32(base + 40, LE),
     triggerPeriodCmdNs: view.getUint32(base + 44, LE),
     triggerPeriodMeasNs: view.getUint32(base + 48, LE),
-    pad0: view.getUint32(base + 52, LE),
+    afcFreqMeasHz: view.getFloat32(base + 52, LE),
     noiseFloorDbm0: view.getFloat32(base + 56, LE),
     noiseFloorDbm1: view.getFloat32(base + 60, LE),
     noiseFloorDbm2: view.getFloat32(base + 64, LE),
@@ -512,6 +528,9 @@ export function decodeStatus(view: DataView, base = 0): Status {
     dcOffsetQ1: view.getFloat32(base + 92, LE),
     dcOffsetQ2: view.getFloat32(base + 96, LE),
     dcOffsetQ3: view.getFloat32(base + 100, LE),
+    afcControlFreqHz: view.getFloat32(base + 104, LE),
+    afcBurstAmplitude: view.getFloat32(base + 108, LE),
+    afcBite: view.getUint8(base + 112),
   };
 }
 
@@ -533,7 +552,7 @@ export function encodeStatus(value: Status, view?: DataView, base = 0): DataView
   dv.setUint32(base + 40, value.binsTotal, LE);
   dv.setUint32(base + 44, value.triggerPeriodCmdNs, LE);
   dv.setUint32(base + 48, value.triggerPeriodMeasNs, LE);
-  dv.setUint32(base + 52, value.pad0, LE);
+  dv.setFloat32(base + 52, value.afcFreqMeasHz, LE);
   dv.setFloat32(base + 56, value.noiseFloorDbm0, LE);
   dv.setFloat32(base + 60, value.noiseFloorDbm1, LE);
   dv.setFloat32(base + 64, value.noiseFloorDbm2, LE);
@@ -546,6 +565,9 @@ export function encodeStatus(value: Status, view?: DataView, base = 0): DataView
   dv.setFloat32(base + 92, value.dcOffsetQ1, LE);
   dv.setFloat32(base + 96, value.dcOffsetQ2, LE);
   dv.setFloat32(base + 100, value.dcOffsetQ3, LE);
+  dv.setFloat32(base + 104, value.afcControlFreqHz, LE);
+  dv.setFloat32(base + 108, value.afcBurstAmplitude, LE);
+  dv.setUint8(base + 112, value.afcBite);
   return dv;
 }
 
@@ -725,11 +747,17 @@ export interface Capabilities {
   maxPulses: number;
   /** Canales de recepción que procesa. */
   nRxChannels: number;
-  /** Relleno explícito; vale 0. */
-  pad0: number;
+  /** Anchura del acumulador de fase del NCO de recepción del DRx, bits (`lamula_burst::nco_phase_inc_for_freq_offset`). Constante de instalación, no medida; publicada para que el RCP pueda verificarla contra la especificación del DRx en vez de confiar a ciegas en la variable de entorno del DSP que la fija. Consume el relleno explícito v1.7 (`pad0`), mismo tamaño. */
+  rxNcoWordBits: number;
+  /** Frecuencia intermedia de transmisión, Hz. Constante de instalación, no medida — mapeo RCP entrada 3. */
+  txIfHz: number;
+  /** Frecuencia intermedia de recepción, Hz. Constante de instalación, no medida. Es `spectrum_frame.center_freq_hz` (`crate::ray::build_spectrum_frame`): antes salía en 0 por falta de este dato. */
+  rxIfHz: number;
+  /** Frecuencia de referencia del NCO de recepción del DRx, Hz (`ServiceConfig::drx_nco_fs_hz`). Publicada por el mismo motivo que `rx_nco_word_bits`: hoy es variable de entorno sin forma de verificarla contra el DRx real. */
+  rxNcoFsHz: number;
 }
 
-export const CAPABILITIES_SIZE = 20;
+export const CAPABILITIES_SIZE = 32;
 
 export const CAPABILITIES_OFFSETS = {
   momentMask: 0,
@@ -738,7 +766,10 @@ export const CAPABILITIES_OFFSETS = {
   maxGates: 12,
   maxPulses: 16,
   nRxChannels: 18,
-  pad0: 19,
+  rxNcoWordBits: 19,
+  txIfHz: 20,
+  rxIfHz: 24,
+  rxNcoFsHz: 28,
 } as const;
 
 export function decodeCapabilities(view: DataView, base = 0): Capabilities {
@@ -749,7 +780,10 @@ export function decodeCapabilities(view: DataView, base = 0): Capabilities {
     maxGates: view.getUint32(base + 12, LE),
     maxPulses: view.getUint16(base + 16, LE),
     nRxChannels: view.getUint8(base + 18),
-    pad0: view.getUint8(base + 19),
+    rxNcoWordBits: view.getUint8(base + 19),
+    txIfHz: view.getFloat32(base + 20, LE),
+    rxIfHz: view.getFloat32(base + 24, LE),
+    rxNcoFsHz: view.getFloat32(base + 28, LE),
   };
 }
 
@@ -761,7 +795,10 @@ export function encodeCapabilities(value: Capabilities, view?: DataView, base = 
   dv.setUint32(base + 12, value.maxGates, LE);
   dv.setUint16(base + 16, value.maxPulses, LE);
   dv.setUint8(base + 18, value.nRxChannels);
-  dv.setUint8(base + 19, value.pad0);
+  dv.setUint8(base + 19, value.rxNcoWordBits);
+  dv.setFloat32(base + 20, value.txIfHz, LE);
+  dv.setFloat32(base + 24, value.rxIfHz, LE);
+  dv.setFloat32(base + 28, value.rxNcoFsHz, LE);
   return dv;
 }
 
@@ -831,13 +868,35 @@ export interface Config {
   wavelengthM: number;
   /** Modo del segundo canal de recepción cuando n_rx_channels > 1. Ver la enumeración. Sin efecto con canal único. */
   polarizationMode: number;
-  /** Relleno explícito; vale 0. */
-  pad0: number;
+  /** Tipo de transmisor de esta instalación. Ver la enumeración `transmitter_type`. Reemplaza la constante local `MAGNETRON_TRANSMITTER` de `crates/service::ray` — el parque es mixto, magnetrón y klistrón conviven, así que no se puede fijar en tiempo de compilación. De este campo depende qué vía de recuperación de segundo trip aplica (fase aleatoria frente a SZ(8/64)), si la corrección de fase por burst es obligatoria u opcional, y qué controles puede ofrecer el MMI sin invitar a un error de instalación. Consume el relleno explícito v1.5 (`pad0`), mismo tamaño. */
+  transmitterType: number;
   /** Bins iniciales de un canal de burst (drx_dsp::channel::TX_BURST_0/1) que llevan señal real; el resto del canal es ruido/silencio. 0 si la instalación no tiene canal de burst (transmisor coherente sin monitor de burst). */
   burstWindowBins: number;
+  /** Índice en la tabla de anchos de pulso del DRx (drx_dsp::Config.pulse_width_idx). Relay directo: el DSP no conoce los límites de la tabla, sólo el DRx. Escribible (E5/E6, decisión mapeo-parametros-dsp.md#15). Pendiente de cablear hacia drx_dsp::Config — ver doc-comment de crate::main en el binario del servicio. */
+  pulseWidthIdx: number;
+  /** 0 = celda fina, 1 = celda gruesa (drx_dsp::Config.cell_mode). Relay directo. Mismo pendiente de cableado que pulse_width_idx. */
+  cellMode: number;
+  /** Divisor de PRF del DRx; PRF = FS_HZ/prf_div (drx_dsp::Config.prf_div). Entero puro, sin conversión de unidades — a diferencia de trigger_delay_N/trigger_width_N, no depende de FS_HZ del DRx. Mismo pendiente de cableado que pulse_width_idx. */
+  prfDiv: number;
+  /** Retardo del trigger 0, microsegundos. drx_dsp::Config.trigger_delay_0 lo expresa en ciclos de fs del DRx; la conversión ciclos↔µs vive en el DSP (nuevo parámetro de instalación, no en ningún contrato — ver ServiceConfig::drx_trigger_fs_hz), no en el RCP, para no exponerle el reloj del DRx. Reabre en parte D-02 (ver doc-comment de drx_dsp::Afc) sólo para temporizado de trigger, no para el lazo de AFC, que sigue viajando como palabra de fase. Reabierto por decisión explícita (plan-pendientes-drx-dsp.md): F1 del MMI legacy pide esta unidad. Mismo pendiente de cableado que pulse_width_idx. */
+  triggerDelay0: number;
+  /** Retardo del trigger 1, microsegundos. Ver trigger_delay_0. */
+  triggerDelay1: number;
+  /** Retardo del trigger 2, microsegundos. Ver trigger_delay_0. */
+  triggerDelay2: number;
+  /** Retardo del trigger 3, microsegundos. Ver trigger_delay_0. */
+  triggerDelay3: number;
+  /** Ancho del trigger 0, microsegundos. Misma conversión y mismo pendiente que trigger_delay_0. */
+  triggerWidth0: number;
+  /** Ancho del trigger 1, microsegundos. Ver trigger_width_0. */
+  triggerWidth1: number;
+  /** Ancho del trigger 2, microsegundos. Ver trigger_width_0. */
+  triggerWidth2: number;
+  /** Ancho del trigger 3, microsegundos. Ver trigger_width_0. */
+  triggerWidth3: number;
 }
 
-export const CONFIG_SIZE = 84;
+export const CONFIG_SIZE = 122;
 
 export const CONFIG_OFFSETS = {
   seq: 0,
@@ -868,8 +927,19 @@ export const CONFIG_OFFSETS = {
   antennaIsolationDb: 72,
   wavelengthM: 76,
   polarizationMode: 80,
-  pad0: 81,
+  transmitterType: 81,
   burstWindowBins: 82,
+  pulseWidthIdx: 84,
+  cellMode: 85,
+  prfDiv: 86,
+  triggerDelay0: 90,
+  triggerDelay1: 94,
+  triggerDelay2: 98,
+  triggerDelay3: 102,
+  triggerWidth0: 106,
+  triggerWidth1: 110,
+  triggerWidth2: 114,
+  triggerWidth3: 118,
 } as const;
 
 export function decodeConfig(view: DataView, base = 0): Config {
@@ -902,8 +972,19 @@ export function decodeConfig(view: DataView, base = 0): Config {
     antennaIsolationDb: view.getFloat32(base + 72, LE),
     wavelengthM: view.getFloat32(base + 76, LE),
     polarizationMode: view.getUint8(base + 80),
-    pad0: view.getUint8(base + 81),
+    transmitterType: view.getUint8(base + 81),
     burstWindowBins: view.getUint16(base + 82, LE),
+    pulseWidthIdx: view.getUint8(base + 84),
+    cellMode: view.getUint8(base + 85),
+    prfDiv: view.getUint32(base + 86, LE),
+    triggerDelay0: view.getFloat32(base + 90, LE),
+    triggerDelay1: view.getFloat32(base + 94, LE),
+    triggerDelay2: view.getFloat32(base + 98, LE),
+    triggerDelay3: view.getFloat32(base + 102, LE),
+    triggerWidth0: view.getFloat32(base + 106, LE),
+    triggerWidth1: view.getFloat32(base + 110, LE),
+    triggerWidth2: view.getFloat32(base + 114, LE),
+    triggerWidth3: view.getFloat32(base + 118, LE),
   };
 }
 
@@ -937,8 +1018,19 @@ export function encodeConfig(value: Config, view?: DataView, base = 0): DataView
   dv.setFloat32(base + 72, value.antennaIsolationDb, LE);
   dv.setFloat32(base + 76, value.wavelengthM, LE);
   dv.setUint8(base + 80, value.polarizationMode);
-  dv.setUint8(base + 81, value.pad0);
+  dv.setUint8(base + 81, value.transmitterType);
   dv.setUint16(base + 82, value.burstWindowBins, LE);
+  dv.setUint8(base + 84, value.pulseWidthIdx);
+  dv.setUint8(base + 85, value.cellMode);
+  dv.setUint32(base + 86, value.prfDiv, LE);
+  dv.setFloat32(base + 90, value.triggerDelay0, LE);
+  dv.setFloat32(base + 94, value.triggerDelay1, LE);
+  dv.setFloat32(base + 98, value.triggerDelay2, LE);
+  dv.setFloat32(base + 102, value.triggerDelay3, LE);
+  dv.setFloat32(base + 106, value.triggerWidth0, LE);
+  dv.setFloat32(base + 110, value.triggerWidth1, LE);
+  dv.setFloat32(base + 114, value.triggerWidth2, LE);
+  dv.setFloat32(base + 118, value.triggerWidth3, LE);
   return dv;
 }
 
@@ -1011,6 +1103,51 @@ export function encodeSelftestRequest(value: SelftestRequest, view?: DataView, b
   const dv = view ?? new DataView(new ArrayBuffer(SELFTEST_REQUEST_SIZE));
   dv.setUint32(base + 0, value.seq, LE);
   dv.setUint32(base + 4, value.nonce, LE);
+  return dv;
+}
+
+/**
+ * Pide una traza de espectro de FI (spectrum_frame) con canal y
+ * promediado elegidos (issue #1 ítem 7, mapeo RCP entrada 6). Alternativa
+ * parametrizada a `command::request_spectrum` (control, sin parámetros), que
+ * sigue existiendo tal cual con su comportamiento de hoy: canal RX_0, un
+ * periodograma por mandato, sin promediar entre mandatos sucesivos.
+ */
+export interface RequestSpectrum {
+  /** Se devuelve como spectrum_frame.seq. */
+  seq: number;
+  /** Canal físico a muestrear — bit único de drx_dsp::channel (RX_0/RX_1/RX_2/RX_3/TX_BURST_0). Sin ese canal en el radial vigente, no hay traza que mandar, igual que hoy con RX_0 fijo. */
+  channel: number;
+  /** Radiales sucesivos de ese canal a acumular en potencia (nunca en dB, ver docs/algorithms/analizador-espectro-fi.md) antes de responder con un único spectrum_frame. 0 o 1: un solo radial, mismo comportamiento que command::request_spectrum. Más promedios reduce el ruido de la traza a costa de la latencia de refresco. */
+  nAverages: number;
+  /** Relleno explícito; vale 0. */
+  pad0: number;
+}
+
+export const REQUEST_SPECTRUM_SIZE = 8;
+
+export const REQUEST_SPECTRUM_OFFSETS = {
+  seq: 0,
+  channel: 4,
+  nAverages: 5,
+  pad0: 6,
+} as const;
+
+export function decodeRequestSpectrum(view: DataView, base = 0): RequestSpectrum {
+  return {
+    seq: view.getUint32(base + 0, LE),
+    channel: view.getUint8(base + 4),
+    nAverages: view.getUint8(base + 5),
+    pad0: view.getUint16(base + 6, LE),
+  };
+}
+
+export function encodeRequestSpectrum(value: RequestSpectrum, view?: DataView, base = 0): DataView {
+  const dv = view ?? new DataView(new ArrayBuffer(REQUEST_SPECTRUM_SIZE));
+  dv.setUint32(base + 0, value.seq, LE);
+  dv.setUint8(base + 4, value.channel);
+  dv.setUint8(base + 5, value.nAverages);
+  dv.setUint16(base + 6, value.pad0, LE);
   return dv;
 }
 
@@ -1152,7 +1289,16 @@ export const Command = {
 } as const;
 
 /**
- * Modos de barrido.
+ * Modos de barrido. Los cinco primeros (0-4) son patrón de movimiento de
+ * antena; los tres nuevos de v1.5 (5-7) son tipo de corte de rango/velocidad
+ * (`docs/algorithms/procesamiento-de-rango.md` §"Modos de barrido / tipos de
+ * corte"). RVP900 legacy los trata como un único "major mode"; aquí conviven en
+ * el mismo campo por compatibilidad con ese inventario, sin que sean mutuamente
+ * excluyentes en la práctica (un PPI puede correr en split-cut). Este campo es
+ * metadato de paso: `crates/service::ray` lo copia de `config` a cada
+ * `MomentRay` sin ramificar sobre él — el reparto real de PRF baja/alta ya lo
+ * decide `scan_mode` del contrato `DRx↔DSP` (`contract/vendor/drx_dsp_v0_1.rs`),
+ * y `crates/range::compose_split_cut` sólo compone los momentos ya estimados.
  */
 export const SweepMode = {
   /** Azimut variable a elevación fija. */
@@ -1165,6 +1311,12 @@ export const SweepMode = {
   POINT: 3,
   /** Movimiento gobernado por el operador. */
   MANUAL: 4,
+  /** Dos barridos completos a la misma elevación, PRF baja y PRF alta, compuestos (`compose_split_cut`). */
+  SPLIT_CUT: 5,
+  /** Mismo reparto PRF baja/alta que split cut, alternando bloques de pulsos dentro de un solo barrido. */
+  BATCH_CUT: 6,
+  /** Un único barrido a PRF alta; reflectividad y velocidad de la misma serie. */
+  DOPPLER_CUT: 7,
 } as const;
 
 /**
@@ -1206,6 +1358,19 @@ export const PolarizationMode = {
   SIMULTANEOUS: 0,
   /** H/V alternante radial a radial. Da LDR; PRF efectiva por canal a la mitad. */
   ALTERNATING: 1,
+} as const;
+
+/**
+ * Tipo de transmisor de la instalación (`docs/algorithms/roadmap.md`
+ * §"Dos ejes de variabilidad del hardware", eje 1). Sólo estos dos valores: el
+ * parque confirmado es magnetrón + klistrón, no hay TWT ni estado sólido
+ * desplegado — añadir uno nuevo cuando exista, no antes.
+ */
+export const TransmitterType = {
+  /** Oscilador libre: fase de pulso aleatoria (recuperación de segundo trip por fase aleatoria), corrección de fase por burst y AFC obligatorios. */
+  MAGNETRON: 0,
+  /** Amplificador coherente con excitador de fase programable pulso a pulso: recuperación de segundo trip por SZ(8/64) (`range_dealias_mode::SZ_8_64`), corrección de fase por burst y AFC opcionales. */
+  KLYSTRON: 1,
 } as const;
 
 /**
@@ -1276,6 +1441,23 @@ export const CapabilityFlag = {
   IQ_ARCHIVE: 128,
   /** Recuperación de trip múltiple por codificación de fase SZ(8/64) disponible (exige klistrón/TWT/estado sólido con fase programable). Ver `range_dealias_mode::sz_8_64`. */
   SZ864: 256,
+} as const;
+
+/**
+ * Banderas de la cabecera común, válidas en cualquier mensaje.
+ *
+ * `simulated_source` es procedencia, no capacidad: dice que los datos de ESTA
+ * trama no vienen de hardware real. Va en la cabecera y no en `capabilities`
+ * a propósito, por tres razones: llega con cada trama, incluido cada
+ * `moment_ray`, así que el codificador de Level-II del RCP puede decidir sobre
+ * el dato que tiene en la mano en vez de recordar un mensaje anterior; no se
+ * pierde si el RCP se reengancha a mitad de adquisición; y no obliga a una
+ * petición previa. Publicar dato simulado como si fuera observación es el fallo
+ * que no se detecta hasta que ya está archivado con marca de tiempo absoluta.
+ */
+export const HeaderFlag = {
+  /** La fuente de datos es un simulador, no el DRx real. */
+  SIMULATED_SOURCE: 1,
 } as const;
 
 /**

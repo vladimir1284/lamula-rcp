@@ -1,6 +1,6 @@
 """GENERADO por tools/gen_contract.py a partir de contract/schema/dsp_rcp_v0_1.toml. NO EDITAR A MANO.
 
-Contrato DSP↔RCP v1.3 — lado RCP y
+Contrato DSP↔RCP v1.9 — lado RCP y
 banco de pruebas. Es una de las tres implementaciones generadas de la misma
 fuente: si las tres no producen los mismos bytes, el codegen está mal.
 
@@ -18,7 +18,7 @@ from dataclasses import dataclass
 
 MAGIC = 0x4C4D4453
 VERSION_MAJOR = 1
-VERSION_MINOR = 3
+VERSION_MINOR = 9
 
 @dataclass
 class Header:
@@ -55,6 +55,7 @@ class MsgType:
     CONFIG = 8
     CONTROL = 9
     SELFTEST_REQUEST = 10
+    REQUEST_SPECTRUM = 11
 
 @dataclass
 class MomentRay:
@@ -150,9 +151,9 @@ class SpectrumFrame:
 class Status:
     """Salud y telemetría. Se emite periódicamente y ante cualquier cambio de"""
 
-    FORMAT = "<IBBBBIIIIIIIIIIIIffffffffffff"
-    SIZE = 104
-    FIELDS = ("uptime_s", "phase", "severity", "last_error", "n_rx_channels", "capability_flags", "bite_flags", "config_seq", "rays_in", "rays_out", "rays_dropped", "queue_depth", "bins_ok", "bins_total", "trigger_period_cmd_ns", "trigger_period_meas_ns", "pad0", "noise_floor_dbm_0", "noise_floor_dbm_1", "noise_floor_dbm_2", "noise_floor_dbm_3", "dc_offset_i_0", "dc_offset_i_1", "dc_offset_i_2", "dc_offset_i_3", "dc_offset_q_0", "dc_offset_q_1", "dc_offset_q_2", "dc_offset_q_3",)
+    FORMAT = "<IBBBBIIIIIIIIIIIfffffffffffffffB"
+    SIZE = 113
+    FIELDS = ("uptime_s", "phase", "severity", "last_error", "n_rx_channels", "capability_flags", "bite_flags", "config_seq", "rays_in", "rays_out", "rays_dropped", "queue_depth", "bins_ok", "bins_total", "trigger_period_cmd_ns", "trigger_period_meas_ns", "afc_freq_meas_hz", "noise_floor_dbm_0", "noise_floor_dbm_1", "noise_floor_dbm_2", "noise_floor_dbm_3", "dc_offset_i_0", "dc_offset_i_1", "dc_offset_i_2", "dc_offset_i_3", "dc_offset_q_0", "dc_offset_q_1", "dc_offset_q_2", "dc_offset_q_3", "afc_control_freq_hz", "afc_burst_amplitude", "afc_bite",)
 
     uptime_s: int = 0
     phase: int = 0
@@ -170,7 +171,7 @@ class Status:
     bins_total: int = 0
     trigger_period_cmd_ns: int = 0
     trigger_period_meas_ns: int = 0
-    pad0: int = 0
+    afc_freq_meas_hz: float = 0.0
     noise_floor_dbm_0: float = 0.0
     noise_floor_dbm_1: float = 0.0
     noise_floor_dbm_2: float = 0.0
@@ -183,6 +184,9 @@ class Status:
     dc_offset_q_1: float = 0.0
     dc_offset_q_2: float = 0.0
     dc_offset_q_3: float = 0.0
+    afc_control_freq_hz: float = 0.0
+    afc_burst_amplitude: float = 0.0
+    afc_bite: int = 0
 
     def pack(self) -> bytes:
         return struct.pack(self.FORMAT, *(getattr(self, name) for name in self.FIELDS))
@@ -261,9 +265,9 @@ class SelftestResult:
 class Capabilities:
     """Qué sabe hacer esta compilación del DSP. Se responde a un control con"""
 
-    FORMAT = "<IIIIHBB"
-    SIZE = 20
-    FIELDS = ("moment_mask", "dealias_mask", "estimator_mask", "max_gates", "max_pulses", "n_rx_channels", "pad0",)
+    FORMAT = "<IIIIHBBfff"
+    SIZE = 32
+    FIELDS = ("moment_mask", "dealias_mask", "estimator_mask", "max_gates", "max_pulses", "n_rx_channels", "rx_nco_word_bits", "tx_if_hz", "rx_if_hz", "rx_nco_fs_hz",)
 
     moment_mask: int = 0
     dealias_mask: int = 0
@@ -271,7 +275,10 @@ class Capabilities:
     max_gates: int = 0
     max_pulses: int = 0
     n_rx_channels: int = 0
-    pad0: int = 0
+    rx_nco_word_bits: int = 0
+    tx_if_hz: float = 0.0
+    rx_if_hz: float = 0.0
+    rx_nco_fs_hz: float = 0.0
 
     def pack(self) -> bytes:
         return struct.pack(self.FORMAT, *(getattr(self, name) for name in self.FIELDS))
@@ -284,9 +291,9 @@ class Capabilities:
 class Config:
     """Configuración completa. Se aplica de forma atómica: o entra entera o se"""
 
-    FORMAT = "<IIHHBBBBBBBBfffffffffffffffBBH"
-    SIZE = 84
-    FIELDS = ("seq", "moment_mask", "n_pulses", "n_gates", "clutter_filter", "dealias_mode", "sweep_mode", "estimator", "rfi_filter", "range_dealias_mode", "prf_ratio_num", "prf_ratio_den", "start_range_m", "gate_spacing_m", "prf_hz", "sqi_threshold", "sig_threshold", "ccor_threshold", "log_threshold", "clutter_width_ms", "radar_constant_db", "noise_floor_dbm", "receiver_gain_db", "zdr_offset_db", "phidp_offset_deg", "antenna_isolation_db", "wavelength_m", "polarization_mode", "pad0", "burst_window_bins",)
+    FORMAT = "<IIHHBBBBBBBBfffffffffffffffBBHBBIffffffff"
+    SIZE = 122
+    FIELDS = ("seq", "moment_mask", "n_pulses", "n_gates", "clutter_filter", "dealias_mode", "sweep_mode", "estimator", "rfi_filter", "range_dealias_mode", "prf_ratio_num", "prf_ratio_den", "start_range_m", "gate_spacing_m", "prf_hz", "sqi_threshold", "sig_threshold", "ccor_threshold", "log_threshold", "clutter_width_ms", "radar_constant_db", "noise_floor_dbm", "receiver_gain_db", "zdr_offset_db", "phidp_offset_deg", "antenna_isolation_db", "wavelength_m", "polarization_mode", "transmitter_type", "burst_window_bins", "pulse_width_idx", "cell_mode", "prf_div", "trigger_delay_0", "trigger_delay_1", "trigger_delay_2", "trigger_delay_3", "trigger_width_0", "trigger_width_1", "trigger_width_2", "trigger_width_3",)
 
     seq: int = 0
     moment_mask: int = 0
@@ -316,8 +323,19 @@ class Config:
     antenna_isolation_db: float = 0.0
     wavelength_m: float = 0.0
     polarization_mode: int = 0
-    pad0: int = 0
+    transmitter_type: int = 0
     burst_window_bins: int = 0
+    pulse_width_idx: int = 0
+    cell_mode: int = 0
+    prf_div: int = 0
+    trigger_delay_0: float = 0.0
+    trigger_delay_1: float = 0.0
+    trigger_delay_2: float = 0.0
+    trigger_delay_3: float = 0.0
+    trigger_width_0: float = 0.0
+    trigger_width_1: float = 0.0
+    trigger_width_2: float = 0.0
+    trigger_width_3: float = 0.0
 
     def pack(self) -> bytes:
         return struct.pack(self.FORMAT, *(getattr(self, name) for name in self.FIELDS))
@@ -362,6 +380,26 @@ class SelftestRequest:
 
     @classmethod
     def unpack(cls, data: bytes) -> "SelftestRequest":
+        return cls(*struct.unpack(cls.FORMAT, data[: cls.SIZE]))
+
+@dataclass
+class RequestSpectrum:
+    """Pide una traza de espectro de FI (spectrum_frame) con canal y"""
+
+    FORMAT = "<IBBH"
+    SIZE = 8
+    FIELDS = ("seq", "channel", "n_averages", "pad0",)
+
+    seq: int = 0
+    channel: int = 0
+    n_averages: int = 0
+    pad0: int = 0
+
+    def pack(self) -> bytes:
+        return struct.pack(self.FORMAT, *(getattr(self, name) for name in self.FIELDS))
+
+    @classmethod
+    def unpack(cls, data: bytes) -> "RequestSpectrum":
         return cls(*struct.unpack(cls.FORMAT, data[: cls.SIZE]))
 
 class Error:
@@ -439,13 +477,16 @@ class Command:
     REQUEST_SPECTRUM = 7
 
 class SweepMode:
-    """Modos de barrido."""
+    """Modos de barrido. Los cinco primeros (0-4) son patrón de movimiento de"""
 
     PPI = 0
     RHI = 1
     SECTOR = 2
     POINT = 3
     MANUAL = 4
+    SPLIT_CUT = 5
+    BATCH_CUT = 6
+    DOPPLER_CUT = 7
 
 class DealiasMode:
     """Modos de extensión del intervalo de velocidad no ambigua."""
@@ -466,6 +507,12 @@ class PolarizationMode:
 
     SIMULTANEOUS = 0
     ALTERNATING = 1
+
+class TransmitterType:
+    """Tipo de transmisor de la instalación (`docs/algorithms/roadmap.md`"""
+
+    MAGNETRON = 0
+    KLYSTRON = 1
 
 class Estimator:
     """Estimadores de momentos."""
@@ -506,6 +553,11 @@ class CapabilityFlag:
     SPECTRUM_FEED = 64
     IQ_ARCHIVE = 128
     SZ864 = 256
+
+class HeaderFlag:
+    """Banderas de la cabecera común, válidas en cualquier mensaje."""
+
+    SIMULATED_SOURCE = 1
 
 class BiteFlag:
     """Catálogo de fallos del DSP."""

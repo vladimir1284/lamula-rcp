@@ -1,5 +1,8 @@
 """Pruebas para A7 System Information (/api/system-info)."""
 
+import tomllib
+from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -26,5 +29,19 @@ def test_system_info_endpoint(client: TestClient):
     assert "dsp_contract_commit" in data
     assert "dsp_contract_commit_date" in data
     assert "connected_clients" in data
-    assert data["dsp_contract_version"] == "v1.3"
-    assert data["dsp_contract_commit"] == "6a09656"
+    # Contra el pin, no contra literales: re-vendorizar el contrato del DSP es
+    # un evento esperado y frecuente, y hasta v1.3 cada uno rompía este test
+    # por un motivo que no era un fallo. Lo que sí tiene que seguir cierto es
+    # que el endpoint publique exactamente lo que dice `UPSTREAM.toml`.
+    pin = tomllib.loads(
+        (Path(__file__).resolve().parents[1] / "contract" / "vendor" / "UPSTREAM.toml").read_text(
+            encoding="utf-8"
+        )
+    )
+    version = pin["contract"]
+    assert (
+        data["dsp_contract_version"]
+        == f"v{version['version_major']}.{version['version_minor']}"
+    )
+    assert data["dsp_contract_commit"] == pin["upstream"]["commit"]
+    assert data["dsp_contract_commit_date"] == pin["upstream"]["commit_date"]
