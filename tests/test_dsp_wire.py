@@ -18,13 +18,14 @@ from contract.vendor import dsp_rcp_v0_1 as wire
 from adapters.dsp.wire import (
     MOMENT_BY_WIRE_VALUE,
     DegenerateRadialError,
+    decode_bite_event,
     WireFormatError,
     decode_moment_ray,
     encode_control,
     encode_selftest_request,
     parse_frame_header,
 )
-from core.contracts.dsp import MomentId, RadialStatus
+from core.contracts.dsp import DspSeverity, MomentId, RadialStatus
 
 
 def build_ray(
@@ -419,3 +420,143 @@ def test_el_receptor_corta_ante_una_trama_invalida():
     receptor = asyncio.run(escenario())
     assert receptor.frame_errors == 1
     assert receptor.radials_received == 0
+
+
+def build_bite_event(
+    *,
+    code: int = 4,
+    value: int = 7,
+    severity: int = wire.Severity.FAULT,
+    subsystem: int = 2,
+    text: str = "enlace con el DRx caido",
+    text_len: int | None = None,
+) -> bytes:
+    body = text.encode("utf-8")
+    header = wire.BiteEvent(
+        event_time_utc_ns=1_800_000_000_000_000_000,
+        code=code,
+        value=value,
+        severity=severity,
+        subsystem=subsystem,
+        text_len=len(body) if text_len is None else text_len,
+        pad0=0,
+    )
+    return header.pack() + body
+
+
+def test_bite_event_llega_al_dominio():
+    """PEND-RCP-14: hasta ahora estos mensajes se contaban y se tiraban."""
+    event = decode_bite_event(build_bite_event())
+    assert event.code == 4
+    assert event.value == 7
+    assert event.severity is DspSeverity.FAULT
+    assert event.subsystem == 2
+    assert event.text == "enlace con el DRx caido"
+    assert event.event_time_utc == datetime(2027, 1, 15, 8, 0, tzinfo=UTC)
+
+
+def test_bite_event_con_texto_mas_corto_de_lo_declarado_es_error_de_trama():
+    with pytest.raises(WireFormatError, match="trunco"):
+        decode_bite_event(build_bite_event(text="abc", text_len=99))
+
+
+def test_bite_event_con_severidad_fuera_del_catalogo_no_se_inventa():
+    with pytest.raises(WireFormatError, match="severidad"):
+        decode_bite_event(build_bite_event(severity=200))
+
+
+def test_bite_event_con_texto_no_utf8_no_tira_el_suceso():
+    """El codigo es lo que se historia; el texto es para el operador."""
+    header = wire.BiteEvent(
+        event_time_utc_ns=0, code=1, value=0,
+        severity=wire.Severity.WARNING, subsystem=0, text_len=2, pad0=0,
+    )
+    event = decode_bite_event(header.pack() + b"\xff\xfe")
+    assert event.severity is DspSeverity.WARNING
+    assert event.text  # se reemplazan los bytes invalidos, no se descarta nada
+
+
+def test_el_receptor_guarda_los_bite_event_del_dsp():
+    """PEND-RCP-14: antes caian en el contador generico y se perdian."""
+    import asyncio
+
+    from adapters.dsp.moment_stream_receiver import MomentStreamReceiver
+    from adapters.dsp.wire import frame
+
+    async def escenario():
+        receptor = MomentStreamReceiver()
+        await receptor.start("127.0.0.1", 0)
+        port = receptor._server.sockets[0].getsockname()[1]
+
+        _reader, writer = await asyncio.open_connection("127.0.0.1", port)
+        writer.write(frame(wire.MsgType.BITE_EVENT, build_bite_event(code=4)))
+        writer.write(
+            frame(
+                wire.MsgType.BITE_EVENT,
+                build_bite_event(code=8, severity=wire.Severity.WARNING, text="deriva"),
+            )
+        )
+        await writer.drain()
+
+        for _ in range(200):
+            await asyncio.sleep(0.005)
+            if len(receptor.dsp_bite_events) == 2:
+                break
+
+        writer.close()
+        await receptor.stop()
+        return receptor
+
+    receptor = asyncio.run(escenario())
+
+    assert receptor.frame_errors == 0
+    assert [e.code for e in receptor.dsp_bite_events] == [4, 8]
+    assert receptor.dsp_bite_events[-1].severity is DspSeverity.WARNING
+    assert receptor.dsp_bite_events[-1].text == "deriva"
+
+
+def test_el_receptor_descarta_un_radial_degenerado_sin_cortar():
+    """Trama intacta, contenido inservible: se descarta, el enlace sigue."""
+    import asyncio
+
+    from adapters.dsp.moment_stream_receiver import MomentStreamReceiver
+    from adapters.dsp.wire import frame
+
+    async def escenario():
+        receptor = MomentStreamReceiver()
+        await receptor.start("127.0.0.1", 0)
+        port = receptor._server.sockets[0].getsockname()[1]
+
+        _reader, writer = await asyncio.open_connection("127.0.0.1", port)
+        writer.write(
+            frame(
+                wire.MsgType.MOMENT_RAY,
+                build_ray(moments={wire.MomentKind.UZ: [1.0]}, az_start=10.0, az_end=10.0),
+            )
+        )
+        # Detras del degenerado, uno bueno: tiene que llegar, lo que prueba
+        # que el enlace no se corto.
+        writer.write(
+            frame(
+                wire.MsgType.MOMENT_RAY,
+                build_ray(moments={wire.MomentKind.UZ: [2.0]}, az_start=10.0, az_end=11.0),
+            )
+        )
+        await writer.drain()
+
+        for _ in range(200):
+            await asyncio.sleep(0.005)
+            if receptor.radials_received == 1 and receptor.degenerate_radials == 1:
+                break
+
+        writer.close()
+        await receptor.stop()
+        return receptor
+
+    receptor = asyncio.run(escenario())
+
+    assert receptor.degenerate_radials == 1
+    assert receptor.radials_received == 1
+    assert receptor.frame_errors == 0
+    assert receptor.latest is not None
+    assert receptor.latest.moments[MomentId.UZ].values == [2.0]

@@ -124,3 +124,38 @@ class RadialMoments(BaseModel):
     prf_hz: float = Field(gt=0)
 
     moments: dict[MomentId, MomentProfile]
+
+
+class DspSeverity(StrEnum):
+    """Severidad de un suceso del DSP. Espejo de la enumeracion `severity` del
+    contrato, que la comparten `status` y `bite_event`."""
+
+    INFO = "info"
+    WARNING = "warning"
+    FAULT = "fault"
+    CONFIG_ERROR = "config_error"
+
+
+class DspBiteEvent(BaseModel):
+    """Un suceso de BITE emitido por el DSP.
+
+    Deliberadamente separado de `core.contracts.bite.BiteEvent`, que modela
+    otra cosa: una transicion sana/en-falla de una senal digital del catalogo
+    Modbus de `radar_emulator`, identificada por `signal_id`. Esto de aqui es
+    un suceso puntual de un pipeline de proceso, con codigo, valor y texto
+    libre. Meterlos en el mismo modelo obligaria a inventar un `signal_id`
+    para cada codigo del DSP y una equivalencia de severidades que nadie ha
+    decidido todavia -- ver PEND-RCP-14.
+
+    `subsystem` viaja como entero a proposito: el contrato define el campo
+    (`u8`, "componente del pipeline que lo emite") pero **no** publica la
+    enumeracion de sus valores, asi que traducirlo a un nombre aqui seria
+    inventarselo. Pedirla es parte de cerrar PEND-RCP-14.
+    """
+
+    event_time_utc: UtcInstant
+    code: int = Field(ge=0)
+    value: int = Field(ge=0)
+    severity: DspSeverity
+    subsystem: int = Field(ge=0, le=255)
+    text: str

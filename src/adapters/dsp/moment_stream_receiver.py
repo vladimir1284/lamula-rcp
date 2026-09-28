@@ -29,14 +29,16 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections import deque
 from datetime import datetime, timezone
 
 from contract.vendor import dsp_rcp_v0_1 as wire
-from core.contracts.dsp import RadialMoments
+from core.contracts.dsp import DspBiteEvent, RadialMoments
 
 from .wire import (
     DegenerateRadialError,
     WireFormatError,
+    decode_bite_event,
     decode_moment_ray,
     decode_spectrum_frame,
     encode_config,
@@ -50,6 +52,10 @@ logger = logging.getLogger(__name__)
 #: los 207 kB; 4 MB deja margen de sobra y evita que un `payload_len` corrupto
 #: haga reservar memoria sin limite antes de que falle nada.
 MAX_MESSAGE_BYTES = 4 * 1024 * 1024
+
+#: Sucesos de BITE del DSP que se guardan. Es un buffer de diagnostico, no un
+#: historial persistente: el historial de verdad es de quien los consuma.
+DSP_BITE_HISTORY = 200
 
 
 class MomentStreamReceiver:
@@ -68,6 +74,12 @@ class MomentStreamReceiver:
         # cortar el enlace. Contador interno; todavia no llega a la MMI
         # (haria falta un campo nuevo en DspStreamStatus y su TS).
         self.degenerate_radials = 0
+        # Sucesos de BITE del DSP, los mas recientes primero en salir: hasta
+        # ahora caian en el `else` generico y se perdian (PEND-RCP-14). Que
+        # lleguen a la MMI, y como se mezclan con los fallos Modbus de
+        # `core/bite/manager.py`, sigue sin decidirse -- son modelos
+        # distintos, ver `DspBiteEvent`.
+        self.dsp_bite_events: deque[DspBiteEvent] = deque(maxlen=DSP_BITE_HISTORY)
         self._latest: RadialMoments | None = None
         self._latest_status: wire.Status | None = None
         self._latest_config: wire.Config | None = None
@@ -206,8 +218,11 @@ class MomentStreamReceiver:
                 elif msg_type == wire.MsgType.SPECTRUM_FRAME:
                     self._latest_spectrum = decode_spectrum_frame(body)
                     self.other_messages_received += 1
+                elif msg_type == wire.MsgType.BITE_EVENT:
+                    self.dsp_bite_events.append(decode_bite_event(body))
+                    self.other_messages_received += 1
                 else:
-                    # bite_event, config_ack, capabilities... son
+                    # config_ack, capabilities, selftest_result... son
                     # legitimos por este mismo enlace; todavia no hay consumidor.
                     self.other_messages_received += 1
         except (asyncio.IncompleteReadError, ConnectionError):

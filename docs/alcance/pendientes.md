@@ -496,10 +496,31 @@ semanas DRx, 34 DSP, 34 RCP). Ver también la nota correspondiente en
 
 ### PEND-RCP-14 · Este repo no consume el `status`/`bite_event` del contrato DSP↔RCP { #pend-rcp-14 }
 
-**Estado:** abierto, identificado 2026-09-17 (hallazgo de la Fase C de PEND-RCP-13) · **Dueño:**
-este repo · **Bloquea:** que el operador vea en la MMI fallos reales de la cadena DRx/DSP
-(`ssa_underruns`, `dma_overruns`, `ssi_errors`, `ddc_overflows`, `bite_flags`) en vez de solo los
-fallos Modbus de `radar_emulator`.
+**Estado:** abierto, a medias desde 2026-09-28 · identificado 2026-09-17 (hallazgo de la Fase C de
+PEND-RCP-13) · **Dueño:** este repo · **Bloquea:** que el operador vea en la MMI fallos reales de
+la cadena DRx/DSP (`ssa_underruns`, `dma_overruns`, `ssi_errors`, `ddc_overflows`, `bite_flags`)
+en vez de solo los fallos Modbus de `radar_emulator`.
+
+!!! success "2026-09-28: los dos mensajes ya se decodifican y se guardan"
+    Montar el [banco C0](../implementacion/banco-c0.md) obligó a mirar esto de cerca, y la
+    descripción de abajo estaba a medias: `status` **sí** se decodificaba ya
+    (`MomentStreamReceiver._latest_status`, y de ahí sale `/api/dsp/internal-status`). El que se
+    perdía de verdad era `bite_event`, que caía en el `else` genérico del receptor.
+
+    Ahora `adapters/dsp/wire.py::decode_bite_event` lo traduce a `core.contracts.dsp.DspBiteEvent`
+    (misma disciplina de siempre: `core/` no ve bytes) y el receptor guarda los últimos
+    `DSP_BITE_HISTORY` en `dsp_bite_events`. Un texto con bytes no-UTF-8 no tira el suceso —el
+    código es lo que se historia—, pero una severidad fuera del catálogo sí es error de trama: no
+    se inventa un valor.
+
+    **Lo que sigue abierto, y es la parte de producto:** nada de esto llega todavía a la MMI, y no
+    se ha decidido cómo convive con `core/bite/manager.py`. No son el mismo modelo —
+    `core.contracts.bite.BiteEvent` es una transición sana/en-falla de una señal Modbus con
+    `signal_id`; `DspBiteEvent` es un suceso puntual con código, valor y texto libre— así que
+    fundirlos exige inventar un `signal_id` por cada código del DSP y una equivalencia de
+    severidades que nadie ha decidido. Además el contrato define el campo `subsystem` (`u8`) pero
+    **no publica la enumeración de sus valores**: pedirla al equipo del DSP es parte de cerrar
+    esto.
 
 El contrato `dsp_rcp` (`lamula-dsp/contract/schema/dsp_rcp_v0_1.toml`) define mensajes `status`
 (`up`, periódico) y `bite_event` (`up`) con exactamente ese propósito. `src/core/bite/manager.py`

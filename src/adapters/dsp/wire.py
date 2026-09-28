@@ -21,7 +21,7 @@ import struct
 from datetime import UTC, datetime
 
 from contract.vendor import dsp_rcp_v0_1 as wire
-from core.contracts.dsp import MomentId, MomentProfile, RadialMoments, RadialStatus
+from core.contracts.dsp import DspBiteEvent, DspSeverity, MomentId, MomentProfile, RadialMoments, RadialStatus
 
 #: Valor de `moment_kind` en el cable -> miembro del vocabulario del dominio.
 #: Se construye por NOMBRE, no por numero: si el proyecto DSP anade un momento,
@@ -245,6 +245,47 @@ def decode_moment_ray(body: bytes) -> RadialMoments:
         unambiguous_range_m=ray.unambiguous_range_m,
         prf_hz=ray.prf_hz,
         moments=moments,
+    )
+
+
+_SEVERITY_BY_WIRE_VALUE = {
+    wire.Severity.INFO: DspSeverity.INFO,
+    wire.Severity.WARNING: DspSeverity.WARNING,
+    wire.Severity.FAULT: DspSeverity.FAULT,
+    wire.Severity.CONFIG_ERROR: DspSeverity.CONFIG_ERROR,
+}
+
+
+def decode_bite_event(body: bytes) -> DspBiteEvent:
+    """Cuerpo de un `bite_event` (cabecera fija + texto UTF-8) -> dominio.
+
+    El texto es "para el operador" segun el contrato, asi que un byte invalido
+    no invalida el suceso: se decodifica con `errors="replace"` en vez de
+    tirar el mensaje entero. El codigo, que es lo que se filtra y se historia,
+    no depende de el.
+    """
+    if len(body) < wire.BiteEvent.SIZE:
+        raise WireFormatError(
+            f"bite_event corto: {len(body)} B, se esperaban al menos"
+            f" {wire.BiteEvent.SIZE}"
+        )
+    event = wire.BiteEvent.unpack(body)
+    text_bytes = body[wire.BiteEvent.SIZE : wire.BiteEvent.SIZE + event.text_len]
+    if len(text_bytes) != event.text_len:
+        raise WireFormatError(
+            f"bite_event trunco: text_len dice {event.text_len} B y llegaron"
+            f" {len(text_bytes)}"
+        )
+    severity = _SEVERITY_BY_WIRE_VALUE.get(event.severity)
+    if severity is None:
+        raise WireFormatError(f"severidad desconocida en bite_event: {event.severity}")
+    return DspBiteEvent(
+        event_time_utc=datetime.fromtimestamp(event.event_time_utc_ns / 1e9, tz=UTC),
+        code=event.code,
+        value=event.value,
+        severity=severity,
+        subsystem=event.subsystem,
+        text=text_bytes.decode("utf-8", errors="replace"),
     )
 
 
