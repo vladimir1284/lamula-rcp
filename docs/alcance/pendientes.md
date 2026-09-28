@@ -437,10 +437,29 @@ justo donde más daño haría una asunción cableada.
 
 ### PEND-RCP-13 · Ningún plan conecta este repo con la ZedBoard real del proyecto DRx { #pend-rcp-13 }
 
-**Estado:** abierto, identificado 2026-09-17 · **Dueño:** los tres equipos (DRx + DSP + RCP), no
-tiene dueño único hoy · **Bloquea:** poder probar `adapters/dsp/moment_stream_receiver.py` y todo
-lo que cuelga de él (Level-II, feed a ORPG, MMI) contra tráfico real generado en el PL de la
-ZedBoard del proyecto DRx, en vez de contra el stub propio o `radar_emulator`.
+**Estado:** abierto, **fase C0 cerrada el 28-sep-2026** · identificado 2026-09-17 · **Dueño:** los
+tres equipos (DRx + DSP + RCP), no tiene dueño único hoy · **Bloquea:** poder probar
+`adapters/dsp/moment_stream_receiver.py` y todo lo que cuelga de él (Level-II, feed a ORPG, MMI)
+contra tráfico real generado en el PL de la ZedBoard del proyecto DRx, en vez de contra el stub
+propio o `radar_emulator`.
+
+!!! success "28-sep-2026: C0 — este repo ya habla con el binario real del DSP"
+    Ver la [página del banco C0](../implementacion/banco-c0.md) para el detalle. Resumen: el plan
+    gana una fase C0 antes de la B, porque la mitad de la integración no necesitaba la ZedBoard y
+    estaba esperando a ella sin motivo. `tools/hil/run-c0.sh` levanta el gateway de este repo, el
+    binario del DSP y un emisor sintético que habla el contrato `DRx↔DSP` por TCP, y comprueba que
+    llegan radiales.
+
+    Lo que cerró, de lo que este pendiente listaba: la ingesta real (`wire.py`,
+    `moment_stream_receiver.py`) contra un emisor de verdad, y el camino descendente — que **no
+    existía**: este repo sólo sabía mandar `control`, así que no podía sacar al DSP de `setup` ni
+    recibir un solo radial. Ahora manda `config` + `START` (con un perfil de banco; el mapeo desde
+    el Scan Worksheet sigue siendo PEND-RCP-10).
+
+    Lo que **no** cierra: nada de hardware. Ni cadencia, ni jitter, ni contrapresión reales — que
+    es justo lo que [PEND-RCP-05](#pend-rcp-05-el-dsp-externo-no-tiene-aun-una-interfaz-de-referencia-ejecutable)
+    marca como no verificado. Tampoco toca el feed a ORPG ni Level-II bajo radiales reales
+    ([PEND-RCP-12](#pend-rcp-12-orpg-no-tolera-la-geometria-del-radial-la-filtra-por-lista-blanca)).
 
 Relacionado con [PEND-RCP-05](#pend-rcp-05-el-dsp-externo-no-tiene-aun-una-interfaz-de-referencia-ejecutable)
 pero no lo mismo: PEND-RCP-05 pide que exista **algún**
@@ -476,8 +495,11 @@ semanas DRx, 34 DSP, 34 RCP). Ver también la nota correspondiente en
 
 **Plan por fases (2026-09-17)**, del pendiente P-13 de `lamula-drx`; lo que le toca a este repo:
 
+- **Fase C0 — este repo contra el DSP real, fuente sintética, sin hardware: HECHA** (28-sep-2026,
+  ver arriba). No estaba en el plan del 17-sep; se intercaló al ver que no dependía de la placa.
 - **Fase A/B** (cadena DRx sola, luego DSP real con vector fijo/manual): no le tocan a este repo.
-- **Fase C — RCP real contra ese DSP real.** `adapters/dsp/wire.py`/`moment_stream_receiver.py`
+- **Fase C (ahora C1) — RCP real contra ese DSP real, alimentado por la ZedBoard.** Lo que queda
+  es sustituir el emisor sintético de C0 por la placa; de este lado no cambia nada. `adapters/dsp/wire.py`/`moment_stream_receiver.py`
   apuntados al DSP real cierra el resto de [PEND-RCP-05](#pend-rcp-05-el-dsp-externo-no-tiene-aun-una-interfaz-de-referencia-ejecutable)
   (cadencia, contrapresión, reconexión). Level-II y el feed RDA/ORPG quedan ejercitados con
   radiales de jitter real en vez de sintético — estresa [PEND-RCP-12](#pend-rcp-12-orpg-no-tolera-la-geometria-del-radial-la-filtra-por-lista-blanca).
