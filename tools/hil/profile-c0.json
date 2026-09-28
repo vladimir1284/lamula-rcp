@@ -1,0 +1,50 @@
+{
+  "_comment": "NO es un perfil de operacion. Es el perfil fijo del banco de integracion C0 (RCP real contra DSP real, fuente sintetica): los numeros estan elegidos para casar con lo que emite el drx_faker del repo lamula-dsp (128 celdas, 64 pulsos por radial, PRT 1 ms, un solo canal) y para pasar la validacion del DSP, no para parecerse a un barrido real. El mapeo Scan Worksheet -> Config sigue abierto, PEND-RCP-10.",
+
+  "seq": 1,
+  "moments": ["UZ", "V", "SQI", "SIG"],
+  "n_pulses": 64,
+  "n_gates": 128,
+  "estimator": 0,
+  "dealias_mode": 0,
+  "sweep_mode": 0,
+  "clutter_filter": 0,
+  "rfi_filter": 0,
+  "range_dealias_mode": 0,
+  "polarization_mode": 0,
+  "transmitter_type": 0,
+  "prf_ratio_num": 1,
+  "prf_ratio_den": 1,
+
+  "start_range_m": 0.0,
+  "gate_spacing_m": 125.0,
+  "prf_hz": 1000.0,
+  "wavelength_m": 0.10,
+
+  "sqi_threshold": 0.0,
+  "sig_threshold": 0.0,
+  "ccor_threshold": 0.0,
+  "log_threshold": 0.0,
+  "clutter_width_ms": 0.0,
+
+  "radar_constant_db": 0.0,
+  "noise_floor_dbm": -110.0,
+  "receiver_gain_db": 0.0,
+  "zdr_offset_db": 0.0,
+  "phidp_offset_deg": 0.0,
+  "antenna_isolation_db": 0.0,
+
+  "burst_window_bins": 0,
+  "pulse_width_idx": 0,
+  "cell_mode": 0,
+  "prf_div": 4,
+
+  "trigger_delay_0": 0.0,
+  "trigger_delay_1": 0.0,
+  "trigger_delay_2": 0.0,
+  "trigger_delay_3": 0.0,
+  "trigger_width_0": 1.0,
+  "trigger_width_1": 1.0,
+  "trigger_width_2": 1.0,
+  "trigger_width_3": 1.0
+}

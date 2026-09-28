@@ -17,6 +17,7 @@ from pydantic import ValidationError
 from contract.vendor import dsp_rcp_v0_1 as wire
 from adapters.dsp.wire import (
     MOMENT_BY_WIRE_VALUE,
+    DegenerateRadialError,
     WireFormatError,
     decode_moment_ray,
     encode_control,
@@ -283,9 +284,17 @@ def test_momento_repetido():
 
 
 def test_radial_sin_anchura_de_azimut():
+    """Se rechaza, pero no como error de formato.
+
+    La distincion no es cosmetica: `MomentStreamReceiver` cierra la conexion
+    ante un `WireFormatError` (el flujo queda desincronizado) y solo descarta
+    el radial ante un `DegenerateRadialError` (la trama esta intacta). Un DSP
+    que emita radiales de ancho cero no debe tirar el enlace entero.
+    """
     body = build_ray(moments={wire.MomentKind.UZ: [1.0]}, az_start=10.0, az_end=10.0)
-    with pytest.raises(WireFormatError, match="azimut"):
+    with pytest.raises(DegenerateRadialError, match="azimut"):
         decode_moment_ray(body)
+    assert not issubclass(DegenerateRadialError, WireFormatError)
 
 
 def test_elevacion_fuera_de_rango_la_para_el_modelo():

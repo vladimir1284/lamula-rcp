@@ -59,5 +59,6 @@ nav:
       - Pendientes P1: diseno/pendientes-p1.md
   - Implementación:
       - Fases: implementacion/fases.md
+      - Banco de integración C0: implementacion/banco-c0.md
   - Referencia:
       - Project Plan: referencia/project-plan.md

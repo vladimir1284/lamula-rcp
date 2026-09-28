@@ -18,6 +18,11 @@ error de trama, asi que no se cierra la conexion al verlos; se cuentan aparte y
 se ignoran hasta que haya quien los consuma. Una trama mal formada, en cambio,
 si es un fallo: se registra y se corta, porque despues de un largo erroneo el
 flujo esta desincronizado y seguir leyendo produce basura plausible.
+
+Entre medias hay un tercer caso, que no es ninguno de los dos: un radial
+intacto cuyo contenido no sirve (`DegenerateRadialError`, hoy solo el ancho de
+azimut cero). El flujo sigue en sincronia, asi que ese radial se descarta y se
+cuenta, pero el enlace no se corta.
 """
 
 from __future__ import annotations
@@ -30,9 +35,11 @@ from contract.vendor import dsp_rcp_v0_1 as wire
 from core.contracts.dsp import RadialMoments
 
 from .wire import (
+    DegenerateRadialError,
     WireFormatError,
     decode_moment_ray,
     decode_spectrum_frame,
+    encode_config,
     encode_control,
     parse_frame_header,
 )
@@ -57,6 +64,10 @@ class MomentStreamReceiver:
         self.radials_received = 0
         self.other_messages_received = 0
         self.frame_errors = 0
+        # Radiales intactos pero sin barrido de azimut: se descartan sin
+        # cortar el enlace. Contador interno; todavia no llega a la MMI
+        # (haria falta un campo nuevo en DspStreamStatus y su TS).
+        self.degenerate_radials = 0
         self._latest: RadialMoments | None = None
         self._latest_status: wire.Status | None = None
         self._latest_config: wire.Config | None = None
@@ -68,6 +79,13 @@ class MomentStreamReceiver:
         # verdad"; `connected` solo refleja el socket TCP, no el flujo.
         self._last_radial_at: datetime | None = None
         self._server: asyncio.Server | None = None
+        # Perfil de banco (fase C0 del plan de integracion, `tools/hil/`): si
+        # esta puesto, en cuanto el DSP conecta se le manda ese `config` y un
+        # `START`. Es andamio de banco, no comportamiento de operador: en
+        # produccion quien decide la configuracion es el Scan Controller, y
+        # ese mapeo sigue abierto (PEND-RCP-10). Vale `None` salvo que el
+        # gateway arranque con `--dsp-bench-profile`.
+        self.bench_profile: wire.Config | None = None
 
     @property
     def latest(self) -> RadialMoments | None:
@@ -89,6 +107,29 @@ class MomentStreamReceiver:
     def last_radial_at(self) -> datetime | None:
         return self._last_radial_at
 
+    async def send_config(self, config: wire.Config) -> None:
+        """Manda un `config` completo al DSP.
+
+        Sin esto el DSP se queda en fase `setup` y no emite un solo radial:
+        su maquina de estados exige `config` antes de aceptar `START`. Es el
+        primer tramo del camino descendente RCP->DSP->DRx que este repo puede
+        ejercer de verdad -- el DSP traduce los campos de DRx (`prf_div`,
+        `pulse_width_idx`, `cell_mode`, `trigger_delay_*`/`trigger_width_*`) y
+        los baja al DRx por su propio contrato.
+        """
+        if not self._writer:
+            raise RuntimeError("DSP stream no esta conectado")
+        self._writer.write(encode_config(config))
+        await self._writer.drain()
+
+    async def send_command(self, command: int) -> None:
+        """Manda un mandato del plano de control; ver `wire.Command`."""
+        if not self._writer:
+            raise RuntimeError("DSP stream no esta conectado")
+        self._control_seq = (self._control_seq + 1) & 0xFFFFFFFF
+        self._writer.write(encode_control(self._control_seq, command))
+        await self._writer.drain()
+
     async def request_spectrum(self) -> None:
         """Envia el comando REQUEST_SPECTRUM al DSP."""
         if not self._writer:
@@ -103,6 +144,7 @@ class MomentStreamReceiver:
         self.radials_received = 0
         self.other_messages_received = 0
         self.frame_errors = 0
+        self.degenerate_radials = 0
         if self._latest_status:
             self._latest_status.rays_in = 0
             self._latest_status.rays_out = 0
@@ -132,11 +174,27 @@ class MomentStreamReceiver:
     ) -> None:
         self.connected = True
         self._writer = writer
+        if self.bench_profile is not None:
+            try:
+                await self.send_config(self.bench_profile)
+                await self.send_command(wire.Command.START)
+                logger.info("perfil de banco enviado al DSP (config + START)")
+            except Exception:
+                logger.exception("no se pudo aplicar el perfil de banco al DSP")
         try:
             while True:
                 msg_type, body = await self._read_message(reader)
                 if msg_type == wire.MsgType.MOMENT_RAY:
-                    self._latest = decode_moment_ray(body)
+                    try:
+                        self._latest = decode_moment_ray(body)
+                    except DegenerateRadialError as exc:
+                        # Trama intacta, contenido inservible: se descarta sin
+                        # cerrar el enlace, al contrario que WireFormatError.
+                        # Ver el doc de esa excepcion.
+                        self.degenerate_radials += 1
+                        if self.degenerate_radials == 1:
+                            logger.warning("radial descartado: %s", exc)
+                        continue
                     self.radials_received += 1
                     self._last_radial_at = datetime.now(timezone.utc)
                 elif msg_type == wire.MsgType.STATUS:

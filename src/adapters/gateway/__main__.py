@@ -13,6 +13,7 @@ from pathlib import Path
 import uvicorn
 
 from adapters.dsp import MomentStreamReceiver
+from adapters.dsp.bench_profile import load_bench_profile
 from adapters.hal_sim import SimulatedHAL
 
 from .app import create_app
@@ -29,6 +30,17 @@ def main() -> None:
     ap.add_argument("--http-host", default="0.0.0.0")
     ap.add_argument("--http-port", type=int, default=8000)
     ap.add_argument(
+        "--dsp-bench-profile",
+        type=Path,
+        default=None,
+        help=(
+            "Banco de integracion (fase C0): JSON con un `config` del contrato DSP<->RCP que se"
+            " manda, seguido de START, en cuanto un DSP conecta. Sin esta opcion el gateway no"
+            " configura al DSP -- ese camino es del Scan Controller y sigue abierto (PEND-RCP-10)."
+            " Ver tools/hil/profile-c0.json."
+        ),
+    )
+    ap.add_argument(
         "--scan-worksheet-path",
         type=Path,
         default=Path("data/scan_worksheet.json"),
@@ -43,6 +55,9 @@ def main() -> None:
         udp_port=args.udp_port,
     )
     dsp = MomentStreamReceiver()
+    if args.dsp_bench_profile is not None:
+        dsp.bench_profile = load_bench_profile(args.dsp_bench_profile)
+        print(f"banco C0: perfil {args.dsp_bench_profile} se aplicara al DSP al conectar")
     app = create_app(hal, dsp, args.dsp_bind_host, args.dsp_port, scan_worksheet_path=args.scan_worksheet_path)
     uvicorn.run(app, host=args.http_host, port=args.http_port)
 

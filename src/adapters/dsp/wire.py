@@ -38,6 +38,25 @@ class WireFormatError(ValueError):
     """Trama que no cumple el contrato. Nunca se ignora en silencio."""
 
 
+class DegenerateRadialError(ValueError):
+    """Radial bien formado pero inservible: no barre azimut alguno.
+
+    Deliberadamente NO es un `WireFormatError`, y la diferencia importa: una
+    trama mal formada deja el flujo de bytes desincronizado y obliga a cerrar
+    la conexion, mientras que esto es un mensaje intacto cuyo contenido no
+    sirve. El flujo sigue en sincronia, asi que el radial se descarta y se
+    cuenta, pero el enlace no se corta.
+
+    Ancho cero no es archivable como Level-II ni aceptable para el feed a
+    ORPG (ver PEND-RCP-12), asi que tampoco se puede dejar pasar: descartar y
+    contar es el punto medio.
+
+    Un radial con la antena parada (modos POINT/MANUAL) cae legitimamente
+    aqui. Cuando esos modos se soporten de verdad habra que distinguirlos por
+    `sweep_mode` en vez de por la geometria, que es lo unico que se puede
+    mirar hoy."""
+
+
 def parse_frame_header(data: bytes) -> wire.Header:
     """Valida y devuelve la cabecera comun de 12 B.
 
@@ -192,7 +211,7 @@ def decode_moment_ray(body: bytes) -> RadialMoments:
         ray.az_start_deg, ray.az_end_deg
     )
     if azimuth_width_deg <= 0.0:
-        raise WireFormatError(
+        raise DegenerateRadialError(
             "el radial no barre azimut alguno: az_start y az_end coinciden"
         )
 
@@ -252,3 +271,19 @@ def encode_control(seq: int, command: int) -> bytes:
     """Mandato del plano de control; ver `wire.Command`."""
     body = wire.Control(seq=seq, command=command).pack()
     return frame(wire.MsgType.CONTROL, body)
+
+
+def encode_config(config: "wire.Config") -> bytes:
+    """Configuracion completa del DSP.
+
+    Hasta ahora este repo solo emitia `control` y `selftest_request`, asi que
+    no habia forma de llevar al DSP de `setup` a `running` y, por tanto,
+    ninguna de recibir momentos de un DSP real. El `Config` se construye
+    fuera: este modulo solo pone el cable.
+
+    Quien decide los valores sigue sin estar resuelto en producto -- el mapeo
+    Scan Worksheet -> `Config` es PEND-RCP-10. El banco de integracion
+    (`tools/hil/`) usa mientras tanto un perfil fijo, que no pretende ser ese
+    mapeo.
+    """
+    return frame(wire.MsgType.CONFIG, config.pack())
