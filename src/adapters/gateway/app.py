@@ -40,7 +40,7 @@ from adapters.dsp import MomentStreamReceiver
 from adapters.hal_sim import SimulatedHAL
 from adapters.hal_sim.signal_catalog import CATALOG
 from core.bite import BiteManager
-from core.contracts.bite import BiteTransition
+from core.contracts.bite import BiteEvent, BiteTransition
 from core.contracts.common import SignalQuality
 from core.contracts.control import RoutineOutcome, RoutineResult
 from core.contracts.mmi import (
@@ -196,20 +196,40 @@ def create_app(
     measured_radar_constant_path: Path = Path("data/measured_radar_constant.json"),
     tx_sampling_adjust_path: Path = Path("data/tx_sampling_adjust.json"),
 ) -> FastAPI:
+    async def _emit_bite_event(app: FastAPI, event: BiteEvent) -> None:
+        now = datetime.now(timezone.utc)
+        if event.transition is BiteTransition.FAULT:
+            app.state.bite_since_wall[event.signal_id] = now
+        else:
+            app.state.bite_since_wall.pop(event.signal_id, None)
+        await _broadcast(
+            app,
+            BiteEventMessage(signal_id=event.signal_id, transition=event.transition, detail=event.detail, at_wall=now),
+        )
+
     async def _bite_poll_loop(app: FastAPI) -> None:
         while True:
             try:
                 events = await app.state.bite.poll(hal)
-                now = datetime.now(timezone.utc)
                 for event in events:
-                    if event.transition is BiteTransition.FAULT:
-                        app.state.bite_since_wall[event.signal_id] = now
-                    else:
-                        app.state.bite_since_wall.pop(event.signal_id, None)
-                    await _broadcast(
-                        app,
-                        BiteEventMessage(signal_id=event.signal_id, transition=event.transition, detail=event.detail, at_wall=now),
-                    )
+                    await _emit_bite_event(app, event)
+            except (ConnectionError, RuntimeError):
+                pass
+            try:
+                # Segunda fuente de BiteEvent (PEND-RCP-14): sucesos del DSP ya
+                # decodificados por MomentStreamReceiver. dsp_bite_events_total
+                # solo crece, asi que la resta contra el ultimo valor visto da
+                # cuantos son nuevos sin necesitar cola propia; se limita al
+                # tamano del deque por si se acumularon mas de DSP_BITE_HISTORY
+                # entre dos pasadas de este loop (los mas viejos ya se perdieron
+                # ahi, no aqui).
+                dsp_total = dsp.dsp_bite_events_total
+                pending = min(dsp_total - app.state.dsp_bite_consumed, len(dsp.dsp_bite_events))
+                if pending > 0:
+                    new_dsp_events = list(dsp.dsp_bite_events)[-pending:]
+                    app.state.dsp_bite_consumed = dsp_total
+                    for dsp_event in new_dsp_events:
+                        await _emit_bite_event(app, app.state.bite.ingest_dsp_event(dsp_event))
             except (ConnectionError, RuntimeError):
                 pass
             await asyncio.sleep(BITE_POLL_PERIOD_S)
@@ -285,6 +305,9 @@ def create_app(
     # reloj monotono (core, "dos relojes"), esta es la asignada por el gateway al
     # cruzar la frontera hacia la MMI, igual que ControlAuthorityState.since_wall.
     app.state.bite_since_wall: dict[str, datetime] = {}
+    # Cuantos DspBiteEvent de `dsp.dsp_bite_events_total` ya se tradujeron e
+    # inyectaron en `app.state.bite` (ver `_bite_poll_loop`) -- PEND-RCP-14.
+    app.state.dsp_bite_consumed = 0
     # Scan Worksheet manual (plan Sec.8.2 Fase 2, core/contracts/scan.py):
     # persistido a un JSON en disco (`scan_worksheet_path`, `data/` gitignored --
     # un solo operador/instancia, sin necesidad de DB). Se carga una vez al

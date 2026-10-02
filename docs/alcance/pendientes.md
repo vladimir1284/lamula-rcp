@@ -518,10 +518,10 @@ semanas DRx, 34 DSP, 34 RCP). Ver también la nota correspondiente en
 
 ### PEND-RCP-14 · Este repo no consume el `status`/`bite_event` del contrato DSP↔RCP { #pend-rcp-14 }
 
-**Estado:** abierto, a medias desde 2026-09-28 · identificado 2026-09-17 (hallazgo de la Fase C de
-PEND-RCP-13) · **Dueño:** este repo · **Bloquea:** que el operador vea en la MMI fallos reales de
-la cadena DRx/DSP (`ssa_underruns`, `dma_overruns`, `ssi_errors`, `ddc_overflows`, `bite_flags`)
-en vez de solo los fallos Modbus de `radar_emulator`.
+**Estado:** resuelto 2026-10-02 (ver condición de cierre más abajo) · identificado 2026-09-17
+(hallazgo de la Fase C de PEND-RCP-13) · **Dueño:** este repo · **Bloqueaba:** que el operador vea
+en la MMI fallos reales de la cadena DRx/DSP (`ssa_underruns`, `dma_overruns`, `ssi_errors`,
+`ddc_overflows`, `bite_flags`) en vez de solo los fallos Modbus de `radar_emulator`.
 
 !!! success "2026-09-28: los dos mensajes ya se decodifican y se guardan"
     Montar el [banco C0](../implementacion/banco-c0.md) obligó a mirar esto de cerca, y la
@@ -535,14 +535,35 @@ en vez de solo los fallos Modbus de `radar_emulator`.
     código es lo que se historia—, pero una severidad fuera del catálogo sí es error de trama: no
     se inventa un valor.
 
-    **Lo que sigue abierto, y es la parte de producto:** nada de esto llega todavía a la MMI, y no
-    se ha decidido cómo convive con `core/bite/manager.py`. No son el mismo modelo —
+    **Lo que seguía abierto, y era la parte de producto:** nada de esto llegaba todavía a la MMI, y
+    no se había decidido cómo convive con `core/bite/manager.py`. No son el mismo modelo —
     `core.contracts.bite.BiteEvent` es una transición sana/en-falla de una señal Modbus con
     `signal_id`; `DspBiteEvent` es un suceso puntual con código, valor y texto libre— así que
     fundirlos exige inventar un `signal_id` por cada código del DSP y una equivalencia de
     severidades que nadie ha decidido. Además el contrato define el campo `subsystem` (`u8`) pero
     **no publica la enumeración de sus valores**: pedirla al equipo del DSP es parte de cerrar
     esto.
+
+!!! success "2026-10-02: `BiteManager` ya tiene segunda fuente, `bite_event` del DSP llega a la MMI"
+    `core/bite/manager.py::BiteManager.ingest_dsp_event` traduce cada `DspBiteEvent` a un
+    `BiteEvent` normal, con `signal_id` sintético `dsp.<subsystem>.<code>` (el entero crudo, sin
+    catálogo) y `transition` según `DSP_SEVERITY_IS_FAULT` (`FAULT`/`CONFIG_ERROR` → `fault`,
+    `INFO`/`WARNING` → `cleared`). Comparte `_history`/`_active_faults` con las transiciones Modbus
+    — `history(subsystem="dsp")` las filtra igual que `"tx"`/`"rx"`/etc.
+
+    El gateway (`_bite_poll_loop`, `adapters/gateway/app.py`) drena
+    `dsp.dsp_bite_events_total` (contador nuevo en `MomentStreamReceiver`, nunca decrece, a
+    diferencia del deque `dsp_bite_events` que descarta pasado `DSP_BITE_HISTORY`) e inyecta cada
+    suceso nuevo con `ingest_dsp_event`, reusando el mismo `BiteEventMessage`/`_broadcast` que ya
+    usaban las transiciones Modbus. **Cero cambios en la MMI**: `BiteMessagesView.vue` ya
+    consumía `BiteEventMessage` por WS sin filtrar por prefijo de `signal_id`, así que renderiza
+    los eventos `dsp.*` sin tocar ese código.
+
+    **Lo que no cierra esto, es invención marcada como tal (`PEND-RCP-19`):** la equivalencia
+    severidad→fault/cleared y el propio número de `subsystem` no están confirmados por el equipo
+    DSP. También asume que un suceso `INFO`/`WARNING` repitiendo el mismo `(subsystem, code)` de un
+    `FAULT` previo significa "se resolvió" — el contrato no tiene un campo "cleared" explícito, es
+    la misma apuesta que ya se documentó en el código.
 
 El contrato `dsp_rcp` (`lamula-dsp/contract/schema/dsp_rcp_v0_1.toml`) define mensajes `status`
 (`up`, periódico) y `bite_event` (`up`) con exactamente ese propósito. `src/core/bite/manager.py`
@@ -722,3 +743,13 @@ línea por línea, no variante propia.
 ### PEND-RCP-18 · G4 Single Point Calibration, constante medida no se integra con G7 (Radar Constant Parameters) { #pend-rcp-18 }
 
 G4 (`single_point_calibration_auto.py`) mide o calcula una constante de radar en dB directamente (inyección + medición), mientras que G7 (`RadarConstantView.vue`, `RadarConstantParameters`/`compute_radar_constant_db` en `src/adapters/gateway/app.py`) deriva la constante que efectivamente se envía en la cabecera de radiales hacia el DSP/DRX a partir de parámetros geométricos/de pérdidas -- son dos mecanismos distintos para llegar al mismo número, y hoy no hay forma de que uno alimente al otro. Como fix de la revisión del PR de G4 se agregó una persistencia mínima e independiente (`MeasuredRadarConstant`, `POST /api/control/single-point-calibration/{job_id}/save-result`, `data/measured_radar_constant.json`) para no dejar "Guardar Parámetros" mintiendo sobre qué se persiste, pero queda sin resolver si/cómo ese valor medido debería: (a) sobrescribir `radar_constant_db` operacional, (b) ajustar automáticamente algún parámetro de G7 (p. ej. `rx_losses_db`), o (c) quedar solo como referencia de validación cruzada en el log G8. Discutir con el product expert antes de construir G7 sobre el supuesto de que ya están integrados.
+
+### PEND-RCP-19 · Equivalencia severidad DSP→fault/cleared y catálogo de `subsystem` sin confirmar { #pend-rcp-19 }
+
+**Estado:** abierto, identificado 2026-10-02 (cierre de PEND-RCP-14) · **Dueño:** equipo DSP (confirmar) + este repo (aplicar).
+
+`core/bite/manager.py::DSP_SEVERITY_IS_FAULT` mapea `DspSeverity.FAULT`/`CONFIG_ERROR` → `BiteTransition.FAULT` y `INFO`/`WARNING` → `CLEARED`, para poder fundir `DspBiteEvent` con el modelo binario fault/cleared de `BiteEvent` (`ingest_dsp_event`). El contrato `dsp_rcp` no define una semántica "cleared" explícita para `bite_event`, así que esta equivalencia -- incluyendo la apuesta de que un `INFO`/`WARNING` repitiendo el mismo `(subsystem, code)` de un `FAULT` previo significa que se resolvió -- es una decisión de este repo, no algo confirmado por el proyecto DSP.
+
+Además, `signal_id` sintético usa `subsystem` como entero crudo (`dsp.<subsystem>.<code>`) porque el contrato define el campo (`u8`) pero no publica la enumeración de sus valores -- el operador ve un número, no un nombre de subsistema.
+
+**Condición de cierre:** pedir al equipo `lamula-dsp` (a) la enumeración de `subsystem` y (b) si existe o se puede definir una forma explícita de marcar un `bite_event` como resuelto (en vez de inferirlo de la severidad del siguiente suceso con el mismo código). Hasta entonces, no tratar el mapeo actual como semántica confirmada del hardware.

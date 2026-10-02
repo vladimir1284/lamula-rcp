@@ -37,7 +37,20 @@ from collections import deque
 
 from core.contracts.bite import BiteEvent, BiteTransition
 from core.contracts.common import MonotonicMicros
+from core.contracts.dsp import DspBiteEvent, DspSeverity
 from core.contracts.hal import HardwareAbstractionLayer, SignalId
+
+#: Mapeo severidad DSP -> transicion BITE binaria. Inventado (PEND-RCP-19):
+#: el contrato DSP no define una severidad "cleared", asi que INFO/WARNING se
+#: tratan como no-falla y FAULT/CONFIG_ERROR como falla. Nadie del lado DSP
+#: ha confirmado esta equivalencia -- es la decision que PEND-RCP-14 dejaba
+#: abierta. Revisar si el equipo DSP confirma o corrige el mapeo.
+DSP_SEVERITY_IS_FAULT: dict[DspSeverity, bool] = {
+    DspSeverity.INFO: False,
+    DspSeverity.WARNING: False,
+    DspSeverity.FAULT: True,
+    DspSeverity.CONFIG_ERROR: True,
+}
 
 # True: la senal esta sana cuando su lectura vale True (patron "*_ok_status").
 # False: la senal esta sana cuando su lectura vale False (patron "*_fault_status",
@@ -102,6 +115,33 @@ class BiteManager:
                     self._active_faults.pop(signal_id, None)
             self._was_healthy[signal_id] = healthy_now
         return new_events
+
+    def ingest_dsp_event(self, event: DspBiteEvent) -> BiteEvent:
+        """Traduce un `DspBiteEvent` (suceso puntual del pipeline DSP) a un
+        `BiteEvent` de esta clase, segunda fuente junto al poll de Modbus
+        (PEND-RCP-14). `signal_id` es sintetico -- `dsp.<subsystem>.<code>`,
+        donde `subsystem` es el entero crudo del contrato (sin catalogo
+        publicado, PEND-RCP-19) -- no una senal real del HAL, asi que esta
+        entrada nunca aparece en `poll()` ni se ve afectada por el, pero si
+        comparte `_history`/`_active_faults` con las transiciones Modbus.
+
+        Sin mecanismo de "cleared" explicito en el contrato DSP: dos sucesos
+        seguidos con el mismo `(subsystem, code)` y severidad FAULT seguida de
+        INFO/WARNING se interpretan como fallo y su resolucion -- no hay forma
+        de confirmar que el DSP lo use asi, es la misma apuesta documentada en
+        `DSP_SEVERITY_IS_FAULT`.
+        """
+
+        signal_id: SignalId = f"dsp.{event.subsystem}.{event.code}"
+        transition = BiteTransition.FAULT if DSP_SEVERITY_IS_FAULT[event.severity] else BiteTransition.CLEARED
+        detail = f"severity={event.severity.value} value={event.value} text={event.text!r} event_time_utc={event.event_time_utc.isoformat()}"
+        bite_event = BiteEvent(signal_id=signal_id, transition=transition, detail=detail, at_us=_now_us())
+        self._history.append(bite_event)
+        if transition is BiteTransition.FAULT:
+            self._active_faults[signal_id] = bite_event
+        else:
+            self._active_faults.pop(signal_id, None)
+        return bite_event
 
     def active_faults(self) -> list[BiteEvent]:
         return list(self._active_faults.values())

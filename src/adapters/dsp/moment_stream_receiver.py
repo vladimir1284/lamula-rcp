@@ -80,6 +80,11 @@ class MomentStreamReceiver:
         # `core/bite/manager.py`, sigue sin decidirse -- son modelos
         # distintos, ver `DspBiteEvent`.
         self.dsp_bite_events: deque[DspBiteEvent] = deque(maxlen=DSP_BITE_HISTORY)
+        # Contador total de sucesos recibidos (nunca decrece, a diferencia del
+        # deque de arriba que descarta mas alla de DSP_BITE_HISTORY) -- es lo
+        # que permite a un consumidor (gateway) saber cuantos son nuevos desde
+        # su ultima lectura sin necesitar su propia cola/lock.
+        self.dsp_bite_events_total = 0
         self._latest: RadialMoments | None = None
         self._latest_status: wire.Status | None = None
         self._latest_config: wire.Config | None = None
@@ -220,6 +225,7 @@ class MomentStreamReceiver:
                     self.other_messages_received += 1
                 elif msg_type == wire.MsgType.BITE_EVENT:
                     self.dsp_bite_events.append(decode_bite_event(body))
+                    self.dsp_bite_events_total += 1
                     self.other_messages_received += 1
                 else:
                     # config_ack, capabilities, selftest_result... son
