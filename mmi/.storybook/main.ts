@@ -14,6 +14,12 @@ const config: StorybookConfig = {
     // Air-gapped target (D-09) -- no phone-home, no Chromatic dependency. The build this produces
     // is a static bundle (`pnpm build-storybook`), nothing that needs a service or license key.
     disableTelemetry: true,
+    // Storybook valida el Host header en su propio servidor (no sólo en el
+    // de Vite) y por default sólo acepta localhost/IP -- rechaza con 403
+    // cualquier dominio detrás de un túnel (cloudflared quick, ngrok, etc).
+    // Comodín de subdominio: cada corrida de `cloudflared tunnel --url` saca
+    // un *.trycloudflare.com al azar.
+    allowedHosts: ['.trycloudflare.com'],
   },
   viteFinal: async (viteConfig) => {
     viteConfig.plugins ??= []

@@ -15,7 +15,7 @@ withDefaults(
 </script>
 
 <template>
-  <div class="flex flex-wrap items-center gap-4 text-sm">
+  <div class="flex flex-wrap items-center gap-4 text-sm font-mono tabular-nums">
     <template v-if="antenna">
       <span>
         az: {{ antenna.az_deg.toFixed(2) }}°

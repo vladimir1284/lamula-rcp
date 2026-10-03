@@ -50,7 +50,7 @@ defineEmits<{
   <div class="flex flex-col gap-2">
     <div class="flex flex-wrap items-center gap-2">
       <slot name="params" />
-      <Button :disabled="runDisabled || busy" @click="$emit('run')">
+      <Button variant="ok" :disabled="runDisabled || busy" @click="$emit('run')">
         {{ busy && runningLabel ? runningLabel : runLabel }}
       </Button>
       <Button v-if="busy" variant="destructive" :disabled="!jobId" @click="$emit('cancel')">

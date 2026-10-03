@@ -10,6 +10,7 @@ import EnvironmentBadge from './EnvironmentBadge.vue'
 import IndicatorBar from './IndicatorBar.vue'
 import AlarmSummaryButton from './AlarmSummaryButton.vue'
 import ClockPair from './ClockPair.vue'
+import ThemeToggle from './ThemeToggle.vue'
 import type { ControlAuthorityState, MaintenanceState } from '@/types/mmi'
 import type { IndicatorState, LampState } from '@/types/shell'
 
@@ -84,6 +85,7 @@ const mantTooltip = computed(() => {
       <IndicatorBar :indicators="indicators" />
       <AlarmSummaryButton :worst="alarmWorst" :count="alarmCount" @open="$emit('open-alarms')" />
       <ClockPair />
+      <ThemeToggle />
     </div>
   </div>
 </template>

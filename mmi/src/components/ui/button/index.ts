@@ -14,6 +14,15 @@ export const buttonVariants = cva(
         ghost: 'hover:bg-muted hover:text-foreground dark:hover:bg-muted/50 aria-expanded:bg-muted aria-expanded:text-foreground',
         destructive: 'bg-destructive/10 hover:bg-destructive/20 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/20 text-destructive focus-visible:border-destructive/40 dark:hover:bg-destructive/30',
         link: 'text-primary underline-offset-4 hover:underline',
+        // Variantes semánticas (docs/diseno/inventario-ui.md §Requisitos
+        // transversales #1 -- misma escala ok/warn que IndicatorLamp,
+        // TrafficLight, etc). Mismo estilo "soft" que destructive: fondo
+        // tenue + texto de color, no relleno sólido -- la acción primaria
+        // neutra (`default`) sigue siendo la que más llama la atención.
+        // `ok` = acción segura de ejecutar (arrancar rutina); `warn` =
+        // acción que requiere atención antes de tocarla.
+        ok: 'bg-state-ok/10 hover:bg-state-ok/20 focus-visible:ring-state-ok/20 dark:focus-visible:ring-state-ok/40 dark:bg-state-ok/20 text-state-ok focus-visible:border-state-ok/40 dark:hover:bg-state-ok/30',
+        warn: 'bg-state-warn/10 hover:bg-state-warn/20 focus-visible:ring-state-warn/20 dark:focus-visible:ring-state-warn/40 dark:bg-state-warn/20 text-state-warn focus-visible:border-state-warn/40 dark:hover:bg-state-warn/30',
       },
       size: {
         'default': 'h-8 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2',

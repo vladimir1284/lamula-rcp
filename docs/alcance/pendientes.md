@@ -753,3 +753,9 @@ G4 (`single_point_calibration_auto.py`) mide o calcula una constante de radar en
 Además, `signal_id` sintético usa `subsystem` como entero crudo (`dsp.<subsystem>.<code>`) porque el contrato define el campo (`u8`) pero no publica la enumeración de sus valores -- el operador ve un número, no un nombre de subsistema.
 
 **Condición de cierre:** pedir al equipo `lamula-dsp` (a) la enumeración de `subsystem` y (b) si existe o se puede definir una forma explícita de marcar un `bite_event` como resuelto (en vez de inferirlo de la severidad del siguiente suceso con el mismo código). Hasta entonces, no tratar el mapeo actual como semántica confirmada del hardware.
+
+### PEND-RCP-20 · No existe señal de aceleración angular (az/el) en ningún punto del sistema { #pend-rcp-20 }
+
+`AntennaPosition` (`mmi/src/types/mmi.ts`) expone `az_deg`/`el_deg` (posición) y `az_rate_deg_s`/`el_rate_deg_s` (velocidad), pero no aceleración -- ni como campo del tipo, ni como señal Modbus en `hal_sim/signal_catalog`, ni leída por ningún adaptador. El concepto existe únicamente como parámetro interno no confirmado del simulador (`accel_deg_s2`, mencionado en comentarios de `antenna_positioning.py:32` y `antenna_movement.py:68` como límite de desaceleración del bloque físico `axis`), nunca expuesto como telemetría real.
+
+El diseño de la MMI (`AntennaControlView.vue`, cards de eje AZ/EL, `AntennaAngleDial.vue`) deja un lugar reservado para "ACELERACIÓN" junto a velocidad angular, mostrado como "sin señal" en vez de inventar un valor -- mismo criterio que PEND-RCP-07 (sin ganancia volt→grados/s confirmada). Confirmar con el proyecto DRX si existe o puede agregarse una señal Modbus real de aceleración antes de completar ese campo.

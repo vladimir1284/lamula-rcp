@@ -79,9 +79,23 @@
     --color-data-width-2: var(--data-width-2);
     --color-data-width-3: var(--data-width-3);
     --color-data-width-4: var(--data-width-4);
+
+    /* Acento de telemetría en vivo -- único uso: el vector/lectura actual de
+       un dial angular (AntennaAngleDial). Distinto de la escala de estado
+       (ok/warn/fault/disabled/simulated) y de las paletas de dato de scope:
+       esto no codifica una condición, marca "esto es la lectura real en
+       vivo" dentro del chrome de UI, que por lo demás es deliberadamente
+       monocromo. */
+    --color-telemetry-live: var(--telemetry-live);
 }
 
 :root {
+    /* Sin esto, los controles nativos (<select>, scrollbar) siguen pintando
+       con la paleta clara del motor del navegador aunque --background/
+       --foreground ya sean oscuros -- texto negro sobre fondo oscuro,
+       invisible. El <select> crudo de PanelFrame.vue es el caso real que
+       lo expuso. */
+    color-scheme: light;
     --background: oklch(1 0 0);
     --foreground: oklch(0.145 0 0);
     --card: oklch(1 0 0);
@@ -105,7 +119,10 @@
     --chart-3: oklch(0.439 0 0);
     --chart-4: oklch(0.371 0 0);
     --chart-5: oklch(0.269 0 0);
-    --radius: 0.625rem;
+    /* Industrial/console tightening: radios más cerrados que el default de
+       shadcn (0.625rem) -- menos "app móvil redondeada", más panel de
+       control. Afecta cada Button/Card/Input de la app vía @theme inline. */
+    --radius: 0.375rem;
     --sidebar: oklch(0.985 0 0);
     --sidebar-foreground: oklch(0.145 0 0);
     --sidebar-primary: oklch(0.205 0 0);
@@ -152,9 +169,12 @@
     --data-width-2: oklch(0.46 0.16 290);
     --data-width-3: oklch(0.64 0.19 290);
     --data-width-4: oklch(0.78 0.12 290);
+
+    --telemetry-live: oklch(0.52 0.13 200);
 }
 
 .dark {
+    color-scheme: dark;
     --background: oklch(0.145 0 0);
     --foreground: oklch(0.985 0 0);
     --card: oklch(0.205 0 0);
@@ -188,6 +208,7 @@
     --sidebar-ring: oklch(0.556 0 0);
 
     --state-simulated: #9085e9;
+    --telemetry-live: oklch(0.78 0.15 200);
 }
 
 @layer base {
@@ -235,12 +256,12 @@
   /* Nominal vs actual (docs/diseno/inventario-ui.md §2): one pattern, reused
      everywhere a requested value and a live hardware value can differ. */
   .value-nominal {
-    @apply text-muted-foreground;
+    @apply text-muted-foreground font-mono;
     font-variant-numeric: tabular-nums;
     border-bottom: 1px dashed var(--muted-foreground);
   }
   .value-actual {
-    @apply text-foreground;
+    @apply text-foreground font-mono;
     font-variant-numeric: tabular-nums;
     font-weight: 600;
   }
@@ -249,5 +270,13 @@
     outline: 1px solid var(--state-warn);
     outline-offset: 2px;
     border-radius: var(--radius-sm);
+  }
+
+  /* Legibilidad de valores importantes (docs/diseno/inventario-ui.md): todo
+     input numérico -- setpoints, ganancias, tolerancias -- en monoespaciado
+     tabular. Global a propósito: un operador lee cifras precisas en
+     decenas de campos por toda la MMI, no sólo en esta vista. */
+  input[type='number'] {
+    @apply font-mono tabular-nums;
   }
 }

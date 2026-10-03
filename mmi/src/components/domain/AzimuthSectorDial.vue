@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { BlankingSector } from '@/types/mmi'
+import { polarToCartesian } from '@/lib/polar'
 
 const props = withDefaults(
   defineProps<{
@@ -27,14 +28,6 @@ const SECTOR_COLORS = [
   '#c084fc', // purple-400
   '#f472b6', // pink-400
 ]
-
-function polarToCartesian(cx: number, cy: number, radius: number, angleDeg: number) {
-  const rad = (angleDeg * Math.PI) / 180.0
-  return {
-    x: cx + radius * Math.sin(rad),
-    y: cy - radius * Math.cos(rad),
-  }
-}
 
 function describeAnnularSector(
   cx: number,

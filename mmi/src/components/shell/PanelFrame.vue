@@ -52,7 +52,7 @@ const activeExportData = computed(() => {
   <div class="flex h-full min-h-0 flex-col overflow-hidden rounded-md border border-border">
     <div class="flex items-center gap-1.5 border-b border-border bg-card px-2 py-1">
       <select
-        class="min-w-0 flex-1 rounded-sm border border-border bg-background px-1.5 py-1 text-xs"
+        class="min-w-0 flex-1 rounded-sm border border-border bg-background px-1.5 py-1 text-xs text-foreground"
         :value="viewId ?? ''"
         @change="$emit('update:viewId', ($event.target as HTMLSelectElement).value)"
       >

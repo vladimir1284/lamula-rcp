@@ -5,6 +5,20 @@
     <link rel="icon" href="/favicon.ico">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>lamula-rcp MMI</title>
+    <script>
+      // Tema ternable (useTheme.ts), no cableado -- pero el default real es
+      // oscuro (sala de operación nocturna), y esto decide la clase ANTES
+      // del primer paint para no arrancar en claro y parpadear a oscuro.
+      // Sincronizado a mano con useTheme.ts (misma STORAGE_KEY) porque acá
+      // corre antes de que Vue/el bundle exista.
+      try {
+        if (localStorage.getItem('lamula-rcp:theme') !== 'light') {
+          document.documentElement.classList.add('dark')
+        }
+      } catch {
+        document.documentElement.classList.add('dark')
+      }
+    </script>
   </head>
   <body>
     <div id="app"></div>

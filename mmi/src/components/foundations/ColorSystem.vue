@@ -4,6 +4,8 @@
 // resto del diseño consulta y contra la que se corre validate_palette.js.
 // Ver notas de validación (ΔE, contraste) en el pie de cada bloque -- son
 // resultado de cálculo (script dataviz), no estimación visual.
+import { Button } from '@/components/ui/button'
+import LevelBar from '@/components/domain/LevelBar.vue'
 
 const states = [
   { key: 'ok', label: 'OK', class: 'bg-state-ok', note: 'Contraste 5.8:1 sobre scope oscuro' },
@@ -84,6 +86,47 @@ const width = ['bg-data-width-1', 'bg-data-width-2', 'bg-data-width-3', 'bg-data
       <p class="mt-1 text-[10px] text-muted-foreground">
         Guionado + gris = pedido. Sólido + negrita = en uso. Contorno warn = difieren más allá de tolerancia.
       </p>
+    </section>
+
+    <section>
+      <h2 class="mb-1 text-sm font-semibold">Acento de telemetría en vivo</h2>
+      <p class="mb-3 text-xs text-muted-foreground">
+        Único uso: el vector/lectura actual de un dial angular (<code>AntennaAngleDial</code>).
+        No es la escala de estado ni una paleta de dato -- marca "esto es la lectura real en
+        vivo" dentro de un chrome de UI deliberadamente monocromo.
+      </p>
+      <div class="flex items-center gap-4 text-sm">
+        <span class="font-mono text-xl font-bold tabular-nums text-telemetry-live">123.40°</span>
+        <div class="h-10 w-10 rounded-full bg-telemetry-live" />
+      </div>
+    </section>
+
+    <section>
+      <h2 class="mb-1 text-sm font-semibold">Botones semánticos</h2>
+      <p class="mb-3 text-xs text-muted-foreground">
+        Mismo estilo "soft" que <code>destructive</code>: fondo tenue + texto de color, nunca
+        relleno sólido -- la acción primaria neutra (<code>default</code>) sigue siendo la que
+        más llama la atención. <code>ok</code> para "seguro de ejecutar", <code>warn</code> para
+        "requiere atención antes de tocar".
+      </p>
+      <div class="flex flex-wrap gap-2">
+        <Button variant="default">Ejecutar (default)</Button>
+        <Button variant="ok">Ejecutar (ok)</Button>
+        <Button variant="warn">Confirmar (warn)</Button>
+        <Button variant="destructive">Detener (destructive)</Button>
+      </div>
+    </section>
+
+    <section>
+      <h2 class="mb-1 text-sm font-semibold">Barra de nivel</h2>
+      <p class="mb-3 text-xs text-muted-foreground">
+        Magnitud acotada [min, max] con tono semántico. Primer uso real: distancia a setpoint vs
+        tolerancia en Posicionar (AntennaControlView.vue).
+      </p>
+      <div class="flex max-w-xs flex-col gap-3">
+        <LevelBar label="Dentro de tolerancia" :value="0.02" :max="0.1" tone="ok" unit="°" />
+        <LevelBar label="Fuera de tolerancia" :value="0.09" :max="0.1" tone="warn" unit="°" />
+      </div>
     </section>
 
     <section>

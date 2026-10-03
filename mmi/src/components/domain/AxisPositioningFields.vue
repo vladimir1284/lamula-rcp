@@ -38,6 +38,7 @@ function update<K extends keyof AxisPositioningParams>(
 <template>
   <div class="flex flex-col gap-2">
     <span v-if="axisLabel" class="text-xs font-medium text-muted-foreground">{{ axisLabel }}</span>
+    <div class="grid grid-cols-2 gap-2">
     <label class="flex flex-col gap-1 text-xs">
       gain_v_per_deg
       <Input
@@ -74,5 +75,6 @@ function update<K extends keyof AxisPositioningParams>(
         @update:model-value="$emit('update:modelValue', update(modelValue, 'timeout_s', $event))"
       />
     </label>
+    </div>
   </div>
 </template>
